@@ -456,12 +456,12 @@ export default function GalleryPage() {
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 text-xs text-muted-foreground text-center">
-          {siteData.footer.email && <a href={`mailto:${siteData.footer.email}`} className="hover:text-primary transition-colors">{siteData.footer.email}</a>}
-          {siteData.footer.phone && <span dir="ltr">{siteData.footer.phone}</span>}
-          {siteData.footer.website && <a href={siteData.footer.website.startsWith('http') ? siteData.footer.website : `https://${siteData.footer.website}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">{siteData.footer.website}</a>}
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
+          {siteData.footer.email && <a href={`mailto:${siteData.footer.email}`} className="hover:text-foreground transition-colors whitespace-nowrap">{siteData.footer.email}</a>}
+          {siteData.footer.phone && <span dir="ltr" className="whitespace-nowrap font-mono">{siteData.footer.phone}</span>}
+          {siteData.footer.website && <a href={siteData.footer.website.startsWith('http') ? siteData.footer.website : `https://${siteData.footer.website}`} target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors whitespace-nowrap">{siteData.footer.website}</a>}
           {(isAr ? siteData.footer.noteAr : siteData.footer.noteEn) && (
-            <span className="opacity-70 arabic">{isAr ? siteData.footer.noteAr : siteData.footer.noteEn}</span>
+            <span className="arabic whitespace-nowrap">{isAr ? siteData.footer.noteAr : siteData.footer.noteEn}</span>
           )}
         </div>
       </footer>
