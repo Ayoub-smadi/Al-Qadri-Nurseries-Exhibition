@@ -370,10 +370,29 @@ export default function GalleryPage() {
             ? <InlineEdit value={siteData.titleEn} onSave={v => updateSiteData({ titleEn: v })} className="latin tracking-widest uppercase" />
             : siteData.titleEn}
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-14 h-px bg-primary/40" />
           <div className="w-2 h-2 rounded-full bg-primary/60" />
           <div className="w-14 h-px bg-primary/40" />
+        </div>
+
+        {/* Owner Photo */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden ring-4 ring-primary/30 shadow-xl">
+            <img
+              src="/owner.png"
+              alt="مهندس ثامر القادري"
+              className="w-full h-full object-cover object-top"
+            />
+          </div>
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="text-lg md:text-xl font-bold arabic text-foreground tracking-wide">
+              مهندس ثامر القادري
+            </p>
+            <p className="text-xs text-muted-foreground latin tracking-widest uppercase">
+              Eng. Thamer Al-Qadri
+            </p>
+          </div>
         </div>
       </header>
 
