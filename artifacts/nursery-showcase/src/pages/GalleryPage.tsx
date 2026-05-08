@@ -424,12 +424,12 @@ export default function GalleryPage() {
 
             {/* Phone */}
             <a
-              href="tel:07777772211"
+              href="tel:0777772211"
               className="flex items-center gap-2 hover:opacity-70 transition-opacity latin ltr"
               dir="ltr"
             >
               <span className="text-base">📞</span>
-              <span className="text-base font-mono font-semibold tracking-widest text-foreground">07777772211</span>
+              <span className="text-base font-mono font-semibold tracking-widest text-foreground">0777772211</span>
             </a>
           </div>
         </div>
