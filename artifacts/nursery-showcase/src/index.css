@@ -10,127 +10,91 @@
   --color-ring: hsl(var(--ring));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
-  --color-card-border: hsl(var(--card-border));
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-popover-border: hsl(var(--popover-border));
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-primary-border: var(--primary-border);
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-secondary-border: var(--secondary-border);
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-muted-border: var(--muted-border);
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-accent-border: var(--accent-border);
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-destructive-border: var(--destructive-border);
   --font-sans: var(--app-font-sans);
-  --font-serif: var(--app-font-serif);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ── LIGHT MODE ── */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 165 35% 10%;
-  --border: 44 15% 88%;
-  --input: 44 15% 88%;
+  --background: 40 20% 97%;
+  --foreground: 165 35% 8%;
+  --border: 44 15% 86%;
+  --input: 44 15% 86%;
   --ring: 27 80% 52%;
   --card: 0 0% 100%;
-  --card-foreground: 165 35% 10%;
-  --card-border: 44 15% 88%;
+  --card-foreground: 165 35% 8%;
   --popover: 0 0% 100%;
-  --popover-foreground: 165 35% 10%;
-  --popover-border: 44 15% 88%;
+  --popover-foreground: 165 35% 8%;
   --primary: 27 80% 52%;
   --primary-foreground: 0 0% 100%;
-  --primary-border: hsl(27 70% 42%);
-  --secondary: 44 20% 96%;
-  --secondary-foreground: 165 35% 10%;
-  --secondary-border: hsl(44 15% 88%);
-  --muted: 44 15% 95%;
+  --secondary: 44 20% 94%;
+  --secondary-foreground: 165 35% 8%;
+  --muted: 44 15% 93%;
   --muted-foreground: 165 15% 40%;
-  --muted-border: hsl(44 15% 88%);
   --accent: 27 50% 93%;
-  --accent-foreground: 165 35% 10%;
-  --accent-border: hsl(27 35% 82%);
+  --accent-foreground: 165 35% 8%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --destructive-border: hsl(0 74% 50%);
   --app-font-sans: 'Cormorant Garamond', serif;
-  --app-font-serif: 'Cormorant Garamond', serif;
-  --app-font-arabic: 'Cairo', sans-serif;
   --radius: 0.75rem;
 }
 
+/* ── DARK MODE ── */
+.dark {
+  --background: 165 25% 7%;
+  --foreground: 44 20% 92%;
+  --border: 165 15% 18%;
+  --input: 165 15% 18%;
+  --ring: 27 80% 55%;
+  --card: 165 20% 10%;
+  --card-foreground: 44 20% 92%;
+  --popover: 165 20% 10%;
+  --popover-foreground: 44 20% 92%;
+  --primary: 27 80% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 165 15% 14%;
+  --secondary-foreground: 44 20% 92%;
+  --muted: 165 15% 13%;
+  --muted-foreground: 44 10% 55%;
+  --accent: 165 15% 16%;
+  --accent-foreground: 44 20% 92%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 0 0% 100%;
+}
+
 @layer base {
-  * { @apply border-border; }
+  * { @apply border-border; box-sizing: border-box; }
+  html { transition: background-color 0.3s ease, color 0.3s ease; }
   body {
     @apply antialiased bg-background text-foreground;
     font-family: 'Cormorant Garamond', serif;
   }
-  :root[dir="rtl"] body,
-  :root[dir="rtl"] { font-family: 'Cairo', sans-serif; }
+  :root[dir="rtl"] body { font-family: 'Cairo', sans-serif; }
 }
 
-.glass-panel {
-  @apply bg-white/80 backdrop-blur-xl border border-border/60 shadow-sm;
-}
+.arabic { font-family: 'Cairo', sans-serif; }
+.latin  { font-family: 'Cormorant Garamond', serif; }
 
-/* ── PRINT / PDF STYLES ──────────────────────────────── */
+/* ── PRINT STYLES ── */
 @media print {
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-
-  body { background: white !important; }
-
+  body { background: white !important; color: black !important; }
   .no-print { display: none !important; }
 
-  .print-page {
-    width: 100%;
-    padding: 0;
-    margin: 0;
-  }
-
-  /* Force gallery grid to 3 cols when printing */
-  .photo-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 12px !important;
-    break-inside: avoid-page;
-  }
-
-  .photo-card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* Page header on every printed page */
-  .print-header {
-    display: flex !important;
-    page-break-before: auto;
-  }
-
-  /* Footer always at bottom */
-  .print-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-top: 1px solid #e5e7eb;
-    padding: 6px 24px;
-    font-size: 10px;
-    background: white;
-  }
-
-  @page {
-    margin: 18mm 15mm 22mm 15mm;
-    size: A4;
-  }
+  @page { size: A4; margin: 12mm 15mm 18mm 15mm; }
 }
