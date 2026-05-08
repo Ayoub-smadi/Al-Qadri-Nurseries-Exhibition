@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch } from '@/lib/storage';
+import { Photo, Section, Branch, uploadImage } from '@/lib/storage';
 import { downloadCatalogPDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -17,18 +17,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 /* ── utils ─────────────────────────────────────────────── */
 function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(r.result as string);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
 /* ── file upload helper ──────────────────────────────── */
-function FileUploadBtn({ onFile, children, className }: {
-  onFile: (b64: string) => void; children: React.ReactNode; className?: string;
+function FileUploadBtn({ onFile, onLoading, children, className }: {
+  onFile: (url: string) => void;
+  onLoading?: (v: boolean) => void;
+  children: React.ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -36,7 +30,16 @@ function FileUploadBtn({ onFile, children, className }: {
       <input ref={ref} type="file" accept="image/*" className="hidden"
         onChange={async e => {
           const f = e.target.files?.[0]; if (!f) return;
-          onFile(await fileToBase64(f)); e.target.value = '';
+          onLoading?.(true);
+          try {
+            const url = await uploadImage(f);
+            onFile(url);
+          } catch {
+            alert('فشل رفع الصورة — Upload failed');
+          } finally {
+            onLoading?.(false);
+            e.target.value = '';
+          }
         }} />
       <span onClick={() => ref.current?.click()} className={className ?? 'cursor-pointer'}>{children}</span>
     </>
@@ -258,6 +261,7 @@ export default function GalleryPage() {
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoNameAr, setPhotoNameAr] = useState('');
   const [photoNameEn, setPhotoNameEn] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   /* add section */
   const [addSecOpen, setAddSecOpen] = useState(false);
@@ -278,6 +282,7 @@ export default function GalleryPage() {
   const [branchNameEn, setBranchNameEn] = useState('');
   const [branchLocation, setBranchLocation] = useState('');
   const [branchImageUrl, setBranchImageUrl] = useState('');
+  const [branchImgUploading, setBranchImgUploading] = useState(false);
 
   /* ── handlers ── */
   const handleLogin = (e: React.FormEvent) => {
@@ -702,9 +707,9 @@ export default function GalleryPage() {
               <Label>{isAr ? 'صورة الفرع' : 'Branch Photo'}</Label>
               <div className="flex gap-2">
                 <Input value={branchImageUrl} onChange={e => setBranchImageUrl(e.target.value)} dir="ltr" placeholder={isAr ? 'رابط الصورة...' : 'Image URL...'} className="flex-1" />
-                <FileUploadBtn onFile={url => setBranchImageUrl(url)}>
-                  <div className="h-9 px-3 rounded-md bg-muted border border-border flex items-center gap-1.5 text-xs cursor-pointer hover:bg-muted/80 transition-colors whitespace-nowrap">
-                    <ImagePlus className="w-3.5 h-3.5" />
+                <FileUploadBtn onFile={url => setBranchImageUrl(url)} onLoading={setBranchImgUploading}>
+                  <div className={`h-9 px-3 rounded-md bg-muted border border-border flex items-center gap-1.5 text-xs cursor-pointer hover:bg-muted/80 transition-colors whitespace-nowrap ${branchImgUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                    {branchImgUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
                     {isAr ? 'رفع' : 'Upload'}
                   </div>
                 </FileUploadBtn>
@@ -755,9 +760,9 @@ export default function GalleryPage() {
               <Label>{isAr ? 'الصورة' : 'Image'}</Label>
               <div className="flex gap-2">
                 <Input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
-                <FileUploadBtn onFile={b64 => setPhotoUrl(b64)}>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5">
-                    <ImagePlus className="w-4 h-4" />
+                <FileUploadBtn onFile={url => setPhotoUrl(url)} onLoading={setPhotoUploading}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={photoUploading}>
+                    {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
                     {isAr ? 'رفع' : 'Upload'}
                   </Button>
                 </FileUploadBtn>

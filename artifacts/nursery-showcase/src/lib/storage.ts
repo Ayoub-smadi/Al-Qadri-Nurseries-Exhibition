@@ -44,7 +44,7 @@ export interface SiteData {
   };
 }
 
-const DEFAULT_DATA: SiteData = {
+export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
   logo: { customUrl: "" },
@@ -82,26 +82,58 @@ const DEFAULT_DATA: SiteData = {
   },
 };
 
-const KEY = "alqadri_gallery_v2";
-
-export function getSiteData(): SiteData {
+export async function fetchSiteData(): Promise<SiteData> {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as SiteData;
-      return {
-        titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
-        titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
-        logo: { ...DEFAULT_DATA.logo, ...p.logo },
-        sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
-        branches: p.branches ?? DEFAULT_DATA.branches,
-        footer: { ...DEFAULT_DATA.footer, ...p.footer },
-      };
+    const res = await fetch("/api/site-data");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.data) {
+        const p = json.data as SiteData;
+        return {
+          titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
+          titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
+          logo: { ...DEFAULT_DATA.logo, ...p.logo },
+          sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
+          branches: p.branches ?? DEFAULT_DATA.branches,
+          footer: { ...DEFAULT_DATA.footer, ...p.footer },
+        };
+      }
     }
-  } catch { /* ignore */ }
+  } catch { /* fall through */ }
   return DEFAULT_DATA;
 }
 
-export function saveSiteData(data: SiteData): void {
-  localStorage.setItem(KEY, JSON.stringify(data));
+export async function persistSiteData(data: SiteData): Promise<void> {
+  try {
+    await fetch("/api/site-data", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data }),
+    });
+  } catch { /* ignore */ }
+}
+
+export async function uploadImage(file: File): Promise<string> {
+  const urlRes = await fetch("/api/storage/uploads/request-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  });
+  if (!urlRes.ok) throw new Error("Failed to get upload URL");
+  const { uploadURL, objectPath } = await urlRes.json();
+  const uploadRes = await fetch(uploadURL, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!uploadRes.ok) throw new Error("Upload failed");
+  return `/api/storage${objectPath}`;
+}
+
+export function resolveImageSrc(src: string): string {
+  if (!src) return "";
+  if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {
+    return src;
+  }
+  return src;
 }

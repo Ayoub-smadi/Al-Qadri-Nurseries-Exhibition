@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getSiteData, saveSiteData, SiteData } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, SiteData, DEFAULT_DATA } from '@/lib/storage';
 
 export type Language = 'ar' | 'en';
 
@@ -12,6 +12,7 @@ interface AppContextType {
   setIsAdmin: (v: boolean) => void;
   siteData: SiteData;
   updateSiteData: (data: Partial<SiteData>) => void;
+  dataLoaded: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -20,13 +21,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Language>('ar');
   const [isDark, setIsDark] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [siteData, setSiteData] = useState<SiteData>(getSiteData());
+  const [siteData, setSiteData] = useState<SiteData>(DEFAULT_DATA);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     const l = localStorage.getItem('gallery_lang') as Language;
     if (l === 'ar' || l === 'en') setLangState(l);
     const d = localStorage.getItem('gallery_dark');
     if (d === '1') { setIsDark(true); document.documentElement.classList.add('dark'); }
+
+    fetchSiteData().then(data => {
+      setSiteData(data);
+      setDataLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -48,11 +55,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateSiteData = (data: Partial<SiteData>) => {
     const next = { ...siteData, ...data };
     setSiteData(next);
-    saveSiteData(next);
+    persistSiteData(next);
   };
 
   return (
-    <AppContext.Provider value={{ lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData }}>
+    <AppContext.Provider value={{ lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded }}>
       {children}
     </AppContext.Provider>
   );
