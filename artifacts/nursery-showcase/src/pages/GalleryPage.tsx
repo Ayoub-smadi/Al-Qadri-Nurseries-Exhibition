@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
+  TreePine, Package, Building2, Globe, Flower2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -462,6 +463,71 @@ export default function GalleryPage() {
           </div>
         </div>
       </header>
+
+      {/* ── SERVICES ── */}
+      <section className="border-b border-border bg-muted/20 px-4 md:px-12 py-12">
+        {/* Section title */}
+        <div className="flex items-center justify-center gap-4 mb-10">
+          <div className="flex-1 h-px bg-foreground/15" />
+          <div className="text-center">
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">خدماتنا</h2>
+            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Services</p>
+          </div>
+          <div className="flex-1 h-px bg-foreground/15" />
+        </div>
+
+        {/* Services grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+          {[
+            {
+              icon: <TreePine className="w-8 h-8" />,
+              nameAr: 'قسم الأشجار',
+              nameEn: 'Trees Division',
+            },
+            {
+              icon: <Package className="w-8 h-8" />,
+              nameAr: 'توريد المنتجات الزراعية',
+              nameEn: 'Agricultural Supply',
+            },
+            {
+              icon: <Building2 className="w-8 h-8" />,
+              nameAr: 'تأسيس المشاريع الزراعية',
+              nameEn: 'Agricultural Projects',
+            },
+            {
+              icon: <Globe className="w-8 h-8" />,
+              nameAr: 'الاستيراد والتصدير',
+              nameEn: 'Import & Export',
+            },
+            {
+              icon: <Flower2 className="w-8 h-8" />,
+              nameAr: 'تنسيق وصيانة الحدائق',
+              nameEn: 'Garden Landscaping',
+            },
+          ].map((service, i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow text-center"
+            >
+              <div className="w-14 h-14 rounded-full bg-foreground/8 flex items-center justify-center text-foreground/70">
+                {service.icon}
+              </div>
+              <p className="text-sm font-bold arabic text-foreground leading-snug">{service.nameAr}</p>
+              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{service.nameEn}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── GALLERY TITLE ── */}
+      <div className="text-center pt-12 pb-2 px-4">
+        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">معرض مشاتل القادري الزراعية</h2>
+        <div className="flex items-center justify-center gap-3">
+          <div className="w-12 h-px bg-foreground/20" />
+          <div className="w-2 h-2 rounded-full bg-foreground/30" />
+          <div className="w-12 h-px bg-foreground/20" />
+        </div>
+      </div>
 
       {/* ── SECTIONS ── */}
       <main className="flex-1 px-4 md:px-12 py-10 space-y-16">
