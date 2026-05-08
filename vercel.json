@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @workspace/nursery-showcase run build",
+  "outputDirectory": "artifacts/nursery-showcase/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null
+}
