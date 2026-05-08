@@ -331,67 +331,106 @@ export default function GalleryPage() {
       )}
 
       {/* ── HEADER ── */}
-      <header className="border-b border-border py-10 px-8 md:px-16 text-center">
-        {/* Tree Logo */}
-        <div className="flex justify-center mb-5">
-          {siteData.logo.customUrl ? (
-            <div className="relative group/logo inline-block">
-              <img src={siteData.logo.customUrl} alt="logo" className="w-20 h-auto object-contain" />
-              {isAdmin && (
-                <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
-                    <ImagePlus className="w-6 h-6 text-white" />
-                  </div>
-                </FileUploadBtn>
-              )}
-            </div>
-          ) : (
-            <div className="relative group/logo inline-block">
-              <TreeSVG />
-              {isAdmin && (
-                <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded">
-                    <ImagePlus className="w-5 h-5 text-white" />
-                  </div>
-                </FileUploadBtn>
-              )}
-            </div>
-          )}
-        </div>
+      <header className="border-b border-border pb-0 overflow-hidden">
 
-        {/* Titles */}
-        <h1 className="text-3xl md:text-4xl font-bold arabic mb-1">
-          {isAdmin
-            ? <InlineEdit value={siteData.titleAr} onSave={v => updateSiteData({ titleAr: v })} className="arabic text-3xl md:text-4xl font-bold" />
-            : siteData.titleAr}
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground tracking-widest uppercase latin mb-4">
-          {isAdmin
-            ? <InlineEdit value={siteData.titleEn} onSave={v => updateSiteData({ titleEn: v })} className="latin tracking-widest uppercase" />
-            : siteData.titleEn}
-        </p>
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-14 h-px bg-primary/40" />
-          <div className="w-2 h-2 rounded-full bg-primary/60" />
-          <div className="w-14 h-px bg-primary/40" />
-        </div>
-
-        {/* Owner Photo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden ring-4 ring-primary/30 shadow-xl">
-            <img
-              src="/owner.png"
-              alt="مهندس ثامر القادري"
-              className="w-full h-full object-cover object-top"
-            />
+        {/* ── Top brand bar ── */}
+        <div className="flex flex-col items-center pt-10 pb-6 px-8 md:px-16 text-center">
+          {/* Logo */}
+          <div className="flex justify-center mb-4">
+            {siteData.logo.customUrl ? (
+              <div className="relative group/logo inline-block">
+                <img src={siteData.logo.customUrl} alt="logo" className="w-20 h-auto object-contain drop-shadow-md" />
+                {isAdmin && (
+                  <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
+                      <ImagePlus className="w-6 h-6 text-white" />
+                    </div>
+                  </FileUploadBtn>
+                )}
+              </div>
+            ) : (
+              <div className="relative group/logo inline-block drop-shadow-md">
+                <TreeSVG />
+                {isAdmin && (
+                  <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded">
+                      <ImagePlus className="w-5 h-5 text-white" />
+                    </div>
+                  </FileUploadBtn>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex flex-col items-center gap-0.5">
-            <p className="text-lg md:text-xl font-bold arabic text-foreground tracking-wide">
+
+          {/* Company Name */}
+          <h1 className="text-3xl md:text-4xl font-bold arabic mb-1 leading-tight">
+            {isAdmin
+              ? <InlineEdit value={siteData.titleAr} onSave={v => updateSiteData({ titleAr: v })} className="arabic text-3xl md:text-4xl font-bold" />
+              : siteData.titleAr}
+          </h1>
+          <p className="text-xs md:text-sm text-muted-foreground tracking-[0.2em] uppercase latin">
+            {isAdmin
+              ? <InlineEdit value={siteData.titleEn} onSave={v => updateSiteData({ titleEn: v })} className="latin tracking-widest uppercase" />
+              : siteData.titleEn}
+          </p>
+        </div>
+
+        {/* ── Decorative divider ── */}
+        <div className="flex items-center justify-center gap-3 px-8">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/40 to-primary/40" />
+          <div className="flex gap-1.5 items-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+            <div className="w-2.5 h-2.5 rounded-full bg-primary/70" />
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/40 to-primary/40" />
+        </div>
+
+        {/* ── Owner card ── */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10">
+
+          {/* Photo */}
+          <div className="relative shrink-0">
+            <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-primary/40 ring-offset-4 ring-offset-background shadow-2xl">
+              <img
+                src="/owner.png"
+                alt="مهندس ثامر القادري"
+                className="w-full h-full object-cover object-top scale-105"
+              />
+            </div>
+            {/* decorative dot */}
+            <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-primary/80 shadow-md" />
+          </div>
+
+          {/* Info */}
+          <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
+            {/* Title badge */}
+            <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-primary/10 text-primary border border-primary/20 tracking-wide shadow-sm">
+              المدير العام
+            </span>
+
+            {/* Name Arabic */}
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground leading-snug mt-1">
               مهندس ثامر القادري
-            </p>
-            <p className="text-xs text-muted-foreground latin tracking-widest uppercase">
+            </h2>
+
+            {/* Name English */}
+            <p className="text-sm text-muted-foreground latin tracking-widest uppercase">
               Eng. Thamer Al-Qadri
             </p>
+
+            {/* Thin rule */}
+            <div className="w-12 h-0.5 rounded-full bg-primary/40 my-1" />
+
+            {/* Phone */}
+            <a
+              href="tel:07777772211"
+              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors latin ltr"
+              dir="ltr"
+            >
+              <span className="text-lg">📞</span>
+              <span>07777772211</span>
+            </a>
           </div>
         </div>
       </header>
