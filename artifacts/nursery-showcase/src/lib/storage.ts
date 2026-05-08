@@ -21,11 +21,20 @@ export interface Section {
   photos: Photo[];
 }
 
+export interface Branch {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  image: string;
+  locationUrl: string;
+}
+
 export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
   sections: Section[];
+  branches: Branch[];
   footer: {
     email: string;
     phone: string;
@@ -63,6 +72,7 @@ const DEFAULT_DATA: SiteData = {
       ],
     },
   ],
+  branches: [],
   footer: {
     email: "info@alqadrinurseries.com",
     phone: "+966 50 123 4567",
@@ -84,6 +94,7 @@ export function getSiteData(): SiteData {
         titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
         logo: { ...DEFAULT_DATA.logo, ...p.logo },
         sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
+        branches: p.branches ?? DEFAULT_DATA.branches,
         footer: { ...DEFAULT_DATA.footer, ...p.footer },
       };
     }

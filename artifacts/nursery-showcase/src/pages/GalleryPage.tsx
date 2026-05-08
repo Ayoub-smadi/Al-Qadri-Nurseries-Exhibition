@@ -1,11 +1,11 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section } from '@/lib/storage';
+import { Photo, Section, Branch } from '@/lib/storage';
 import { downloadCatalogPDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
-  Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp,
+  Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -271,6 +271,13 @@ export default function GalleryPage() {
   const [pdfModalTarget, setPdfModalTarget] = useState<string | null | 'all'>('closed');
   const pdfModalOpen = pdfModalTarget !== 'closed';
 
+  /* branches */
+  const [addBranchOpen, setAddBranchOpen] = useState(false);
+  const [branchNameAr, setBranchNameAr] = useState('');
+  const [branchNameEn, setBranchNameEn] = useState('');
+  const [branchLocation, setBranchLocation] = useState('');
+  const [branchImageUrl, setBranchImageUrl] = useState('');
+
   /* ── handlers ── */
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,6 +316,27 @@ export default function GalleryPage() {
   const updateSectionName = useCallback((id: string, field: 'nameAr' | 'nameEn', val: string) => {
     updateSiteData({ sections: siteData.sections.map(s => s.id === id ? { ...s, [field]: val } : s) });
   }, [siteData.sections, updateSiteData]);
+
+  const handleAddBranch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!branchNameAr && !branchNameEn) return;
+    const branch: Branch = {
+      id: uid(),
+      nameAr: branchNameAr,
+      nameEn: branchNameEn,
+      image: branchImageUrl,
+      locationUrl: branchLocation,
+    };
+    updateSiteData({ branches: [...(siteData.branches ?? []), branch] });
+    setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchImageUrl('');
+    setAddBranchOpen(false);
+    toast.success(isAr ? 'تمت إضافة الفرع' : 'Branch added');
+  };
+
+  const handleDeleteBranch = (id: string) => {
+    if (!confirm(isAr ? 'حذف الفرع؟' : 'Delete this branch?')) return;
+    updateSiteData({ branches: (siteData.branches ?? []).filter(b => b.id !== id) });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300" dir={isAr ? 'rtl' : 'ltr'}>
@@ -454,6 +482,97 @@ export default function GalleryPage() {
         )}
       </main>
 
+      {/* ── BRANCHES ── */}
+      {((siteData.branches ?? []).length > 0 || isAdmin) && (
+        <section className="px-4 md:px-12 py-12 border-t border-border bg-muted/30">
+          {/* Section header */}
+          <div className="flex items-center justify-center gap-4 mb-10">
+            <div className="flex-1 h-px bg-foreground/15" />
+            <div className="text-center">
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">فروعنا</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Branches</p>
+            </div>
+            <div className="flex-1 h-px bg-foreground/15" />
+            {isAdmin && (
+              <button
+                onClick={() => setAddBranchOpen(true)}
+                className="no-print shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="arabic">{isAr ? 'إضافة فرع' : 'Add Branch'}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Branches grid */}
+          {(siteData.branches ?? []).length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed border-border rounded-2xl arabic">
+              {isAr ? 'لا توجد فروع بعد — اضغط "إضافة فرع" لإضافة أول فرع' : 'No branches yet — click "Add Branch" to add one'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {(siteData.branches ?? []).map(branch => (
+                <a
+                  key={branch.id}
+                  href={branch.locationUrl || '#'}
+                  target={branch.locationUrl ? '_blank' : undefined}
+                  rel="noreferrer"
+                  onClick={e => { if (!branch.locationUrl) e.preventDefault(); }}
+                  className="group relative flex flex-col rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-card border border-border cursor-pointer"
+                >
+                  {/* Branch image */}
+                  <div className="aspect-[4/3] overflow-hidden bg-muted">
+                    {branch.image ? (
+                      <img
+                        src={branch.image}
+                        alt={isAr ? branch.nameAr : branch.nameEn}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <MapPin className="w-10 h-10 opacity-30" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Branch info */}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4 text-foreground/70" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold arabic text-foreground text-sm leading-tight truncate">
+                        {isAr ? branch.nameAr : branch.nameEn}
+                      </p>
+                      {branch.nameAr && branch.nameEn && (
+                        <p className="text-xs text-muted-foreground latin truncate">
+                          {isAr ? branch.nameEn : branch.nameAr}
+                        </p>
+                      )}
+                    </div>
+                    {branch.locationUrl && (
+                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors latin shrink-0">
+                        ↗
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Admin delete button */}
+                  {isAdmin && (
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); handleDeleteBranch(branch.id); }}
+                      className="no-print absolute top-2 end-2 w-7 h-7 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
@@ -471,6 +590,7 @@ export default function GalleryPage() {
         <div className="no-print fixed bottom-5 start-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-xl border border-primary/30 shadow-2xl">
           <span className="text-xs font-bold text-primary pe-2 border-e border-border arabic">{isAr ? 'تحرير' : 'Edit'}</span>
           <ToolBtn icon={<FolderPlus className="w-3.5 h-3.5" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
+          <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
           <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
           <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark"
             onClick={() => setPdfModalTarget('all')} />
@@ -482,6 +602,59 @@ export default function GalleryPage() {
       )}
 
       {/* ── MODALS ── */}
+
+      {/* Add Branch */}
+      <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchImageUrl(''); } }}>
+        <DialogContent className="sm:max-w-sm bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic">{isAr ? 'إضافة فرع جديد' : 'Add New Branch'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddBranch} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'اسم الفرع (عربي)' : 'Branch Name (AR)'}</Label>
+              <Input value={branchNameAr} onChange={e => setBranchNameAr(e.target.value)} dir="rtl" className="arabic" placeholder="مثال: فرع الرياض" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'اسم الفرع (إنجليزي)' : 'Branch Name (EN)'}</Label>
+              <Input value={branchNameEn} onChange={e => setBranchNameEn(e.target.value)} dir="ltr" placeholder="e.g. Riyadh Branch" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'رابط الموقع على الخريطة' : 'Google Maps Link'}</Label>
+              <Input
+                value={branchLocation}
+                onChange={e => setBranchLocation(e.target.value)}
+                dir="ltr"
+                placeholder="https://maps.google.com/..."
+                type="url"
+              />
+              <p className="text-xs text-muted-foreground arabic">
+                {isAr ? 'افتح الموقع في Google Maps → شارك → انسخ الرابط' : 'Open location in Google Maps → Share → Copy link'}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'صورة الفرع' : 'Branch Photo'}</Label>
+              <div className="flex gap-2">
+                <Input value={branchImageUrl} onChange={e => setBranchImageUrl(e.target.value)} dir="ltr" placeholder={isAr ? 'رابط الصورة...' : 'Image URL...'} className="flex-1" />
+                <FileUploadBtn onFile={url => setBranchImageUrl(url)}>
+                  <div className="h-9 px-3 rounded-md bg-muted border border-border flex items-center gap-1.5 text-xs cursor-pointer hover:bg-muted/80 transition-colors whitespace-nowrap">
+                    <ImagePlus className="w-3.5 h-3.5" />
+                    {isAr ? 'رفع' : 'Upload'}
+                  </div>
+                </FileUploadBtn>
+              </div>
+              {branchImageUrl && (
+                <img src={branchImageUrl} alt="preview" className="w-full h-24 object-cover rounded-lg mt-1 border border-border" />
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setAddBranchOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button type="submit" className="bg-primary text-primary-foreground" disabled={!branchNameAr && !branchNameEn}>
+                {isAr ? 'إضافة' : 'Add'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Login */}
       <Dialog open={loginOpen} onOpenChange={o => { setLoginOpen(o); if (!o) { setUser(''); setPass(''); setLoginErr(''); } }}>
