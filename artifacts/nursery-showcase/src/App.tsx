@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider } from "@/lib/context";
 import Home from "@/pages/Home";
+import CategoryPage from "@/pages/CategoryPage";
 
 const queryClient = new QueryClient();
 
@@ -11,6 +12,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/category/:id" component={CategoryPage} />
       <Route component={Home} />
     </Switch>
   );

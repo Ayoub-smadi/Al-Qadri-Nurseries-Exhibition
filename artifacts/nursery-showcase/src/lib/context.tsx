@@ -9,7 +9,7 @@ interface AppContextType {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   isAdmin: boolean;
-  setIsAdmin: (isAdmin: boolean) => void;
+  setIsAdmin: (v: boolean) => void;
   siteData: SiteData;
   updateSiteData: (data: Partial<SiteData>) => void;
 }
@@ -22,24 +22,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [siteData, setSiteData] = useState<SiteData>(getSiteData());
 
-  // Initialize from localStorage
   useEffect(() => {
     const savedLang = localStorage.getItem('app_lang') as Language;
-    if (savedLang && (savedLang === 'ar' || savedLang === 'en')) {
-      setLangState(savedLang);
-    }
-    
+    if (savedLang === 'ar' || savedLang === 'en') setLangState(savedLang);
     const savedTheme = localStorage.getItem('app_theme') as 'light' | 'dark';
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    }
+    if (savedTheme) setThemeState(savedTheme);
   }, []);
 
-  // Update document direction and theme class
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
-    
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -47,15 +39,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lang, theme]);
 
-  const setLang = (newLang: Language) => {
-    setLangState(newLang);
-    localStorage.setItem('app_lang', newLang);
-  };
-
-  const setTheme = (newTheme: 'light' | 'dark') => {
-    setThemeState(newTheme);
-    localStorage.setItem('app_theme', newTheme);
-  };
+  const setLang = (l: Language) => { setLangState(l); localStorage.setItem('app_lang', l); };
+  const setTheme = (t: 'light' | 'dark') => { setThemeState(t); localStorage.setItem('app_theme', t); };
 
   const updateSiteData = (data: Partial<SiteData>) => {
     const newData = { ...siteData, ...data };
@@ -63,14 +48,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     saveSiteData(newData);
   };
 
-  const t = translations[lang];
-
   return (
-    <AppContext.Provider value={{ 
-      lang, setLang, t, 
-      theme, setTheme, 
+    <AppContext.Provider value={{
+      lang, setLang,
+      t: translations[lang],
+      theme, setTheme,
       isAdmin, setIsAdmin,
-      siteData, updateSiteData
+      siteData, updateSiteData,
     }}>
       {children}
     </AppContext.Provider>
@@ -78,9 +62,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useApp() {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
 }

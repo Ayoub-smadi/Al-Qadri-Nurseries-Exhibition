@@ -1,17 +1,19 @@
 import React from 'react';
 import { Navbar } from '@/components/Navbar';
 import { HeroSection } from '@/components/HeroSection';
-import { PlantGallery } from '@/components/PlantGallery';
+import { CategoryGallery } from '@/components/CategoryGallery';
 import { Footer } from '@/components/Footer';
 import { EditToolbar } from '@/components/EditToolbar';
 
 export default function Home() {
   return (
-    <main className="min-h-screen w-full flex flex-col relative selection:bg-primary selection:text-white">
+    <main className="min-h-screen w-full flex flex-col relative">
       <Navbar />
-      <HeroSection />
-      <PlantGallery />
-      <Footer />
+      <div className="pt-16">
+        <HeroSection />
+        <CategoryGallery />
+        <Footer />
+      </div>
       <EditToolbar />
     </main>
   );
