@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "معرض مشاتل القادري الزراعية"
+version = "1.0.0"
+id = "artifacts/nursery-showcase"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19665
+
+[services.development]
+run = "pnpm --filter @workspace/nursery-showcase run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nursery-showcase", "run", "build" ]
+publicDir = "artifacts/nursery-showcase/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19665"
+BASE_PATH = "/"

@@ -1,0 +1,78 @@
+Create a single modern static showcase page for “معرض مشاتل القادري الزراعية” with a premium elegant design inspired by nature.
+
+IMPORTANT:
+- This is NOT a full website.
+- This is NOT a dashboard.
+- The entire project should be one stylish editable page only.
+- Admin login should allow the admin to directly edit the same page itself with full editing permissions.
+
+Design Style:
+- Elegant, minimal, luxurious plant showcase page.
+- Main colors:
+  - White
+  - Light Green
+  - Black
+- Nature-inspired modern UI.
+- Soft shadows, glassmorphism effects, rounded corners, smooth animations.
+- Fully responsive for mobile and desktop.
+- Arabic + English language support.
+- Dark mode toggle.
+
+Top Section:
+- Minimal navbar/top bar only.
+- Contains:
+  - Logo
+  - معرض مشاتل القادري الزراعية
+  - Language switch button
+  - Dark mode toggle
+- No menu links.
+
+Hero Section:
+- Large centered title:
+  “معرض مشاتل القادري الزراعية”
+- Elegant subtitle under the title.
+- Soft animated background decorations inspired by leaves/plants.
+
+Plants Gallery:
+- Beautiful modern cards layout.
+- Each card contains:
+  - Large plant image
+  - Plant name
+  - Plant description
+- Premium hover animations.
+- Smooth zoom effect on images.
+- Modern balanced spacing suitable for plant galleries.
+
+Admin Login System:
+- Hidden/simple admin login popup.
+- No dashboard page.
+- After admin login:
+  - The SAME PAGE becomes editable directly.
+  - Admin can click and edit texts inline.
+  - Admin can change images directly.
+  - Admin can add new plant cards.
+  - Admin can delete plant cards.
+  - Admin can edit footer information.
+  - Admin can edit titles and descriptions directly on the page.
+- Add “Edit Mode” with elegant floating save button.
+- Save all changes using Local Storage or simple backend simulation.
+- No separate admin panel UI.
+
+Footer:
+- Simple elegant footer.
+- Contains:
+  - Email
+  - Phone numbers
+  - Address
+  - Social icons
+
+Technical Requirements:
+- Use HTML + CSS + JavaScript only.
+- Smooth modern animations.
+- Elegant typography for Arabic and English.
+- Fast lightweight performance.
+- Professional premium appearance.
+- Add toast notifications when saving edits.
+- Add smooth transitions and modern interactions.
+
+The final result must feel like a luxurious editable nursery showcase page instead of a traditional website or admin dashboard.
