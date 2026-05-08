@@ -587,17 +587,18 @@ export default function GalleryPage() {
 
       {/* ── ADMIN TOOLBAR ── */}
       {isAdmin && (
-        <div className="no-print fixed bottom-5 start-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-xl border border-primary/30 shadow-2xl">
-          <span className="text-xs font-bold text-primary pe-2 border-e border-border arabic">{isAr ? 'تحرير' : 'Edit'}</span>
-          <ToolBtn icon={<FolderPlus className="w-3.5 h-3.5" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
-          <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
-          <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
-          <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark"
-            onClick={() => setPdfModalTarget('all')} />
-          <button onClick={() => setIsAdmin(false)}
-            className="flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
+        <div className="no-print fixed bottom-4 left-0 right-0 z-50 flex justify-center px-3 pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-card/95 backdrop-blur-xl border border-primary/30 shadow-2xl overflow-x-auto max-w-[96vw] scrollbar-none">
+            <span className="text-xs font-bold text-primary pe-2 border-e border-border arabic shrink-0">{isAr ? 'تحرير' : 'Edit'}</span>
+            <ToolBtn icon={<FolderPlus className="w-3.5 h-3.5" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
+            <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
+            <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
+            <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
+            <button onClick={() => setIsAdmin(false)}
+              className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
