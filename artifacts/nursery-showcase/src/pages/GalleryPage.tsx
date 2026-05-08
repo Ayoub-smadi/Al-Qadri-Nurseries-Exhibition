@@ -339,7 +339,7 @@ export default function GalleryPage() {
           <div className="flex justify-center mb-4">
             {siteData.logo.customUrl ? (
               <div className="relative group/logo inline-block">
-                <img src={siteData.logo.customUrl} alt="logo" className="w-20 h-auto object-contain drop-shadow-md" />
+                <img src={siteData.logo.customUrl} alt="logo" className="w-28 h-auto object-contain drop-shadow-md" />
                 {isAdmin && (
                   <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
@@ -377,13 +377,13 @@ export default function GalleryPage() {
 
         {/* ── Decorative divider ── */}
         <div className="flex items-center justify-center gap-3 px-8">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-primary/40 to-primary/40" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-foreground/25 to-foreground/25" />
           <div className="flex gap-1.5 items-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-            <div className="w-2.5 h-2.5 rounded-full bg-primary/70" />
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/30" />
+            <div className="w-2.5 h-2.5 rounded-full bg-foreground/60" />
+            <div className="w-1.5 h-1.5 rounded-full bg-foreground/30" />
           </div>
-          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-primary/40 to-primary/40" />
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-foreground/25 to-foreground/25" />
         </div>
 
         {/* ── Owner card ── */}
@@ -391,7 +391,7 @@ export default function GalleryPage() {
 
           {/* Photo */}
           <div className="relative shrink-0">
-            <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-primary/40 ring-offset-4 ring-offset-background shadow-2xl">
+            <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-foreground/70 ring-offset-4 ring-offset-background shadow-2xl">
               <img
                 src="/owner.png"
                 alt="مهندس ثامر القادري"
@@ -399,13 +399,13 @@ export default function GalleryPage() {
               />
             </div>
             {/* decorative dot */}
-            <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-primary/80 shadow-md" />
+            <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-foreground/70 shadow-md" />
           </div>
 
           {/* Info */}
           <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
             {/* Title badge */}
-            <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-primary/10 text-primary border border-primary/20 tracking-wide shadow-sm">
+            <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-foreground/10 text-foreground border border-foreground/20 tracking-wide shadow-sm">
               المدير العام
             </span>
 
@@ -420,16 +420,16 @@ export default function GalleryPage() {
             </p>
 
             {/* Thin rule */}
-            <div className="w-12 h-0.5 rounded-full bg-primary/40 my-1" />
+            <div className="w-12 h-0.5 rounded-full bg-foreground/30 my-1" />
 
             {/* Phone */}
             <a
               href="tel:07777772211"
-              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors latin ltr"
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity latin ltr"
               dir="ltr"
             >
-              <span className="text-lg">📞</span>
-              <span>07777772211</span>
+              <span className="text-base">📞</span>
+              <span className="text-base font-mono font-semibold tracking-widest text-foreground">07777772211</span>
             </a>
           </div>
         </div>
