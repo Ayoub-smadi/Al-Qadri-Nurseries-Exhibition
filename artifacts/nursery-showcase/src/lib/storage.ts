@@ -29,12 +29,21 @@ export interface Branch {
   locationUrl: string;
 }
 
+export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'youtube';
+
+export interface SocialLink {
+  id: string;
+  platform: SocialPlatform;
+  url: string;
+}
+
 export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
   sections: Section[];
   branches: Branch[];
+  socialLinks: SocialLink[];
   footer: {
     email: string;
     phone: string;
@@ -73,6 +82,7 @@ export const DEFAULT_DATA: SiteData = {
     },
   ],
   branches: [],
+  socialLinks: [],
   footer: {
     email: "info@alqadrinurseries.com",
     phone: "+966 50 123 4567",
@@ -95,6 +105,7 @@ export async function fetchSiteData(): Promise<SiteData> {
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
+          socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           footer: { ...DEFAULT_DATA.footer, ...p.footer },
         };
       }
