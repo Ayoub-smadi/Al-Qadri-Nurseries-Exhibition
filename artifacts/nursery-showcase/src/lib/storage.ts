@@ -41,6 +41,7 @@ export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
+  owner: { photo: string };
   sections: Section[];
   branches: Branch[];
   socialLinks: SocialLink[];
@@ -57,6 +58,7 @@ export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
   logo: { customUrl: "" },
+  owner: { photo: "" },
   sections: [
     {
       id: "sec-ornamental",
@@ -103,6 +105,7 @@ export async function fetchSiteData(): Promise<SiteData> {
           titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
+          owner: { ...DEFAULT_DATA.owner, ...p.owner },
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
