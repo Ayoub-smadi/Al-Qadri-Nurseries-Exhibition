@@ -19,10 +19,13 @@ function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 
 
 /* ── Social platform config ─────────────────────────────── */
 const SOCIAL_PLATFORMS: { value: SocialPlatform; labelAr: string; labelEn: string; color: string }[] = [
-  { value: 'facebook',  labelAr: 'فيسبوك',   labelEn: 'Facebook',   color: '#1877F2' },
-  { value: 'instagram', labelAr: 'إنستجرام', labelEn: 'Instagram',  color: '#E1306C' },
-  { value: 'whatsapp',  labelAr: 'واتساب',   labelEn: 'WhatsApp',   color: '#25D366' },
-  { value: 'youtube',   labelAr: 'يوتيوب',   labelEn: 'YouTube',    color: '#FF0000' },
+  { value: 'facebook',  labelAr: 'فيسبوك',       labelEn: 'Facebook',   color: '#1877F2' },
+  { value: 'instagram', labelAr: 'إنستجرام',     labelEn: 'Instagram',  color: '#E1306C' },
+  { value: 'whatsapp',  labelAr: 'واتساب',       labelEn: 'WhatsApp',   color: '#25D366' },
+  { value: 'youtube',   labelAr: 'يوتيوب',       labelEn: 'YouTube',    color: '#FF0000' },
+  { value: 'website',   labelAr: 'الموقع',       labelEn: 'Website',    color: '#0EA5E9' },
+  { value: 'email',     labelAr: 'الإيميل',      labelEn: 'Email',      color: '#8B5CF6' },
+  { value: 'catalog',   labelAr: 'كتيب المشتل',  labelEn: 'Catalog',    color: '#16A34A' },
 ];
 
 function SocialIcon({ platform, size = 40 }: { platform: SocialPlatform; size?: number }) {
@@ -47,6 +50,30 @@ function SocialIcon({ platform, size = 40 }: { platform: SocialPlatform; size?: 
         <>
           <path d="M28.5 15.5s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C21.7 11.2 20 11.2 20 11.2s-1.7 0-4.3.2c-.6.1-1.9.1-3 1.3-.9.8-1.2 2.8-1.2 2.8S11.2 17.7 11.2 20v2.2c0 2.2.3 4.5.3 4.5s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C18 30.9 20 31 20 31s1.7 0 4.3-.3c.6-.1 1.9-.1 3-1.2.9-.8 1.2-2.8 1.2-2.8s.3-2.2.3-4.5V20c0-2.2-.3-4.5-.3-4.5z" fill="white"/>
           <polygon points="17.5,16.5 17.5,23.5 24,20" fill={cfg.color}/>
+        </>
+      )}
+      {platform === 'website' && (
+        <>
+          <circle cx="20" cy="20" r="9" stroke="white" strokeWidth="2" fill="none"/>
+          <ellipse cx="20" cy="20" rx="4.5" ry="9" stroke="white" strokeWidth="1.5" fill="none"/>
+          <line x1="11" y1="20" x2="29" y2="20" stroke="white" strokeWidth="1.5"/>
+          <line x1="12.5" y1="15" x2="27.5" y2="15" stroke="white" strokeWidth="1.2"/>
+          <line x1="12.5" y1="25" x2="27.5" y2="25" stroke="white" strokeWidth="1.2"/>
+        </>
+      )}
+      {platform === 'email' && (
+        <>
+          <rect x="11" y="14" width="18" height="12" rx="2" stroke="white" strokeWidth="2" fill="none"/>
+          <polyline points="11,14 20,21 29,14" stroke="white" strokeWidth="2" fill="none"/>
+        </>
+      )}
+      {platform === 'catalog' && (
+        <>
+          <rect x="12" y="10" width="14" height="18" rx="2" stroke="white" strokeWidth="2" fill="none"/>
+          <path d="M12 14h14" stroke="white" strokeWidth="1.5"/>
+          <path d="M15 18h8" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M15 21.5h6" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+          <path d="M15 25h5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
         </>
       )}
     </svg>
@@ -403,16 +430,20 @@ export default function GalleryPage() {
   const handleSaveSocial = (e: React.FormEvent) => {
     e.preventDefault();
     if (!socialUrl.trim()) return;
+    let finalUrl = socialUrl.trim();
+    if (socialPlatform === 'email' && !finalUrl.startsWith('mailto:')) {
+      finalUrl = `mailto:${finalUrl}`;
+    }
     const links = siteData.socialLinks ?? [];
     if (editingSocial) {
-      updateSiteData({ socialLinks: links.map(l => l.id === editingSocial.id ? { ...l, platform: socialPlatform, url: socialUrl.trim() } : l) });
+      updateSiteData({ socialLinks: links.map(l => l.id === editingSocial.id ? { ...l, platform: socialPlatform, url: finalUrl } : l) });
       toast.success(isAr ? 'تم التعديل' : 'Updated');
     } else {
       const existing = links.find(l => l.platform === socialPlatform);
       if (existing) {
-        updateSiteData({ socialLinks: links.map(l => l.platform === socialPlatform ? { ...l, url: socialUrl.trim() } : l) });
+        updateSiteData({ socialLinks: links.map(l => l.platform === socialPlatform ? { ...l, url: finalUrl } : l) });
       } else {
-        updateSiteData({ socialLinks: [...links, { id: uid(), platform: socialPlatform, url: socialUrl.trim() }] });
+        updateSiteData({ socialLinks: [...links, { id: uid(), platform: socialPlatform, url: finalUrl }] });
       }
       toast.success(isAr ? 'تمت الإضافة' : 'Added');
     }
@@ -1024,21 +1055,26 @@ export default function GalleryPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="arabic">{isAr ? 'الرابط' : 'URL'}</Label>
+              <Label className="arabic">
+                {socialPlatform === 'email'
+                  ? (isAr ? 'البريد الإلكتروني' : 'Email Address')
+                  : (isAr ? 'الرابط' : 'URL')}
+              </Label>
               <Input
                 value={socialUrl}
                 onChange={e => setSocialUrl(e.target.value)}
                 dir="ltr"
                 placeholder={
-                  socialPlatform === 'whatsapp'
-                    ? 'https://wa.me/9665XXXXXXXX'
-                    : socialPlatform === 'facebook'
-                    ? 'https://facebook.com/yourpage'
-                    : socialPlatform === 'instagram'
-                    ? 'https://instagram.com/yourprofile'
-                    : 'https://youtube.com/@yourchannel'
+                  socialPlatform === 'whatsapp'  ? 'https://wa.me/9665XXXXXXXX'
+                  : socialPlatform === 'facebook'  ? 'https://facebook.com/yourpage'
+                  : socialPlatform === 'instagram' ? 'https://instagram.com/yourprofile'
+                  : socialPlatform === 'youtube'   ? 'https://youtube.com/@yourchannel'
+                  : socialPlatform === 'website'   ? 'https://www.yourwebsite.com'
+                  : socialPlatform === 'email'     ? 'info@example.com'
+                  : socialPlatform === 'catalog'   ? 'https://drive.google.com/file/...'
+                  : 'https://'
                 }
-                type="url"
+                type={socialPlatform === 'email' ? 'email' : 'url'}
               />
             </div>
             <div className="flex justify-end gap-2 pt-1">
