@@ -241,7 +241,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                     onCheckedChange={() => toggleSection(sec.id)}
                     className="shrink-0"
                   />
-                  <span className="font-bold arabic flex-1 text-sm">{isAr ? sec.nameAr : sec.nameEn}</span>
+                  <span className="font-bold arabic flex-1 text-sm">{isAr ? sec.nameAr : (sec.nameEn || sec.nameAr)}</span>
                   <span className="text-xs text-muted-foreground">{secSel.size}/{sec.photos.length}</span>
                   <button onClick={() => setExpanded(prev => {
                     const n = new Set(prev);
@@ -261,12 +261,12 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                         <label key={photo.id}
                           className={`relative cursor-pointer rounded-lg overflow-hidden aspect-square border-2 transition-all ${checked ? 'border-primary shadow-sm' : 'border-transparent opacity-50'}`}
                           onClick={() => togglePhoto(sec.id, photo.id)}>
-                          <img src={photo.image} alt={isAr ? photo.nameAr : photo.nameEn}
+                          <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             className="w-full h-full object-cover" />
                           <div className={`absolute inset-0 bg-primary/20 transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`} />
                           <div className="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-1">
                             <p className="text-white text-[10px] font-semibold truncate arabic text-center leading-tight">
-                              {isAr ? photo.nameAr : photo.nameEn}
+                              {isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             </p>
                           </div>
                           {checked && (
@@ -721,7 +721,7 @@ export default function GalleryPage() {
                     {branch.image ? (
                       <img
                         src={branch.image}
-                        alt={isAr ? branch.nameAr : branch.nameEn}
+                        alt={isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
@@ -738,7 +738,7 @@ export default function GalleryPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold arabic text-foreground text-sm leading-tight truncate">
-                        {isAr ? branch.nameAr : branch.nameEn}
+                        {isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
                       </p>
                       {branch.nameAr && branch.nameEn && (
                         <p className="text-xs text-muted-foreground latin truncate">
@@ -1161,11 +1161,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {section.photos.map(photo => (
             <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5]">
-              <img src={photo.image} alt={isAr ? photo.nameAr : photo.nameEn}
+              <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
               {(photo.nameAr || photo.nameEn) && (
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-12 pb-4 px-4">
-                  <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : photo.nameEn}</p>
+                  <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</p>
                   {photo.nameAr && photo.nameEn && (
                     <p className="text-white/65 text-xs mt-0.5 latin">{isAr ? photo.nameEn : photo.nameAr}</p>
                   )}
