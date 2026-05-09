@@ -535,16 +535,26 @@ export default function GalleryPage() {
         <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10">
 
           {/* Photo */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 group/owner">
             <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-foreground/70 ring-offset-4 ring-offset-background shadow-2xl">
               <img
-                src="/owner.png"
+                src={siteData.owner?.photo || '/owner.png'}
                 alt="مهندس ثامر القادري"
                 className="w-full h-full object-cover object-top scale-105"
               />
             </div>
             {/* decorative dot */}
             <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-foreground/70 shadow-md" />
+            {/* Admin upload overlay */}
+            {isAdmin && (
+              <FileUploadBtn
+                onFile={url => updateSiteData({ owner: { photo: url } })}
+                className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
+              >
+                <ImagePlus className="w-7 h-7" />
+                <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change Photo'}</span>
+              </FileUploadBtn>
+            )}
           </div>
 
           {/* Info */}
