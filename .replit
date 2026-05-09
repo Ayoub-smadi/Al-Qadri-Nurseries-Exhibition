@@ -24,5 +24,15 @@ localPort = 8080
 externalPort = 80
 
 [[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
 localPort = 19665
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+ADMIN_TOKEN = "16ef99817f62a5051c250ab81a958ca893fbd88807f5c3f2c8d2e8c8bec0054e"
+VITE_ADMIN_TOKEN = "16ef99817f62a5051c250ab81a958ca893fbd88807f5c3f2c8d2e8c8bec0054e"

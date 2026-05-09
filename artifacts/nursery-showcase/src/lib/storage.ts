@@ -119,9 +119,13 @@ export async function fetchSiteData(): Promise<SiteData> {
 
 export async function persistSiteData(data: SiteData): Promise<void> {
   try {
+    const token = import.meta.env.VITE_ADMIN_TOKEN ?? "";
     await fetch("/api/site-data", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-token": token,
+      },
       body: JSON.stringify({ data }),
     });
   } catch { /* ignore */ }
