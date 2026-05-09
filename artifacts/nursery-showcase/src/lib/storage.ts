@@ -114,20 +114,12 @@ export async function persistSiteData(data: SiteData): Promise<void> {
 }
 
 export async function uploadImage(file: File): Promise<string> {
-  const urlRes = await fetch("/api/storage/uploads/request-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Upload failed"));
+    reader.readAsDataURL(file);
   });
-  if (!urlRes.ok) throw new Error("Failed to get upload URL");
-  const { uploadURL, objectPath } = await urlRes.json();
-  const uploadRes = await fetch(uploadURL, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  });
-  if (!uploadRes.ok) throw new Error("Upload failed");
-  return `/api/storage${objectPath}`;
 }
 
 export function resolveImageSrc(src: string): string {
