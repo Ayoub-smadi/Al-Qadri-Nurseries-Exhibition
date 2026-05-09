@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, uploadImage } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, uploadImage, adminLogin, setSessionToken } from '@/lib/storage';
 import { downloadCatalogPDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -354,11 +354,15 @@ export default function GalleryPage() {
   const [socialUrl, setSocialUrl] = useState('');
 
   /* ── handlers ── */
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user === 'Ayoub' && pass === 'Ayoub@123') {
+    const token = await adminLogin(user, pass);
+    if (token) {
+      setSessionToken(token);
       setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setLoginErr('');
-    } else setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+    } else {
+      setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+    }
   };
 
   const handleAddPhoto = (e: React.FormEvent) => {
@@ -855,7 +859,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
-            <button onClick={() => setIsAdmin(false)}
+            <button onClick={() => { setSessionToken(null); setIsAdmin(false); }}
               className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
               <LogOut className="w-3.5 h-3.5" />
             </button>

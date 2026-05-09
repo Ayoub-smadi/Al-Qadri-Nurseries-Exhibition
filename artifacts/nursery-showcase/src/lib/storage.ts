@@ -94,6 +94,27 @@ export const DEFAULT_DATA: SiteData = {
   },
 };
 
+let _sessionToken: string | null = null;
+
+export function setSessionToken(token: string | null) {
+  _sessionToken = token;
+}
+
+export async function adminLogin(username: string, password: string): Promise<string | null> {
+  try {
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.ok) {
+      const json = await res.json() as { token?: string };
+      return json.token ?? null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 export async function fetchSiteData(): Promise<SiteData> {
   try {
     const res = await fetch("/api/site-data");
@@ -118,13 +139,13 @@ export async function fetchSiteData(): Promise<SiteData> {
 }
 
 export async function persistSiteData(data: SiteData): Promise<void> {
+  if (!_sessionToken) return;
   try {
-    const token = import.meta.env.VITE_ADMIN_TOKEN ?? "";
     await fetch("/api/site-data", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-token": token,
+        "Authorization": `Bearer ${_sessionToken}`,
       },
       body: JSON.stringify({ data }),
     });

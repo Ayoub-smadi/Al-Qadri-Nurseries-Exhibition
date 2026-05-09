@@ -1,17 +1,40 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, siteConfigTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
 
 const router: IRouter = Router();
 
-function requireAdminToken(req: Request, res: Response): boolean {
-  const token = process.env["ADMIN_TOKEN"];
-  if (!token) {
-    res.status(500).json({ error: "Server misconfiguration: ADMIN_TOKEN not set" });
-    return false;
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const sessions = new Map<string, number>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiry] of sessions) {
+    if (expiry < now) sessions.delete(token);
   }
-  const provided = req.headers["x-admin-token"];
-  if (!provided || provided !== token) {
+}, 60 * 60 * 1000);
+
+router.post("/admin/login", (req: Request, res: Response) => {
+  const { username, password } = req.body as { username?: string; password?: string };
+  const expectedUser = process.env["ADMIN_USERNAME"] ?? "Ayoub";
+  const expectedPass = process.env["ADMIN_PASSWORD"] ?? "Ayoub@123";
+
+  if (username !== expectedUser || password !== expectedPass) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  res.json({ token });
+});
+
+function requireSession(req: Request, res: Response): boolean {
+  const auth = req.headers["authorization"] ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const expiry = sessions.get(token);
+  if (!expiry || expiry < Date.now()) {
     res.status(403).json({ error: "Forbidden" });
     return false;
   }
@@ -26,13 +49,13 @@ router.get("/site-data", async (_req: Request, res: Response) => {
       return;
     }
     res.json({ data: rows[0].data });
-  } catch (_err) {
+  } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
 });
 
 router.put("/site-data", async (req: Request, res: Response) => {
-  if (!requireAdminToken(req, res)) return;
+  if (!requireSession(req, res)) return;
 
   const { data } = req.body as { data?: unknown };
   if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -45,7 +68,7 @@ router.put("/site-data", async (req: Request, res: Response) => {
       .values({ id: "main", data })
       .onConflictDoUpdate({ target: siteConfigTable.id, set: { data, updatedAt: new Date() } });
     res.json({ data });
-  } catch (_err) {
+  } catch {
     res.status(500).json({ error: "Failed to save site data" });
   }
 });
