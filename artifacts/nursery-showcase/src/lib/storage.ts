@@ -29,7 +29,7 @@ export interface Branch {
   locationUrl: string;
 }
 
-export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'youtube';
+export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'youtube' | 'website' | 'email' | 'catalog';
 
 export interface SocialLink {
   id: string;
