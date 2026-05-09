@@ -514,13 +514,11 @@ export default function GalleryPage() {
           {/* Company Name */}
           <h1 className="text-3xl md:text-4xl font-bold arabic mb-1 leading-tight">
             {isAdmin
-              ? <InlineEdit value={siteData.titleAr} onSave={v => updateSiteData({ titleAr: v })} className="arabic text-3xl md:text-4xl font-bold" />
-              : siteData.titleAr}
+              ? <InlineEdit value={isAr ? siteData.titleAr : siteData.titleEn} onSave={v => updateSiteData(isAr ? { titleAr: v } : { titleEn: v })} className="arabic text-3xl md:text-4xl font-bold" />
+              : (isAr ? siteData.titleAr : (siteData.titleEn || siteData.titleAr))}
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground tracking-[0.2em] uppercase latin">
-            {isAdmin
-              ? <InlineEdit value={siteData.titleEn} onSave={v => updateSiteData({ titleEn: v })} className="latin tracking-widest uppercase" />
-              : siteData.titleEn}
+            {isAr ? siteData.titleEn : siteData.titleAr}
           </p>
         </div>
 
@@ -565,17 +563,17 @@ export default function GalleryPage() {
           <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
             {/* Title badge */}
             <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-foreground/10 text-foreground border border-foreground/20 tracking-wide shadow-sm">
-              المدير العام
+              {isAr ? 'المدير العام' : 'General Manager'}
             </span>
 
-            {/* Name Arabic */}
+            {/* Name */}
             <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground leading-snug mt-1">
-              مهندس ثامر القادري
+              {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
             </h2>
 
-            {/* Name English */}
+            {/* Name subtitle (other lang) */}
             <p className="text-sm text-muted-foreground latin tracking-widest uppercase">
-              Eng. Thamer Al-Qadri
+              {isAr ? 'Eng. Thamer Al-Qadri' : 'مهندس ثامر القادري'}
             </p>
 
             {/* Thin rule */}
@@ -600,8 +598,8 @@ export default function GalleryPage() {
         <div className="flex items-center justify-center gap-4 mb-10">
           <div className="flex-1 h-px bg-foreground/15" />
           <div className="text-center">
-            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">خدماتنا</h2>
-            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Services</p>
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'خدماتنا' : 'Our Services'}</h2>
+            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Services' : 'خدماتنا'}</p>
           </div>
           <div className="flex-1 h-px bg-foreground/15" />
         </div>
@@ -642,8 +640,8 @@ export default function GalleryPage() {
               <div className="w-14 h-14 rounded-full bg-foreground/8 flex items-center justify-center text-foreground/70">
                 {service.icon}
               </div>
-              <p className="text-sm font-bold arabic text-foreground leading-snug">{service.nameAr}</p>
-              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{service.nameEn}</p>
+              <p className="text-sm font-bold arabic text-foreground leading-snug">{isAr ? service.nameAr : service.nameEn}</p>
+              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{isAr ? service.nameEn : service.nameAr}</p>
             </div>
           ))}
         </div>
@@ -651,7 +649,7 @@ export default function GalleryPage() {
 
       {/* ── GALLERY TITLE ── */}
       <div className="text-center pt-12 pb-2 px-4">
-        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">معرض مشاتل القادري الزراعية</h2>
+        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الزراعية' : 'Al-Qadri Nurseries Gallery'}</h2>
         <div className="flex items-center justify-center gap-3">
           <div className="w-12 h-px bg-foreground/20" />
           <div className="w-2 h-2 rounded-full bg-foreground/30" />
@@ -685,8 +683,8 @@ export default function GalleryPage() {
           <div className="flex items-center justify-center gap-4 mb-10">
             <div className="flex-1 h-px bg-foreground/15" />
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">فروعنا</h2>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Branches</p>
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'فروعنا' : 'Our Branches'}</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Branches' : 'فروعنا'}</p>
             </div>
             <div className="flex-1 h-px bg-foreground/15" />
             {isAdmin && (
@@ -775,8 +773,8 @@ export default function GalleryPage() {
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="flex-1 h-px bg-foreground/15" />
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">روابطنا</h2>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Links</p>
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'روابطنا' : 'Our Links'}</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Links' : 'روابطنا'}</p>
             </div>
             <div className="flex-1 h-px bg-foreground/15" />
             {isAdmin && (
@@ -1132,13 +1130,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         <div className="text-center shrink-0">
           <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">
             {isAdmin
-              ? <InlineEdit value={section.nameAr} onSave={v => onUpdateName('nameAr', v)} className="arabic text-2xl font-bold" />
-              : section.nameAr}
+              ? <InlineEdit value={isAr ? section.nameAr : (section.nameEn || section.nameAr)} onSave={v => onUpdateName(isAr ? 'nameAr' : 'nameEn', v)} className="arabic text-2xl font-bold" />
+              : (isAr ? section.nameAr : (section.nameEn || section.nameAr))}
           </h2>
           <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">
-            {isAdmin
-              ? <InlineEdit value={section.nameEn} onSave={v => onUpdateName('nameEn', v)} className="latin text-xs uppercase tracking-widest" />
-              : section.nameEn}
+            {isAr ? section.nameEn : section.nameAr}
           </p>
         </div>
         <div className="flex-1 h-px bg-border" />
