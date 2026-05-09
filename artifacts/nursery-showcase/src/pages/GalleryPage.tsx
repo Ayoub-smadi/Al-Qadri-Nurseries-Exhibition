@@ -1,12 +1,12 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, uploadImage } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, uploadImage } from '@/lib/storage';
 import { downloadCatalogPDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
-  TreePine, Package, Building2, Globe, Flower2,
+  TreePine, Package, Building2, Globe, Flower2, Share2,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,42 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 /* ── utils ─────────────────────────────────────────────── */
 function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
+
+/* ── Social platform config ─────────────────────────────── */
+const SOCIAL_PLATFORMS: { value: SocialPlatform; labelAr: string; labelEn: string; color: string }[] = [
+  { value: 'facebook',  labelAr: 'فيسبوك',   labelEn: 'Facebook',   color: '#1877F2' },
+  { value: 'instagram', labelAr: 'إنستجرام', labelEn: 'Instagram',  color: '#E1306C' },
+  { value: 'whatsapp',  labelAr: 'واتساب',   labelEn: 'WhatsApp',   color: '#25D366' },
+  { value: 'youtube',   labelAr: 'يوتيوب',   labelEn: 'YouTube',    color: '#FF0000' },
+];
+
+function SocialIcon({ platform, size = 40 }: { platform: SocialPlatform; size?: number }) {
+  const cfg = SOCIAL_PLATFORMS.find(p => p.value === platform)!;
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="40" height="40" rx="10" fill={cfg.color} />
+      {platform === 'facebook' && (
+        <path d="M22 20h-2.5v8H17v-8h-2v-3h2v-1.8C17 13.4 18.1 12 20.5 12H23v3h-1.5c-.6 0-.5.3-.5.6V17H23l-.4 3H21z" fill="white"/>
+      )}
+      {platform === 'instagram' && (
+        <>
+          <rect x="11" y="11" width="18" height="18" rx="5" stroke="white" strokeWidth="2" fill="none"/>
+          <circle cx="20" cy="20" r="4.5" stroke="white" strokeWidth="2" fill="none"/>
+          <circle cx="25.5" cy="14.5" r="1.2" fill="white"/>
+        </>
+      )}
+      {platform === 'whatsapp' && (
+        <path d="M20 11a9 9 0 0 0-7.8 13.5L11 29l4.7-1.2A9 9 0 1 0 20 11zm0 16.2a7.2 7.2 0 0 1-3.7-1l-.3-.2-2.8.7.8-2.7-.2-.3A7.2 7.2 0 1 1 20 27.2zm4-5.4c-.2-.1-1.3-.6-1.5-.7-.2-.1-.3-.1-.4.1s-.5.7-.6.8c-.1.1-.2.1-.4 0a5.5 5.5 0 0 1-2.8-2.5c-.1-.2 0-.3.1-.4l.3-.4c.1-.1.1-.2.2-.4 0-.1 0-.3-.1-.4s-.5-1.2-.7-1.6c-.2-.4-.3-.4-.5-.4h-.4c-.1 0-.3.1-.5.3a2.9 2.9 0 0 0-.9 2.2c0 1.3.9 2.5 1 2.7.1.2 1.8 2.8 4.4 3.8.6.3 1.1.4 1.5.5.6.2 1.2.1 1.6-.1.5-.2 1.3-.5 1.5-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.2-.4-.3z" fill="white"/>
+      )}
+      {platform === 'youtube' && (
+        <>
+          <path d="M28.5 15.5s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C21.7 11.2 20 11.2 20 11.2s-1.7 0-4.3.2c-.6.1-1.9.1-3 1.3-.9.8-1.2 2.8-1.2 2.8S11.2 17.7 11.2 20v2.2c0 2.2.3 4.5.3 4.5s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C18 30.9 20 31 20 31s1.7 0 4.3-.3c.6-.1 1.9-.1 3-1.2.9-.8 1.2-2.8 1.2-2.8s.3-2.2.3-4.5V20c0-2.2-.3-4.5-.3-4.5z" fill="white"/>
+          <polygon points="17.5,16.5 17.5,23.5 24,20" fill={cfg.color}/>
+        </>
+      )}
+    </svg>
+  );
+}
 
 /* ── file upload helper ──────────────────────────────── */
 function FileUploadBtn({ onFile, onLoading, children, className }: {
@@ -284,6 +320,12 @@ export default function GalleryPage() {
   const [branchImageUrl, setBranchImageUrl] = useState('');
   const [branchImgUploading, setBranchImgUploading] = useState(false);
 
+  /* social links */
+  const [socialModalOpen, setSocialModalOpen] = useState(false);
+  const [editingSocial, setEditingSocial] = useState<SocialLink | null>(null);
+  const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>('facebook');
+  const [socialUrl, setSocialUrl] = useState('');
+
   /* ── handlers ── */
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,6 +384,44 @@ export default function GalleryPage() {
   const handleDeleteBranch = (id: string) => {
     if (!confirm(isAr ? 'حذف الفرع؟' : 'Delete this branch?')) return;
     updateSiteData({ branches: (siteData.branches ?? []).filter(b => b.id !== id) });
+  };
+
+  const openAddSocial = () => {
+    setEditingSocial(null);
+    setSocialPlatform('facebook');
+    setSocialUrl('');
+    setSocialModalOpen(true);
+  };
+
+  const openEditSocial = (link: SocialLink) => {
+    setEditingSocial(link);
+    setSocialPlatform(link.platform);
+    setSocialUrl(link.url);
+    setSocialModalOpen(true);
+  };
+
+  const handleSaveSocial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!socialUrl.trim()) return;
+    const links = siteData.socialLinks ?? [];
+    if (editingSocial) {
+      updateSiteData({ socialLinks: links.map(l => l.id === editingSocial.id ? { ...l, platform: socialPlatform, url: socialUrl.trim() } : l) });
+      toast.success(isAr ? 'تم التعديل' : 'Updated');
+    } else {
+      const existing = links.find(l => l.platform === socialPlatform);
+      if (existing) {
+        updateSiteData({ socialLinks: links.map(l => l.platform === socialPlatform ? { ...l, url: socialUrl.trim() } : l) });
+      } else {
+        updateSiteData({ socialLinks: [...links, { id: uid(), platform: socialPlatform, url: socialUrl.trim() }] });
+      }
+      toast.success(isAr ? 'تمت الإضافة' : 'Added');
+    }
+    setSocialModalOpen(false);
+  };
+
+  const handleDeleteSocial = (id: string) => {
+    if (!confirm(isAr ? 'حذف الرابط؟' : 'Delete this link?')) return;
+    updateSiteData({ socialLinks: (siteData.socialLinks ?? []).filter(l => l.id !== id) });
   };
 
   return (
@@ -644,6 +724,74 @@ export default function GalleryPage() {
         </section>
       )}
 
+      {/* ── SOCIAL LINKS ── */}
+      {((siteData.socialLinks ?? []).length > 0 || isAdmin) && (
+        <section className="px-4 md:px-12 py-12 border-t border-border bg-background">
+          <div className="flex items-center justify-center gap-4 mb-8">
+            <div className="flex-1 h-px bg-foreground/15" />
+            <div className="text-center">
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">روابطنا</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Links</p>
+            </div>
+            <div className="flex-1 h-px bg-foreground/15" />
+            {isAdmin && (
+              <button
+                onClick={openAddSocial}
+                className="no-print shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="arabic">{isAr ? 'إضافة رابط' : 'Add Link'}</span>
+              </button>
+            )}
+          </div>
+
+          {(siteData.socialLinks ?? []).length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed border-border rounded-2xl arabic">
+              {isAr ? 'لا توجد روابط بعد — اضغط "إضافة رابط" لإضافة أول رابط' : 'No links yet — click "Add Link" to add one'}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-6 flex-wrap max-w-2xl mx-auto">
+              {(siteData.socialLinks ?? []).map(link => {
+                const cfg = SOCIAL_PLATFORMS.find(p => p.value === link.platform)!;
+                return (
+                  <div key={link.id} className="relative group/social flex flex-col items-center gap-2">
+                    <a
+                      href={link.url || '#'}
+                      target={link.url ? '_blank' : undefined}
+                      rel="noreferrer"
+                      onClick={e => { if (!link.url) e.preventDefault(); }}
+                      className="block transition-transform duration-200 hover:scale-110 hover:-translate-y-0.5 drop-shadow-md hover:drop-shadow-xl"
+                      title={isAr ? cfg.labelAr : cfg.labelEn}
+                    >
+                      <SocialIcon platform={link.platform} size={56} />
+                    </a>
+                    <span className="text-xs text-muted-foreground arabic font-medium">{isAr ? cfg.labelAr : cfg.labelEn}</span>
+                    {isAdmin && (
+                      <div className="no-print absolute -top-2 -end-2 flex gap-0.5 opacity-0 group-hover/social:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openEditSocial(link)}
+                          className="w-5 h-5 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary/80 transition-colors"
+                          title={isAr ? 'تعديل' : 'Edit'}
+                        >
+                          <Pencil className="w-2.5 h-2.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSocial(link.id)}
+                          className="w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors"
+                          title={isAr ? 'حذف' : 'Delete'}
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
@@ -663,6 +811,7 @@ export default function GalleryPage() {
             <span className="text-xs font-bold text-primary pe-2 border-e border-border arabic shrink-0">{isAr ? 'تحرير' : 'Edit'}</span>
             <ToolBtn icon={<FolderPlus className="w-3.5 h-3.5" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
             <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
+            <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <button onClick={() => setIsAdmin(false)}
@@ -840,6 +989,67 @@ export default function GalleryPage() {
                 className="bg-primary text-primary-foreground">{isAr ? 'حفظ' : 'Save'}</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Social Links Modal */}
+      <Dialog open={socialModalOpen} onOpenChange={o => { setSocialModalOpen(o); }}>
+        <DialogContent className="sm:max-w-sm bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic">
+              {editingSocial
+                ? (isAr ? 'تعديل الرابط' : 'Edit Link')
+                : (isAr ? 'إضافة رابط جديد' : 'Add New Link')}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveSocial} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label className="arabic">{isAr ? 'المنصة' : 'Platform'}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {SOCIAL_PLATFORMS.map(p => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => setSocialPlatform(p.value)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all text-sm arabic font-medium ${
+                      socialPlatform === p.value
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:bg-muted/50'
+                    }`}
+                  >
+                    <SocialIcon platform={p.value} size={28} />
+                    <span>{isAr ? p.labelAr : p.labelEn}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="arabic">{isAr ? 'الرابط' : 'URL'}</Label>
+              <Input
+                value={socialUrl}
+                onChange={e => setSocialUrl(e.target.value)}
+                dir="ltr"
+                placeholder={
+                  socialPlatform === 'whatsapp'
+                    ? 'https://wa.me/9665XXXXXXXX'
+                    : socialPlatform === 'facebook'
+                    ? 'https://facebook.com/yourpage'
+                    : socialPlatform === 'instagram'
+                    ? 'https://instagram.com/yourprofile'
+                    : 'https://youtube.com/@yourchannel'
+                }
+                type="url"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setSocialModalOpen(false)}>
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </Button>
+              <Button type="submit" className="bg-primary text-primary-foreground" disabled={!socialUrl.trim()}>
+                {isAr ? 'حفظ' : 'Save'}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
