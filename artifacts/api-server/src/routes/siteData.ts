@@ -16,11 +16,14 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 router.post("/admin/login", (req: Request, res: Response) => {
-  const { username, password } = req.body as { username?: string; password?: string };
-  const expectedUser = process.env["ADMIN_USERNAME"] ?? "Ayoub";
-  const expectedPass = process.env["ADMIN_PASSWORD"] ?? "Ayoub@123";
+  const adminToken = process.env["ADMIN_TOKEN"];
+  if (!adminToken) {
+    res.status(500).json({ error: "Server misconfiguration: ADMIN_TOKEN not set" });
+    return;
+  }
 
-  if (username !== expectedUser || password !== expectedPass) {
+  const { password } = req.body as { password?: string };
+  if (!password || password !== adminToken) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }

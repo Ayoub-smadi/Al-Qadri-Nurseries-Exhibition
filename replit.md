@@ -47,9 +47,16 @@ A showcase website for Al-Qadri Agricultural Nurseries. Visitors can browse plan
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+## Required secrets
+
+Set these in Replit's Secrets panel (never in `.replit` as plaintext):
+- `DATABASE_URL` — Postgres connection string (auto-set by Replit DB integration)
+- `ADMIN_TOKEN` — admin password for the site editor (set to any strong value you choose)
+
 ## Gotchas
 
-- The hidden admin button is a tiny dot in the top-right corner. Click it to open the login modal. Default password: check the storage.ts file.
+- The hidden admin button is a tiny dot in the top-right corner. Click it to open the login modal. Enter the value of your `ADMIN_TOKEN` secret as the password.
+- Admin sessions last 8 hours and are stored server-side in memory (reset on server restart).
 - Image uploads are stored as base64 data URLs, which means large images will inflate the JSONB blob size significantly.
 - The `html2canvas` package needs `pnpm approve-builds` if prompted after install.
 

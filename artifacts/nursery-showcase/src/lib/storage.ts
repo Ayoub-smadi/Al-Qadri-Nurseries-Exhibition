@@ -100,12 +100,12 @@ export function setSessionToken(token: string | null) {
   _sessionToken = token;
 }
 
-export async function adminLogin(username: string, password: string): Promise<string | null> {
+export async function adminLogin(password: string): Promise<string | null> {
   try {
     const res = await fetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ password }),
     });
     if (res.ok) {
       const json = await res.json() as { token?: string };
