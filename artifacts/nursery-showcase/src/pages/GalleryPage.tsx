@@ -1214,18 +1214,31 @@ function ToolBtn({ icon, label, onClick, variant = 'default' }: {
   );
 }
 
-/* ── Tree SVG Logo ───────────────────────────────────── */
+/* ── Nursery SVG Logo ───────────────────────────────────── */
 function TreeSVG() {
   return (
-    <svg width="64" height="84" viewBox="0 0 64 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Layer 1 – top */}
-      <polygon points="32,4 54,34 10,34" fill="hsl(150 30% 38%)" />
-      {/* Layer 2 – middle */}
-      <polygon points="32,22 58,52 6,52" fill="hsl(150 35% 32%)" />
-      {/* Layer 3 – bottom */}
-      <polygon points="32,40 62,72 2,72" fill="hsl(150 40% 26%)" />
-      {/* Trunk */}
-      <rect x="27" y="72" width="10" height="12" rx="2" fill="hsl(27 55% 40%)" />
+    <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Outer circle */}
+      <circle cx="48" cy="48" r="46" fill="hsl(150 35% 28%)" />
+      <circle cx="48" cy="48" r="42" fill="hsl(150 30% 22%)" />
+      {/* Inner light ring */}
+      <circle cx="48" cy="48" r="38" fill="none" stroke="hsl(80 50% 70%)" strokeWidth="1" strokeDasharray="4 3" />
+      {/* Main stem */}
+      <line x1="48" y1="72" x2="48" y2="44" stroke="hsl(27 55% 55%)" strokeWidth="3" strokeLinecap="round"/>
+      {/* Left big leaf */}
+      <path d="M48 60 C38 50 28 48 30 38 C35 38 46 44 48 56" fill="hsl(100 45% 42%)" />
+      {/* Right big leaf */}
+      <path d="M48 54 C58 44 68 42 66 32 C61 32 50 38 48 50" fill="hsl(130 50% 36%)" />
+      {/* Top leaf */}
+      <path d="M48 44 C44 34 44 24 48 20 C52 24 52 34 48 44" fill="hsl(110 55% 50%)" />
+      {/* Small left leaf */}
+      <path d="M48 50 C40 44 34 46 34 40 C38 38 46 42 48 50" fill="hsl(90 48% 48%)" />
+      {/* Ground arc */}
+      <path d="M36 74 Q48 69 60 74" stroke="hsl(27 40% 60%)" strokeWidth="2" strokeLinecap="round" fill="none"/>
+      {/* Soil dots */}
+      <circle cx="40" cy="76" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
+      <circle cx="48" cy="77" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
+      <circle cx="56" cy="76" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
     </svg>
   );
 }
