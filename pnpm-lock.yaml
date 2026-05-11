@@ -164,6 +164,34 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  api:
+    dependencies:
+      cors:
+        specifier: ^2
+        version: 2.8.6
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.18.0)(pg@8.20.0)
+      express:
+        specifier: ^5
+        version: 5.2.1
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.19
+        version: 2.8.19
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^25.0.0
+        version: 25.3.5
+      '@types/pg':
+        specifier: ^8.18.0
+        version: 8.18.0
+
   artifacts/api-server:
     dependencies:
       '@workspace/api-zod':

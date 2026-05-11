@@ -9,7 +9,7 @@ const isBuild = process.argv.includes("build");
 const port = Number(process.env.PORT ?? 3000);
 const basePath = process.env.BASE_PATH ?? "/";
 
-if (!isBuild) {
+if (!isBuild && process.env.REPL_ID !== undefined) {
   if (!process.env.PORT) throw new Error("PORT environment variable is required but was not provided.");
   if (!process.env.BASE_PATH) throw new Error("BASE_PATH environment variable is required but was not provided.");
 }
