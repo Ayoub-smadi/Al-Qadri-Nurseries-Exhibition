@@ -2,7 +2,7 @@
   "version": 2,
   "installCommand": "pnpm install",
   "buildCommand": "pnpm --filter @workspace/nursery-showcase run build",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "artifacts/nursery-showcase/dist/public",
   "framework": null,
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" }
