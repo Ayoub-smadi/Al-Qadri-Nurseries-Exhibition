@@ -37,11 +37,18 @@ export interface SocialLink {
   url: string;
 }
 
+export interface Highlight {
+  id: string;
+  textAr: string;
+  textEn: string;
+}
+
 export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
   owner: { photo: string };
+  highlights: Highlight[];
   sections: Section[];
   branches: Branch[];
   socialLinks: SocialLink[];
@@ -59,6 +66,11 @@ export const DEFAULT_DATA: SiteData = {
   titleEn: "Al-Qadri Agricultural Nurseries",
   logo: { customUrl: "" },
   owner: { photo: "" },
+  highlights: [
+    { id: "h1", textAr: "نوفر أجود أنواع النباتات والأشجار المزهرة بأسعار منافسة لتجميل منزلك وحديقتك", textEn: "We provide the finest flowering plants and trees at competitive prices to beautify your home and garden" },
+    { id: "h2", textAr: "خبرة تتجاوز عشرين عاماً في مجال تنسيق الحدائق وتوريد المنتجات الزراعية", textEn: "Over twenty years of expertise in landscape design and agricultural product supply" },
+    { id: "h3", textAr: "نقدم خدمات الاستيراد والتصدير للنباتات والأشجار إلى مختلف دول المنطقة", textEn: "We offer import and export services for plants and trees across the region" },
+  ],
   sections: [
     {
       id: "sec-ornamental",
@@ -127,6 +139,7 @@ export async function fetchSiteData(): Promise<SiteData> {
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
           owner: { ...DEFAULT_DATA.owner, ...p.owner },
+          highlights: p.highlights ?? DEFAULT_DATA.highlights,
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
