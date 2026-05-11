@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, siteConfigTable } from "@workspace/db";
+import { db, siteConfigTable, adminsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -15,16 +15,26 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
-router.post("/admin/login", (req: Request, res: Response) => {
-  const adminToken = process.env["ADMIN_TOKEN"];
-  if (!adminToken) {
-    res.status(500).json({ error: "Server misconfiguration: ADMIN_TOKEN not set" });
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
+
+router.post("/admin/login", async (req: Request, res: Response) => {
+  const { username, password } = req.body as { username?: string; password?: string };
+
+  if (!username || !password) {
+    res.status(401).json({ error: "Invalid credentials" });
     return;
   }
 
-  const { password } = req.body as { password?: string };
-  if (!password || password !== adminToken) {
-    res.status(401).json({ error: "Invalid credentials" });
+  try {
+    const rows = await db.select().from(adminsTable).where(eq(adminsTable.username, username));
+    if (rows.length === 0 || rows[0].passwordHash !== hashPassword(password)) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+  } catch {
+    res.status(500).json({ error: "Database error" });
     return;
   }
 

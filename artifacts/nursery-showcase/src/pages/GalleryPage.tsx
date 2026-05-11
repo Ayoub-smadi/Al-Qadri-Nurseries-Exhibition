@@ -356,7 +356,7 @@ export default function GalleryPage() {
   /* ── handlers ── */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = await adminLogin(pass);
+    const token = await adminLogin(user, pass);
     if (token) {
       setSessionToken(token);
       setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setLoginErr('');
@@ -921,12 +921,16 @@ export default function GalleryPage() {
       </Dialog>
 
       {/* Login */}
-      <Dialog open={loginOpen} onOpenChange={o => { setLoginOpen(o); if (!o) { setPass(''); setLoginErr(''); } }}>
+      <Dialog open={loginOpen} onOpenChange={o => { setLoginOpen(o); if (!o) { setUser(''); setPass(''); setLoginErr(''); } }}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
           <DialogHeader>
             <DialogTitle className="text-xl text-center arabic">{isAr ? 'دخول المدير' : 'Admin Login'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleLogin} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'اسم المستخدم' : 'Username'}</Label>
+              <Input type="text" value={user} onChange={e => setUser(e.target.value)} dir="ltr" autoComplete="username" />
+            </div>
             <div className="space-y-1.5">
               <Label>{isAr ? 'كلمة المرور' : 'Password'}</Label>
               <Input type="password" value={pass} onChange={e => setPass(e.target.value)} dir="ltr" autoComplete="current-password" />
