@@ -29,24 +29,36 @@ const adminsTable = pgTable("admins", {
 });
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const sessions = new Map<string, number>();
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, expiry] of sessions) {
-    if (expiry < now) sessions.delete(token);
-  }
-}, 60 * 60 * 1000);
+const TOKEN_SECRET = crypto.createHash("sha256").update(process.env.DATABASE_URL!).digest();
 
 function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
+function createToken(): string {
+  const expiry = Date.now() + SESSION_TTL_MS;
+  const payload = Buffer.from(JSON.stringify({ expiry })).toString("base64url");
+  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+function verifyToken(token: string): boolean {
+  const dot = token.indexOf(".");
+  if (dot === -1) return false;
+  const payload = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  if (sig !== expected) return false;
+  try {
+    const { expiry } = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return Date.now() < expiry;
+  } catch { return false; }
+}
+
 function requireSession(req: express.Request, res: express.Response): boolean {
   const auth = (req.headers["authorization"] ?? "") as string;
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  const expiry = sessions.get(token);
-  if (!expiry || expiry < Date.now()) {
+  if (!verifyToken(token)) {
     res.status(403).json({ error: "Forbidden" });
     return false;
   }
@@ -55,8 +67,8 @@ function requireSession(req: express.Request, res: express.Response): boolean {
 
 const app = express();
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const router = Router();
 
@@ -80,8 +92,7 @@ router.post("/admin/login", async (req, res) => {
     res.status(500).json({ error: "Database error" });
     return;
   }
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  const token = createToken();
   res.json({ token });
 });
 
