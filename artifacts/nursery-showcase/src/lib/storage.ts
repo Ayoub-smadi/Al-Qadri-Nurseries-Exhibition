@@ -189,6 +189,73 @@ export async function uploadImage(file: File): Promise<string> {
   });
 }
 
+export interface QuoteItem {
+  plantId: string;
+  plantNameAr: string;
+  plantNameEn: string;
+  plantImage: string;
+  sectionNameAr: string;
+  sectionNameEn: string;
+  quantity: number;
+  size: string;
+  price: number;
+}
+
+export interface QuoteRequest {
+  id: string;
+  customer_name: string;
+  phone: string;
+  items: QuoteItem[];
+  notes: string;
+  discount: number;
+  tax: number;
+  status: string;
+  created_at: string;
+}
+
+export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string }): Promise<string | null> {
+  try {
+    const res = await fetch('/api/quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) { const j = await res.json() as { id?: string }; return j.id ?? null; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function fetchQuotes(): Promise<QuoteRequest[]> {
+  if (!_sessionToken) return [];
+  try {
+    const res = await fetch('/api/quotes', { headers: { 'Authorization': `Bearer ${_sessionToken}` } });
+    if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
+  } catch { /* ignore */ }
+  return [];
+}
+
+export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string }): Promise<boolean> {
+  if (!_sessionToken) return false;
+  try {
+    const res = await fetch(`/api/quotes/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_sessionToken}` },
+      body: JSON.stringify(data),
+    });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
+export async function deleteQuote(id: string): Promise<boolean> {
+  if (!_sessionToken) return false;
+  try {
+    const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${_sessionToken}` } });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
 export function resolveImageSrc(src: string): string {
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {
