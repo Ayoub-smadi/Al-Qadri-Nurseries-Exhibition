@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "معرض مشاتل القادري الزراعية"
+title = "Al-Qadri Nurseries Showcase"
 version = "1.0.0"
 id = "artifacts/nursery-showcase"
 router = "path"

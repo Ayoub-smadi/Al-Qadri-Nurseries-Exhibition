@@ -1,12 +1,13 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, uploadImage } from '@/lib/storage';
-import { downloadCatalogPDF, PDFSectionInput } from '@/lib/pdfGen';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, uploadImage, adminLogin, setSessionToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
+  Search, Receipt, ShoppingCart, CheckCircle2, Minus, Inbox,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -241,7 +242,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                     onCheckedChange={() => toggleSection(sec.id)}
                     className="shrink-0"
                   />
-                  <span className="font-bold arabic flex-1 text-sm">{isAr ? sec.nameAr : sec.nameEn}</span>
+                  <span className="font-bold arabic flex-1 text-sm">{isAr ? sec.nameAr : (sec.nameEn || sec.nameAr)}</span>
                   <span className="text-xs text-muted-foreground">{secSel.size}/{sec.photos.length}</span>
                   <button onClick={() => setExpanded(prev => {
                     const n = new Set(prev);
@@ -261,12 +262,12 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                         <label key={photo.id}
                           className={`relative cursor-pointer rounded-lg overflow-hidden aspect-square border-2 transition-all ${checked ? 'border-primary shadow-sm' : 'border-transparent opacity-50'}`}
                           onClick={() => togglePhoto(sec.id, photo.id)}>
-                          <img src={photo.image} alt={isAr ? photo.nameAr : photo.nameEn}
+                          <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             className="w-full h-full object-cover" />
                           <div className={`absolute inset-0 bg-primary/20 transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`} />
                           <div className="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-1">
                             <p className="text-white text-[10px] font-semibold truncate arabic text-center leading-tight">
-                              {isAr ? photo.nameAr : photo.nameEn}
+                              {isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             </p>
                           </div>
                           {checked && (
@@ -353,12 +354,26 @@ export default function GalleryPage() {
   const [socialPlatform, setSocialPlatform] = useState<SocialPlatform>('facebook');
   const [socialUrl, setSocialUrl] = useState('');
 
+  /* search */
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /* quote request */
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteCart, setQuoteCart] = useState<QuoteCartItem[]>([]);
+
+  /* admin quotes */
+  const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
+
   /* ── handlers ── */
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (user === 'Ayoub' && pass === 'Ayoub@123') {
+    const token = await adminLogin(user, pass);
+    if (token) {
+      setSessionToken(token);
       setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setLoginErr('');
-    } else setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+    } else {
+      setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+    }
   };
 
   const handleAddPhoto = (e: React.FormEvent) => {
@@ -510,13 +525,11 @@ export default function GalleryPage() {
           {/* Company Name */}
           <h1 className="text-3xl md:text-4xl font-bold arabic mb-1 leading-tight">
             {isAdmin
-              ? <InlineEdit value={siteData.titleAr} onSave={v => updateSiteData({ titleAr: v })} className="arabic text-3xl md:text-4xl font-bold" />
-              : siteData.titleAr}
+              ? <InlineEdit value={isAr ? siteData.titleAr : siteData.titleEn} onSave={v => updateSiteData(isAr ? { titleAr: v } : { titleEn: v })} className="arabic text-3xl md:text-4xl font-bold" />
+              : (isAr ? siteData.titleAr : (siteData.titleEn || siteData.titleAr))}
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground tracking-[0.2em] uppercase latin">
-            {isAdmin
-              ? <InlineEdit value={siteData.titleEn} onSave={v => updateSiteData({ titleEn: v })} className="latin tracking-widest uppercase" />
-              : siteData.titleEn}
+            {isAr ? siteData.titleEn : siteData.titleAr}
           </p>
         </div>
 
@@ -561,17 +574,17 @@ export default function GalleryPage() {
           <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
             {/* Title badge */}
             <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-foreground/10 text-foreground border border-foreground/20 tracking-wide shadow-sm">
-              المدير العام
+              {isAr ? 'المدير العام' : 'General Manager'}
             </span>
 
-            {/* Name Arabic */}
+            {/* Name */}
             <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground leading-snug mt-1">
-              مهندس ثامر القادري
+              {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
             </h2>
 
-            {/* Name English */}
+            {/* Name subtitle (other lang) */}
             <p className="text-sm text-muted-foreground latin tracking-widest uppercase">
-              Eng. Thamer Al-Qadri
+              {isAr ? 'Eng. Thamer Al-Qadri' : 'مهندس ثامر القادري'}
             </p>
 
             {/* Thin rule */}
@@ -590,14 +603,22 @@ export default function GalleryPage() {
         </div>
       </header>
 
+      {/* ── HIGHLIGHTS CAROUSEL ── */}
+      <HighlightsCarousel
+        highlights={siteData.highlights ?? []}
+        isAr={isAr}
+        isAdmin={isAdmin}
+        onUpdate={items => updateSiteData({ highlights: items })}
+      />
+
       {/* ── SERVICES ── */}
       <section className="border-b border-border bg-muted/20 px-4 md:px-12 py-12">
         {/* Section title */}
         <div className="flex items-center justify-center gap-4 mb-10">
           <div className="flex-1 h-px bg-foreground/15" />
           <div className="text-center">
-            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">خدماتنا</h2>
-            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Services</p>
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'خدماتنا' : 'Our Services'}</h2>
+            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Services' : 'خدماتنا'}</p>
           </div>
           <div className="flex-1 h-px bg-foreground/15" />
         </div>
@@ -638,8 +659,8 @@ export default function GalleryPage() {
               <div className="w-14 h-14 rounded-full bg-foreground/8 flex items-center justify-center text-foreground/70">
                 {service.icon}
               </div>
-              <p className="text-sm font-bold arabic text-foreground leading-snug">{service.nameAr}</p>
-              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{service.nameEn}</p>
+              <p className="text-sm font-bold arabic text-foreground leading-snug">{isAr ? service.nameAr : service.nameEn}</p>
+              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{isAr ? service.nameEn : service.nameAr}</p>
             </div>
           ))}
         </div>
@@ -647,7 +668,7 @@ export default function GalleryPage() {
 
       {/* ── GALLERY TITLE ── */}
       <div className="text-center pt-12 pb-2 px-4">
-        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">معرض مشاتل القادري الزراعية</h2>
+        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الزراعية' : 'Al-Qadri Nurseries Gallery'}</h2>
         <div className="flex items-center justify-center gap-3">
           <div className="w-12 h-px bg-foreground/20" />
           <div className="w-2 h-2 rounded-full bg-foreground/30" />
@@ -655,9 +676,44 @@ export default function GalleryPage() {
         </div>
       </div>
 
+      {/* ── SEARCH + QUOTE BUTTON ── */}
+      <div className="px-4 md:px-12 pt-6 pb-0 flex gap-2 max-w-2xl mx-auto w-full">
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={isAr ? 'ابحث عن نبات أو شجرة...' : 'Search plants...'}
+            className="w-full ps-9 pe-3 h-10 rounded-xl border border-border bg-card text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+            dir={isAr ? 'rtl' : 'ltr'}
+          />
+        </div>
+        <button
+          onClick={() => setQuoteOpen(true)}
+          className="no-print relative flex items-center gap-1.5 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold arabic whitespace-nowrap hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <Receipt className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">{isAr ? 'طلب عرض سعر' : 'Request Quote'}</span>
+          <span className="sm:hidden">{isAr ? 'عرض سعر' : 'Quote'}</span>
+          {quoteCart.length > 0 && (
+            <span className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              {quoteCart.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* ── SECTIONS ── */}
       <main className="flex-1 px-4 md:px-12 py-10 space-y-16">
-        {siteData.sections.map(section => (
+        {(() => {
+          const q = searchQuery.trim().toLowerCase();
+          const filtered = q
+            ? siteData.sections
+                .map(s => ({ ...s, photos: s.photos.filter(p => p.nameAr.toLowerCase().includes(q) || p.nameEn.toLowerCase().includes(q)) }))
+                .filter(s => s.photos.length > 0)
+            : siteData.sections;
+          return filtered;
+        })().map(section => (
           <SectionBlock key={section.id}
             section={section} lang={lang} isAdmin={isAdmin}
             onUpdateName={(f, v) => updateSectionName(section.id, f, v)}
@@ -681,8 +737,8 @@ export default function GalleryPage() {
           <div className="flex items-center justify-center gap-4 mb-10">
             <div className="flex-1 h-px bg-foreground/15" />
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">فروعنا</h2>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Branches</p>
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'فروعنا' : 'Our Branches'}</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Branches' : 'فروعنا'}</p>
             </div>
             <div className="flex-1 h-px bg-foreground/15" />
             {isAdmin && (
@@ -717,7 +773,7 @@ export default function GalleryPage() {
                     {branch.image ? (
                       <img
                         src={branch.image}
-                        alt={isAr ? branch.nameAr : branch.nameEn}
+                        alt={isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
@@ -734,7 +790,7 @@ export default function GalleryPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold arabic text-foreground text-sm leading-tight truncate">
-                        {isAr ? branch.nameAr : branch.nameEn}
+                        {isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
                       </p>
                       {branch.nameAr && branch.nameEn && (
                         <p className="text-xs text-muted-foreground latin truncate">
@@ -771,8 +827,8 @@ export default function GalleryPage() {
           <div className="flex items-center justify-center gap-4 mb-8">
             <div className="flex-1 h-px bg-foreground/15" />
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">روابطنا</h2>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">Our Links</p>
+              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'روابطنا' : 'Our Links'}</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Links' : 'روابطنا'}</p>
             </div>
             <div className="flex-1 h-px bg-foreground/15" />
             {isAdmin && (
@@ -854,8 +910,9 @@ export default function GalleryPage() {
             <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
             <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
+            <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} onClick={() => setAdminQuotesOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
-            <button onClick={() => setIsAdmin(false)}
+            <button onClick={() => { setSessionToken(null); setIsAdmin(false); }}
               className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -927,11 +984,11 @@ export default function GalleryPage() {
           <form onSubmit={handleLogin} className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>{isAr ? 'اسم المستخدم' : 'Username'}</Label>
-              <Input value={user} onChange={e => setUser(e.target.value)} dir="ltr" autoComplete="off" />
+              <Input type="text" value={user} onChange={e => setUser(e.target.value)} dir="ltr" autoComplete="username" />
             </div>
             <div className="space-y-1.5">
               <Label>{isAr ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={pass} onChange={e => setPass(e.target.value)} dir="ltr" />
+              <Input type="password" value={pass} onChange={e => setPass(e.target.value)} dir="ltr" autoComplete="current-password" />
             </div>
             {loginErr && <p className="text-destructive text-sm">{loginErr}</p>}
             <Button type="submit" className="w-full bg-primary text-primary-foreground">{isAr ? 'دخول' : 'Login'}</Button>
@@ -1112,6 +1169,26 @@ export default function GalleryPage() {
           logoUrl={siteData.logo.customUrl}
         />
       )}
+
+      {/* Quote Request Modal */}
+      <QuoteRequestModal
+        open={quoteOpen}
+        onClose={() => setQuoteOpen(false)}
+        sections={siteData.sections}
+        lang={lang}
+        cart={quoteCart}
+        setCart={setQuoteCart}
+      />
+
+      {/* Admin Quotes Modal */}
+      {isAdmin && (
+        <AdminQuotesModal
+          open={adminQuotesOpen}
+          onClose={() => setAdminQuotesOpen(false)}
+          lang={lang}
+          siteData={siteData}
+        />
+      )}
     </div>
   );
 }
@@ -1132,13 +1209,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         <div className="text-center shrink-0">
           <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">
             {isAdmin
-              ? <InlineEdit value={section.nameAr} onSave={v => onUpdateName('nameAr', v)} className="arabic text-2xl font-bold" />
-              : section.nameAr}
+              ? <InlineEdit value={isAr ? section.nameAr : (section.nameEn || section.nameAr)} onSave={v => onUpdateName(isAr ? 'nameAr' : 'nameEn', v)} className="arabic text-2xl font-bold" />
+              : (isAr ? section.nameAr : (section.nameEn || section.nameAr))}
           </h2>
           <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">
-            {isAdmin
-              ? <InlineEdit value={section.nameEn} onSave={v => onUpdateName('nameEn', v)} className="latin text-xs uppercase tracking-widest" />
-              : section.nameEn}
+            {isAr ? section.nameEn : section.nameAr}
           </p>
         </div>
         <div className="flex-1 h-px bg-border" />
@@ -1161,11 +1236,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {section.photos.map(photo => (
             <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5]">
-              <img src={photo.image} alt={isAr ? photo.nameAr : photo.nameEn}
+              <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
               {(photo.nameAr || photo.nameEn) && (
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-12 pb-4 px-4">
-                  <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : photo.nameEn}</p>
+                  <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</p>
                   {photo.nameAr && photo.nameEn && (
                     <p className="text-white/65 text-xs mt-0.5 latin">{isAr ? photo.nameEn : photo.nameAr}</p>
                   )}
@@ -1214,18 +1289,733 @@ function ToolBtn({ icon, label, onClick, variant = 'default' }: {
   );
 }
 
-/* ── Tree SVG Logo ───────────────────────────────────── */
+/* ── Highlights Carousel ─────────────────────────────────── */
+function HighlightsCarousel({ highlights, isAr, isAdmin, onUpdate }: {
+  highlights: Highlight[];
+  isAr: boolean;
+  isAdmin: boolean;
+  onUpdate: (items: Highlight[]) => void;
+}) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Highlight | null>(null);
+  const [draftAr, setDraftAr] = useState('');
+  const [draftEn, setDraftEn] = useState('');
+
+  const items = highlights.length > 0 ? highlights : [];
+
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setActiveIdx(i => (i + 1) % items.length);
+        setVisible(true);
+      }, 500);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [items.length]);
+
+  const openAdd = () => { setEditItem(null); setDraftAr(''); setDraftEn(''); setModalOpen(true); };
+  const openEdit = (h: Highlight) => { setEditItem(h); setDraftAr(h.textAr); setDraftEn(h.textEn); setModalOpen(true); };
+
+  const handleSave = () => {
+    if (!draftAr.trim()) return;
+    if (editItem) {
+      onUpdate(items.map(h => h.id === editItem.id ? { ...h, textAr: draftAr.trim(), textEn: draftEn.trim() } : h));
+    } else {
+      onUpdate([...items, { id: `h-${Date.now()}`, textAr: draftAr.trim(), textEn: draftEn.trim() }]);
+    }
+    setModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm(isAr ? 'حذف هذه الفقرة؟' : 'Delete this highlight?')) return;
+    const next = items.filter(h => h.id !== id);
+    onUpdate(next);
+    setActiveIdx(0);
+  };
+
+  if (items.length === 0 && !isAdmin) return null;
+
+  const current = items[Math.min(activeIdx, items.length - 1)];
+
+  return (
+    <>
+      <section className="relative px-4 md:px-16 py-10 flex flex-col items-center bg-background">
+        {/* Ornamental border frame */}
+        <div className="relative w-full max-w-2xl">
+          {/* Outer decorative border */}
+          <div className="absolute inset-0 rounded-2xl border-2 border-foreground/10 pointer-events-none" />
+          {/* Corner ornaments */}
+          {['top-0 start-0', 'top-0 end-0', 'bottom-0 start-0', 'bottom-0 end-0'].map((pos, i) => (
+            <svg key={i} className={`absolute ${pos} w-6 h-6 text-foreground/25 -m-0.5`} viewBox="0 0 24 24" fill="none">
+              <path d="M2 2 L2 10 M2 2 L10 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                transform={i === 1 ? 'scale(-1,1) translate(-24,0)' : i === 2 ? 'scale(1,-1) translate(0,-24)' : i === 3 ? 'scale(-1,-1) translate(-24,-24)' : ''} />
+            </svg>
+          ))}
+
+          {/* Main content */}
+          <div className="relative px-8 py-8 md:px-14">
+            {/* Leaf decorations */}
+            <div className="flex items-center justify-center gap-3 mb-5">
+              <span className="text-foreground/20 text-xl select-none">❧</span>
+              <div className="h-px w-16 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
+              <span className="text-foreground/20 text-xl select-none rotate-180">❧</span>
+            </div>
+
+            {/* Text area */}
+            {items.length > 0 ? (
+              <div
+                className="text-center transition-all duration-500"
+                style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(6px)' }}
+              >
+                <p className="text-base md:text-lg leading-relaxed text-foreground/80 arabic font-medium">
+                  {isAr ? current?.textAr : (current?.textEn || current?.textAr)}
+                </p>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground text-sm arabic">{isAr ? 'لا توجد فقرات بعد' : 'No highlights yet'}</p>
+            )}
+
+            {/* Bottom decoration */}
+            <div className="flex items-center justify-center gap-3 mt-5">
+              <span className="text-foreground/20 text-xl select-none rotate-180">❧</span>
+              <div className="h-px w-16 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
+              <span className="text-foreground/20 text-xl select-none">❧</span>
+            </div>
+
+            {/* Dots */}
+            {items.length > 1 && (
+              <div className="flex justify-center gap-1.5 mt-4">
+                {items.map((_, i) => (
+                  <button key={i} onClick={() => { setVisible(false); setTimeout(() => { setActiveIdx(i); setVisible(true); }, 300); }}
+                    className={`rounded-full transition-all duration-300 ${i === activeIdx ? 'w-5 h-2 bg-foreground/50' : 'w-2 h-2 bg-foreground/20'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Admin controls */}
+        {isAdmin && (
+          <div className="flex flex-wrap gap-2 mt-4 justify-center">
+            <button onClick={openAdd}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors border border-primary/20">
+              <Plus className="w-3.5 h-3.5" />
+              {isAr ? 'إضافة فقرة' : 'Add Highlight'}
+            </button>
+            {items.map((h, i) => (
+              <div key={h.id} className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted border border-border text-xs">
+                <span className="text-muted-foreground max-w-[120px] truncate arabic">{h.textAr.slice(0, 25)}…</span>
+                <button onClick={() => openEdit(h)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button onClick={() => handleDelete(h.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Edit / Add Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="arabic">{editItem ? (isAr ? 'تعديل الفقرة' : 'Edit Highlight') : (isAr ? 'إضافة فقرة' : 'Add Highlight')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="arabic text-sm">{isAr ? 'النص بالعربي' : 'Arabic Text'}</Label>
+              <textarea
+                value={draftAr}
+                onChange={e => setDraftAr(e.target.value)}
+                rows={3}
+                dir="rtl"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="أدخل النص بالعربي..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">{isAr ? 'النص بالإنجليزي' : 'English Text'}</Label>
+              <textarea
+                value={draftEn}
+                onChange={e => setDraftEn(e.target.value)}
+                rows={3}
+                dir="ltr"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm latin resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Enter English text..."
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setModalOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button onClick={handleSave} disabled={!draftAr.trim()}>{isAr ? 'حفظ' : 'Save'}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/* ── Nursery SVG Logo ───────────────────────────────────── */
 function TreeSVG() {
   return (
-    <svg width="64" height="84" viewBox="0 0 64 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Layer 1 – top */}
-      <polygon points="32,4 54,34 10,34" fill="hsl(150 30% 38%)" />
-      {/* Layer 2 – middle */}
-      <polygon points="32,22 58,52 6,52" fill="hsl(150 35% 32%)" />
-      {/* Layer 3 – bottom */}
-      <polygon points="32,40 62,72 2,72" fill="hsl(150 40% 26%)" />
-      {/* Trunk */}
-      <rect x="27" y="72" width="10" height="12" rx="2" fill="hsl(27 55% 40%)" />
+    <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Outer circle */}
+      <circle cx="48" cy="48" r="46" fill="hsl(150 35% 28%)" />
+      <circle cx="48" cy="48" r="42" fill="hsl(150 30% 22%)" />
+      {/* Inner light ring */}
+      <circle cx="48" cy="48" r="38" fill="none" stroke="hsl(80 50% 70%)" strokeWidth="1" strokeDasharray="4 3" />
+      {/* Main stem */}
+      <line x1="48" y1="72" x2="48" y2="44" stroke="hsl(27 55% 55%)" strokeWidth="3" strokeLinecap="round"/>
+      {/* Left big leaf */}
+      <path d="M48 60 C38 50 28 48 30 38 C35 38 46 44 48 56" fill="hsl(100 45% 42%)" />
+      {/* Right big leaf */}
+      <path d="M48 54 C58 44 68 42 66 32 C61 32 50 38 48 50" fill="hsl(130 50% 36%)" />
+      {/* Top leaf */}
+      <path d="M48 44 C44 34 44 24 48 20 C52 24 52 34 48 44" fill="hsl(110 55% 50%)" />
+      {/* Small left leaf */}
+      <path d="M48 50 C40 44 34 46 34 40 C38 38 46 42 48 50" fill="hsl(90 48% 48%)" />
+      {/* Ground arc */}
+      <path d="M36 74 Q48 69 60 74" stroke="hsl(27 40% 60%)" strokeWidth="2" strokeLinecap="round" fill="none"/>
+      {/* Soil dots */}
+      <circle cx="40" cy="76" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
+      <circle cx="48" cy="77" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
+      <circle cx="56" cy="76" r="1.5" fill="hsl(27 40% 60%)" opacity="0.7"/>
     </svg>
+  );
+}
+
+/* ── QuoteCartItem type ──────────────────────────────────── */
+interface QuoteCartItem {
+  plantId: string;
+  plantNameAr: string;
+  plantNameEn: string;
+  plantImage: string;
+  sectionNameAr: string;
+  sectionNameEn: string;
+  quantity: number;
+  size: string;
+}
+
+/* ── Quote Request Modal (customer) ─────────────────────── */
+function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
+  open: boolean; onClose: () => void; sections: Section[];
+  lang: string; cart: QuoteCartItem[]; setCart: React.Dispatch<React.SetStateAction<QuoteCartItem[]>>;
+}) {
+  const isAr = lang === 'ar';
+  const [step, setStep] = useState<'pick' | 'info'>('pick');
+  const [search, setSearch] = useState('');
+  const [custName, setCustName] = useState('');
+  const [custPhone, setCustPhone] = useState('');
+  const [custNotes, setCustNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  // size modal
+  const [sizeTarget, setSizeTarget] = useState<{ s: Section; p: Photo } | null>(null);
+  const [tempQty, setTempQty] = useState(1);
+  const [tempSize, setTempSize] = useState('');
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? sections.map(s => ({ ...s, photos: s.photos.filter(p => p.nameAr.toLowerCase().includes(q) || p.nameEn.toLowerCase().includes(q)) })).filter(s => s.photos.length > 0)
+    : sections;
+
+  const inCart = (pid: string) => cart.find(c => c.plantId === pid);
+
+  const openSize = (s: Section, p: Photo) => {
+    const existing = inCart(p.id);
+    setTempQty(existing?.quantity ?? 1);
+    setTempSize(existing?.size ?? '');
+    setSizeTarget({ s, p });
+  };
+
+  const confirmAdd = () => {
+    if (!sizeTarget) return;
+    const { s, p } = sizeTarget;
+    setCart(prev => {
+      const existing = prev.find(c => c.plantId === p.id);
+      if (existing) return prev.map(c => c.plantId === p.id ? { ...c, quantity: tempQty, size: tempSize } : c);
+      return [...prev, { plantId: p.id, plantNameAr: p.nameAr, plantNameEn: p.nameEn, plantImage: p.image, sectionNameAr: s.nameAr, sectionNameEn: s.nameEn, quantity: tempQty, size: tempSize }];
+    });
+    setSizeTarget(null);
+  };
+
+  const removeFromCart = (pid: string) => setCart(prev => prev.filter(c => c.plantId !== pid));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!custName.trim() || cart.length === 0) return;
+    setSubmitting(true);
+    const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes });
+    setSubmitting(false);
+    if (id) {
+      setSuccess(true);
+      setCart([]);
+      setCustName(''); setCustPhone(''); setCustNotes('');
+      setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
+    } else {
+      toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
+    }
+  };
+
+  const handleClose = () => { setStep('pick'); setSuccess(false); onClose(); };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+      <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Receipt className="w-5 h-5 text-primary" />
+            <div>
+              <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلب عرض سعر' : 'Request a Quote'}</h2>
+              {cart.length > 0 && <p className="text-xs text-muted-foreground arabic">{cart.length} {isAr ? 'نبات محدد' : 'plants selected'}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {step === 'info' && (
+              <button onClick={() => setStep('pick')} className="text-xs text-primary underline arabic">{isAr ? '← رجوع' : '← Back'}</button>
+            )}
+            {cart.length > 0 && step === 'pick' && (
+              <button onClick={() => setStep('info')} className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold arabic">
+                {isAr ? 'التالي' : 'Next'} →
+              </button>
+            )}
+            <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {success ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-16 px-6">
+            <CheckCircle2 className="w-16 h-16 text-green-500" />
+            <p className="text-xl font-bold arabic text-foreground text-center">{isAr ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent!'}</p>
+            <p className="text-sm text-muted-foreground arabic text-center">{isAr ? 'سنتواصل معك قريباً بعرض السعر' : 'We will contact you soon with the quote'}</p>
+          </div>
+        ) : step === 'pick' ? (
+          /* Plant picker */
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border shrink-0">
+              <div className="relative">
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder={isAr ? 'ابحث عن نبات...' : 'Search plants...'}
+                  className="w-full ps-9 pe-3 h-9 rounded-lg border border-border bg-background text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  dir={isAr ? 'rtl' : 'ltr'} />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {filtered.length === 0 && (
+                <p className="text-center text-muted-foreground arabic py-10">{isAr ? 'لا توجد نتائج' : 'No results'}</p>
+              )}
+              {filtered.map(section => (
+                <div key={section.id}>
+                  <h3 className="text-sm font-bold arabic text-foreground/70 mb-3 flex items-center gap-2">
+                    <span className="w-4 h-px bg-foreground/20 inline-block" />
+                    {isAr ? section.nameAr : section.nameEn}
+                    <span className="w-4 h-px bg-foreground/20 inline-block" />
+                  </h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                    {section.photos.map(photo => {
+                      const selected = inCart(photo.id);
+                      return (
+                        <button key={photo.id} onClick={() => openSize(section, photo)}
+                          className={`relative rounded-xl overflow-hidden border-2 transition-all text-start ${selected ? 'border-primary shadow-md' : 'border-border hover:border-primary/40'}`}
+                        >
+                          <div className="aspect-square bg-muted overflow-hidden">
+                            {photo.image ? (
+                              <img src={photo.image} alt={photo.nameAr} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                <Flower2 className="w-6 h-6 opacity-30" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-1.5">
+                            <p className="text-[11px] font-semibold arabic text-foreground leading-tight truncate">{isAr ? photo.nameAr : photo.nameEn}</p>
+                          </div>
+                          {selected && (
+                            <div className="absolute top-1 end-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                              <span className="text-[9px] font-bold text-white">{selected.quantity}</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Cart summary bar */}
+            {cart.length > 0 && (
+              <div className="border-t border-border px-4 py-3 bg-muted/50 shrink-0">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {cart.map(item => (
+                    <div key={item.plantId} className="shrink-0 flex items-center gap-1.5 bg-card border border-primary/30 rounded-full px-2.5 py-1">
+                      {item.plantImage && <img src={item.plantImage} alt="" className="w-5 h-5 rounded-full object-cover" />}
+                      <span className="text-xs arabic font-medium">{isAr ? item.plantNameAr : item.plantNameEn}</span>
+                      <span className="text-[10px] text-muted-foreground">×{item.quantity}</span>
+                      <button onClick={() => removeFromCart(item.plantId)} className="w-3.5 h-3.5 rounded-full bg-muted-foreground/20 flex items-center justify-center hover:bg-destructive hover:text-white transition-colors">
+                        <X className="w-2 h-2" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Customer info form */
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Selected items summary */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/50 px-4 py-2.5 border-b border-border">
+                <p className="text-sm font-bold arabic text-foreground">{isAr ? 'النباتات المختارة' : 'Selected Plants'}</p>
+              </div>
+              <div className="divide-y divide-border">
+                {cart.map(item => (
+                  <div key={item.plantId} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 border border-border">
+                      {item.plantImage ? (
+                        <img src={item.plantImage} alt={item.plantNameAr} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Flower2 className="w-5 h-5 opacity-30" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold arabic text-foreground truncate">{isAr ? item.plantNameAr : item.plantNameEn}</p>
+                      <p className="text-xs text-muted-foreground arabic">{isAr ? item.sectionNameAr : item.sectionNameEn}</p>
+                      <p className="text-xs text-primary arabic">{isAr ? 'الكمية:' : 'Qty:'} {item.quantity}{item.size ? ` · ${item.size}` : ''}</p>
+                    </div>
+                    <button type="button" onClick={() => removeFromCart(item.plantId)} className="w-7 h-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center transition-colors shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Customer info */}
+            <div className="space-y-3">
+              <div>
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'اسمك *' : 'Your Name *'}</Label>
+                <Input value={custName} onChange={e => setCustName(e.target.value)} dir="rtl" className="arabic" placeholder={isAr ? 'اسمك الكريم' : 'Full name'} required />
+              </div>
+              <div>
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'رقم الهاتف' : 'Phone Number'}</Label>
+                <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" />
+              </div>
+              <div>
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'ملاحظات إضافية' : 'Additional Notes'}</Label>
+                <textarea value={custNotes} onChange={e => setCustNotes(e.target.value)}
+                  dir="rtl"
+                  placeholder={isAr ? 'أي تفاصيل إضافية...' : 'Any additional details...'}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-11 text-base arabic font-bold" disabled={submitting || !custName.trim() || cart.length === 0}>
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Receipt className="w-4 h-4 me-2" />{isAr ? 'إرسال طلب العرض' : 'Send Quote Request'}</>}
+            </Button>
+          </form>
+        )}
+      </div>
+
+      {/* Size/Qty popup */}
+      {sizeTarget && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-6" onClick={() => setSizeTarget(null)}>
+          <div className="bg-card border border-border rounded-2xl p-5 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              {sizeTarget.p.image && <img src={sizeTarget.p.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-border" />}
+              <div>
+                <p className="text-sm font-bold arabic text-foreground">{isAr ? sizeTarget.p.nameAr : sizeTarget.p.nameEn}</p>
+                <p className="text-xs text-muted-foreground arabic">{isAr ? sizeTarget.s.nameAr : sizeTarget.s.nameEn}</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <Label className="arabic text-xs mb-1 block">{isAr ? 'الكمية' : 'Quantity'}</Label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setTempQty(q => Math.max(1, q - 1))} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input type="number" min={1} value={tempQty} onChange={e => setTempQty(Math.max(1, Number(e.target.value)))}
+                    className="flex-1 text-center h-8 rounded-lg border border-border bg-background text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  <button type="button" onClick={() => setTempQty(q => q + 1)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-1 block">{isAr ? 'الحجم (اختياري)' : 'Size (optional)'}</Label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {['صغير', 'وسط', 'كبير', 'XXL'].map(sz => (
+                    <button key={sz} type="button" onClick={() => setTempSize(sz === tempSize ? '' : sz)}
+                      className={`px-3 py-1 rounded-full text-xs arabic border transition-colors ${tempSize === sz ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border bg-background hover:border-primary/40'}`}>
+                      {sz}
+                    </button>
+                  ))}
+                  <input value={['صغير','وسط','كبير','XXL'].includes(tempSize) ? '' : tempSize}
+                    onChange={e => setTempSize(e.target.value)}
+                    placeholder={isAr ? 'آخر...' : 'other...'}
+                    className="px-3 py-1 rounded-full text-xs border border-dashed border-border bg-background focus:outline-none focus:border-primary w-20 text-center arabic" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setSizeTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button type="button" className="flex-1" onClick={confirmAdd}>
+                <ShoppingCart className="w-3.5 h-3.5 me-1.5" />{isAr ? 'إضافة' : 'Add'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Admin Quotes Modal ─────────────────────────────────── */
+function AdminQuotesModal({ open, onClose, lang, siteData }: {
+  open: boolean; onClose: () => void; lang: string;
+  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string } };
+}) {
+  const isAr = lang === 'ar';
+  const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editQuote, setEditQuote] = useState<QuoteRequest | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [pdfingId, setPdfingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const qs = await fetchQuotes();
+    setQuotes(qs);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(isAr ? 'تأكيد الحذف؟' : 'Delete this quote?')) return;
+    await deleteQuote(id);
+    setQuotes(prev => prev.filter(q => q.id !== id));
+    if (editQuote?.id === id) setEditQuote(null);
+  };
+
+  const handleSave = async (q: QuoteRequest) => {
+    setSavingId(q.id);
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced' });
+    setSavingId(null);
+    setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
+    setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
+    toast.success(isAr ? 'تم الحفظ' : 'Saved');
+  };
+
+  const handleDownloadPDF = async (q: QuoteRequest) => {
+    setPdfingId(q.id);
+    await downloadQuotePDF(q, siteData);
+    setPdfingId(null);
+  };
+
+  const updateItemPrice = (itemIdx: number, price: number) => {
+    if (!editQuote) return;
+    const items = editQuote.items.map((it, i) => i === itemIdx ? { ...it, price } : it);
+    setEditQuote({ ...editQuote, items });
+  };
+
+  const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
+  const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+  const grand = (q: QuoteRequest) => {
+    const sub = subtotal(q);
+    const after = sub - sub * (Number(q.discount) / 100);
+    return after + after * (Number(q.tax) / 100);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Inbox className="w-5 h-5 text-primary" />
+            <div>
+              <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلبات عروض الأسعار' : 'Price Quote Requests'}</h2>
+              <p className="text-xs text-muted-foreground arabic">{quotes.length} {isAr ? 'طلب' : 'requests'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={load} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" title={isAr ? 'تحديث' : 'Refresh'}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            </button>
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Quotes list */}
+          <div className={`${editQuote ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-72 border-e border-border overflow-y-auto shrink-0`}>
+            {loading && quotes.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : quotes.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                <Inbox className="w-10 h-10 opacity-30" />
+                <p className="text-sm arabic">{isAr ? 'لا توجد طلبات بعد' : 'No requests yet'}</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {quotes.map(q => (
+                  <button key={q.id} onClick={() => setEditQuote(q)}
+                    className={`w-full text-start px-4 py-3.5 hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
+                      <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${q.status === 'priced' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                        {q.status === 'priced' ? (isAr ? 'مسعّر' : 'Priced') : (isAr ? 'جديد' : 'New')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
+                    {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Edit panel */}
+          {editQuote ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex items-center gap-2 shrink-0 bg-muted/30">
+                <button onClick={() => setEditQuote(null)} className="sm:hidden w-7 h-7 rounded-full flex items-center justify-center hover:bg-muted">
+                  <ChevronDown className="w-4 h-4 rotate-90" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
+                  <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
+                    {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
+                  </Button>
+                  <Button size="sm" onClick={() => handleSave(editQuote)} disabled={savingId === editQuote.id} className="arabic text-xs">
+                    {savingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (isAr ? 'حفظ' : 'Save')}
+                  </Button>
+                  <button onClick={() => handleDelete(editQuote.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Items table */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                    <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'النباتات المطلوبة' : 'Requested Plants'}</p>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {editQuote.items.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 border border-border">
+                          {item.plantImage ? (
+                            <img src={item.plantImage} alt={item.plantNameAr} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Flower2 className="w-5 h-5 opacity-30" /></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold arabic text-foreground">{isAr ? item.plantNameAr : item.plantNameEn}</p>
+                          <p className="text-xs text-muted-foreground arabic">{isAr ? item.sectionNameAr : item.sectionNameEn}</p>
+                          <p className="text-xs text-primary arabic">{isAr ? 'الكمية:' : 'Qty:'} {item.quantity}{item.size ? ` · ${item.size}` : ''}</p>
+                        </div>
+                        <div className="shrink-0 w-28">
+                          <Label className="text-[10px] text-muted-foreground arabic block mb-1">{isAr ? 'السعر/قطعة (د.أ)' : 'Price/unit (JD)'}</Label>
+                          <Input type="number" min={0} step={0.01} value={item.price || ''} placeholder="0.00"
+                            onChange={e => updateItemPrice(idx, Number(e.target.value))}
+                            className="h-8 text-center text-sm font-bold" dir="ltr" />
+                          {item.price > 0 && (
+                            <p className="text-[10px] text-green-600 text-center mt-0.5 font-bold arabic">= {(item.price * item.quantity).toFixed(2)} د.أ</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Discount / Tax */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="arabic text-xs mb-1 block">{isAr ? 'نسبة الخصم (%)' : 'Discount (%)'}</Label>
+                    <Input type="number" min={0} max={100} step={0.1} value={editQuote.discount || ''}
+                      onChange={e => setEditQuote({ ...editQuote, discount: Number(e.target.value) })}
+                      placeholder="0" className="h-9" dir="ltr" />
+                  </div>
+                  <div>
+                    <Label className="arabic text-xs mb-1 block">{isAr ? 'نسبة الضريبة (%)' : 'Tax (%)'}</Label>
+                    <Input type="number" min={0} max={100} step={0.1} value={editQuote.tax || ''}
+                      onChange={e => setEditQuote({ ...editQuote, tax: Number(e.target.value) })}
+                      placeholder="0" className="h-9" dir="ltr" />
+                  </div>
+                </div>
+
+                {/* Totals summary */}
+                <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
+                  <div className="flex justify-between arabic">
+                    <span className="text-muted-foreground">{isAr ? 'المجموع' : 'Subtotal'}</span>
+                    <span className="font-bold">{subtotal(editQuote).toFixed(2)} د.أ</span>
+                  </div>
+                  {Number(editQuote.discount) > 0 && (
+                    <div className="flex justify-between arabic text-red-500">
+                      <span>{isAr ? `خصم ${editQuote.discount}%` : `Discount ${editQuote.discount}%`}</span>
+                      <span>− {(subtotal(editQuote) * Number(editQuote.discount) / 100).toFixed(2)} د.أ</span>
+                    </div>
+                  )}
+                  {Number(editQuote.tax) > 0 && (
+                    <div className="flex justify-between arabic text-amber-600">
+                      <span>{isAr ? `ضريبة ${editQuote.tax}%` : `Tax ${editQuote.tax}%`}</span>
+                      <span>+ {((subtotal(editQuote) - subtotal(editQuote) * Number(editQuote.discount) / 100) * Number(editQuote.tax) / 100).toFixed(2)} د.أ</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between arabic border-t border-border pt-2 font-extrabold text-base text-green-600">
+                    <span>{isAr ? 'الإجمالي' : 'Grand Total'}</span>
+                    <span>{grand(editQuote).toFixed(2)} د.أ</span>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {editQuote.notes && (
+                  <div className="rounded-xl border border-border p-4">
+                    <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'ملاحظات الزبون' : "Customer's Notes"}</p>
+                    <p className="text-sm arabic text-foreground">{editQuote.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="hidden sm:flex flex-1 items-center justify-center text-muted-foreground flex-col gap-3">
+              <Receipt className="w-10 h-10 opacity-20" />
+              <p className="text-sm arabic">{isAr ? 'اختر طلباً لعرض التفاصيل' : 'Select a request to view details'}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

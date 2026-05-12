@@ -1,8 +1,58 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, siteConfigTable } from "@workspace/db";
+import { db, siteConfigTable, adminsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import crypto from "crypto";
 
 const router: IRouter = Router();
+
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const sessions = new Map<string, number>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiry] of sessions) {
+    if (expiry < now) sessions.delete(token);
+  }
+}, 60 * 60 * 1000);
+
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
+
+router.post("/admin/login", async (req: Request, res: Response) => {
+  const { username, password } = req.body as { username?: string; password?: string };
+
+  if (!username || !password) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  try {
+    const rows = await db.select().from(adminsTable).where(eq(adminsTable.username, username));
+    if (rows.length === 0 || rows[0].passwordHash !== hashPassword(password)) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+  } catch {
+    res.status(500).json({ error: "Database error" });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  res.json({ token });
+});
+
+function requireSession(req: Request, res: Response): boolean {
+  const auth = req.headers["authorization"] ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const expiry = sessions.get(token);
+  if (!expiry || expiry < Date.now()) {
+    res.status(403).json({ error: "Forbidden" });
+    return false;
+  }
+  return true;
+}
 
 router.get("/site-data", async (_req: Request, res: Response) => {
   try {
@@ -12,14 +62,16 @@ router.get("/site-data", async (_req: Request, res: Response) => {
       return;
     }
     res.json({ data: rows[0].data });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
 });
 
 router.put("/site-data", async (req: Request, res: Response) => {
-  const { data } = req.body;
-  if (!data || typeof data !== "object") {
+  if (!requireSession(req, res)) return;
+
+  const { data } = req.body as { data?: unknown };
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
@@ -29,7 +81,7 @@ router.put("/site-data", async (req: Request, res: Response) => {
       .values({ id: "main", data })
       .onConflictDoUpdate({ target: siteConfigTable.id, set: { data, updatedAt: new Date() } });
     res.json({ data });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to save site data" });
   }
 });

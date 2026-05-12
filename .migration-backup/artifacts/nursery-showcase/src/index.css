@@ -78,23 +78,24 @@
 }
 
 @layer base {
-  * { @apply border-border; box-sizing: border-box; }
-  html { transition: background-color 0.3s ease, color 0.3s ease; }
-  body {
-    @apply antialiased bg-background text-foreground;
-    font-family: 'Cormorant Garamond', serif;
+  * {
+    @apply border-border;
   }
-  :root[dir="rtl"] body { font-family: 'Cairo', sans-serif; }
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
 }
 
-.arabic { font-family: 'Cairo', sans-serif; }
-.latin  { font-family: 'Cormorant Garamond', serif; }
+.arabic {
+  font-family: 'Cairo', sans-serif;
+}
 
-/* ── PRINT STYLES ── */
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { background: white !important; color: black !important; }
-  .no-print { display: none !important; }
+.latin {
+  font-family: 'Cormorant Garamond', serif;
+}
 
-  @page { size: A4; margin: 12mm 15mm 18mm 15mm; }
+.no-print {
+  @media print {
+    display: none !important;
+  }
 }

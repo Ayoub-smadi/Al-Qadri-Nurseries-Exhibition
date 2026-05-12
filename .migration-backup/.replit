@@ -9,9 +9,10 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
+runButton = "Project"
 
 [agent]
-stack = "BEST_EFFORT_FALLBACK"
+stack = "PNPM_WORKSPACE"
 expertMode = true
 
 [postMerge]
@@ -19,20 +20,8 @@ path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
 [[ports]]
-localPort = 3000
-externalPort = 3000
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
 localPort = 8080
-externalPort = 8080
+externalPort = 80
 
 [[ports]]
 localPort = 8081
@@ -40,4 +29,9 @@ externalPort = 8081
 
 [[ports]]
 localPort = 19665
-externalPort = 80
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+ADMIN_TOKEN = "AlQadri@Admin2024"
