@@ -99,7 +99,8 @@ router.post("/admin/login", async (req, res) => {
 
 router.post("/admin/setup", async (req, res) => {
   const { username, password, secret } = req.body as { username?: string; password?: string; secret?: string };
-  if (secret !== process.env.ADMIN_SETUP_SECRET) {
+  const setupSecret = process.env.ADMIN_SETUP_SECRET;
+  if (!setupSecret || !secret || secret !== setupSecret) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
