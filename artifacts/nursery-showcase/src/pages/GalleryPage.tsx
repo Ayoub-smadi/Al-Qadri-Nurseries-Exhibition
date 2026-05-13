@@ -325,7 +325,12 @@ export default function GalleryPage() {
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoNameAr, setPhotoNameAr] = useState('');
   const [photoNameEn, setPhotoNameEn] = useState('');
+  const [photoDescAr, setPhotoDescAr] = useState('');
+  const [photoDescEn, setPhotoDescEn] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
+
+  /* plant lightbox */
+  const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
 
   /* add section */
   const [addSecOpen, setAddSecOpen] = useState(false);
@@ -379,9 +384,9 @@ export default function GalleryPage() {
   const handleAddPhoto = (e: React.FormEvent) => {
     e.preventDefault();
     if (!photoUrl || !addPhotoSectionId) return;
-    const photo: Photo = { id: uid(), image: photoUrl, nameAr: photoNameAr, nameEn: photoNameEn };
+    const photo: Photo = { id: uid(), image: photoUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
     updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
-    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setAddPhotoSectionId(null);
+    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
     toast.success(isAr ? 'تمت إضافة الصورة' : 'Photo added');
   };
 
@@ -721,6 +726,7 @@ export default function GalleryPage() {
             onDeletePhoto={pid => handleDeletePhoto(section.id, pid)}
             onDeleteSection={() => handleDeleteSection(section.id)}
             onDownloadPDF={() => setPdfModalTarget(section.id)}
+            onOpenLightbox={setLightboxPhoto}
           />
         ))}
         {siteData.sections.length === 0 && (
@@ -997,10 +1003,10 @@ export default function GalleryPage() {
       </Dialog>
 
       {/* Add Photo */}
-      <Dialog open={!!addPhotoSectionId} onOpenChange={o => { if (!o) { setAddPhotoSectionId(null); setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); } }}>
+      <Dialog open={!!addPhotoSectionId} onOpenChange={o => { if (!o) { setAddPhotoSectionId(null); setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); } }}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="arabic">{isAr ? 'إضافة صورة' : 'Add Photo'}</DialogTitle>
+            <DialogTitle className="arabic">{isAr ? 'إضافة نبتة' : 'Add Plant'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddPhoto} className="space-y-4 pt-2">
             <div className="space-y-1.5">
@@ -1028,6 +1034,18 @@ export default function GalleryPage() {
                 <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
                 <Input value={photoNameEn} onChange={e => setPhotoNameEn(e.target.value)} dir="ltr" />
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
+              <textarea value={photoDescAr} onChange={e => setPhotoDescAr(e.target.value)} dir="rtl" rows={2}
+                className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder={isAr ? 'مثال: نبتة استوائية تحب الضوء غير المباشر...' : 'e.g. Tropical plant that thrives in indirect light...'} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'وصف مختصر (إنجليزي) — اختياري' : 'Short description (EN) — optional'}</Label>
+              <textarea value={photoDescEn} onChange={e => setPhotoDescEn(e.target.value)} dir="ltr" rows={2}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="e.g. Tropical plant that thrives in indirect light..." />
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" onClick={() => setAddPhotoSectionId(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
@@ -1189,16 +1207,22 @@ export default function GalleryPage() {
           siteData={siteData}
         />
       )}
+
+      {/* Plant Lightbox */}
+      {lightboxPhoto && (
+        <PlantLightbox photo={lightboxPhoto} lang={lang} onClose={() => setLightboxPhoto(null)} />
+      )}
     </div>
   );
 }
 
 /* ── Section block ───────────────────────────────────── */
-function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onDeleteSection, onDownloadPDF }: {
+function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onDeleteSection, onDownloadPDF, onOpenLightbox }: {
   section: Section; lang: string; isAdmin: boolean;
   onUpdateName: (f: 'nameAr' | 'nameEn', v: string) => void;
   onAddPhoto: () => void; onDeletePhoto: (id: string) => void;
   onDeleteSection: () => void; onDownloadPDF: () => void;
+  onOpenLightbox: (photo: Photo) => void;
 }) {
   const isAr = lang === 'ar';
   return (
@@ -1235,19 +1259,34 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {section.photos.map(photo => (
-            <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5]">
+            <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5] cursor-pointer"
+              onClick={() => !isAdmin && onOpenLightbox(photo)}>
               <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+              {!isAdmin && (
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                    </svg>
+                  </div>
+                </div>
+              )}
               {(photo.nameAr || photo.nameEn) && (
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-12 pb-4 px-4">
                   <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</p>
                   {photo.nameAr && photo.nameEn && (
                     <p className="text-white/65 text-xs mt-0.5 latin">{isAr ? photo.nameEn : photo.nameAr}</p>
                   )}
+                  {(photo.descriptionAr || photo.descriptionEn) && (
+                    <p className="text-white/50 text-[11px] mt-1 arabic line-clamp-1">
+                      {isAr ? (photo.descriptionAr || photo.descriptionEn) : (photo.descriptionEn || photo.descriptionAr)}
+                    </p>
+                  )}
                 </div>
               )}
               {isAdmin && (
-                <button onClick={() => onDeletePhoto(photo.id)}
+                <button onClick={e => { e.stopPropagation(); onDeletePhoto(photo.id); }}
                   className="no-print absolute top-2.5 end-2.5 w-8 h-8 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm">
                   <X className="w-4 h-4" />
                 </button>
@@ -1257,6 +1296,86 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         </div>
       )}
     </section>
+  );
+}
+
+/* ── Plant Lightbox ──────────────────────────────────── */
+function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; onClose: () => void }) {
+  const isAr = lang === 'ar';
+
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" dir={isAr ? 'rtl' : 'ltr'}
+      onClick={onClose}>
+      {/* backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+
+      {/* card */}
+      <div className="relative z-10 w-full max-w-2xl bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+        onClick={e => e.stopPropagation()}>
+
+        {/* image side */}
+        <div className="md:w-[55%] aspect-[4/5] md:aspect-auto bg-muted shrink-0 relative">
+          <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
+            className="w-full h-full object-cover" />
+          {/* decorative leaf gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+        </div>
+
+        {/* info side */}
+        <div className="flex-1 flex flex-col justify-between p-6 md:p-8">
+          <div>
+            {/* close */}
+            <button onClick={onClose}
+              className="absolute top-3 end-3 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* name */}
+            <h2 className="arabic text-2xl md:text-3xl font-bold text-foreground leading-tight mt-6 md:mt-0">
+              {isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
+            </h2>
+            {photo.nameAr && photo.nameEn && (
+              <p className="text-muted-foreground text-sm latin mt-1">
+                {isAr ? photo.nameEn : photo.nameAr}
+              </p>
+            )}
+
+            {/* divider */}
+            <div className="my-4 h-px bg-border" />
+
+            {/* description */}
+            {(photo.descriptionAr || photo.descriptionEn) ? (
+              <p className="arabic text-foreground/80 text-sm leading-relaxed">
+                {isAr
+                  ? (photo.descriptionAr || photo.descriptionEn)
+                  : (photo.descriptionEn || photo.descriptionAr)}
+              </p>
+            ) : (
+              <p className="arabic text-muted-foreground text-sm italic">
+                {isAr ? 'لا يوجد وصف لهذه النبتة' : 'No description available'}
+              </p>
+            )}
+          </div>
+
+          {/* decorative badge */}
+          <div className="mt-6 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-semibold arabic">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 14a6 6 0 110-12 6 6 0 010 12z" />
+                <path d="M10 6a1 1 0 011 1v2.586l1.707 1.707a1 1 0 01-1.414 1.414l-2-2A1 1 0 019 10V7a1 1 0 011-1z" />
+              </svg>
+              {isAr ? 'مشاتل القادري' : 'Al-Qadri Nurseries'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
