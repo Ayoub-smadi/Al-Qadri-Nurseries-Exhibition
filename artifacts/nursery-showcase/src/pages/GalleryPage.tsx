@@ -1762,13 +1762,13 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               <div>
                 <Label className="arabic text-xs mb-1 block">{isAr ? 'الحجم (اختياري)' : 'Size (optional)'}</Label>
                 <div className="flex gap-1.5 flex-wrap">
-                  {['صغير', 'وسط', 'كبير', 'XXL'].map(sz => (
+                  {['صغير', 'وسط', 'كبير'].map(sz => (
                     <button key={sz} type="button" onClick={() => setTempSize(sz === tempSize ? '' : sz)}
                       className={`px-3 py-1 rounded-full text-xs arabic border transition-colors ${tempSize === sz ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border bg-background hover:border-primary/40'}`}>
                       {sz}
                     </button>
                   ))}
-                  <input value={['صغير','وسط','كبير','XXL'].includes(tempSize) ? '' : tempSize}
+                  <input value={['صغير','وسط','كبير'].includes(tempSize) ? '' : tempSize}
                     onChange={e => setTempSize(e.target.value)}
                     placeholder={isAr ? 'آخر...' : 'other...'}
                     className="px-3 py-1 rounded-full text-xs border border-dashed border-border bg-background focus:outline-none focus:border-primary w-20 text-center arabic" />
