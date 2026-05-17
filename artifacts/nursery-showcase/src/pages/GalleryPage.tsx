@@ -708,6 +708,33 @@ export default function GalleryPage() {
         </button>
       </div>
 
+      {/* ── SEARCH NOTE ── */}
+      {(isAdmin || (siteData.searchNote?.ar || siteData.searchNote?.en)) && (
+        <div className="px-4 md:px-12 pt-3 pb-0 max-w-2xl mx-auto w-full">
+          {isAdmin ? (
+            <div className="group relative">
+              <InlineEdit
+                value={isAr ? (siteData.searchNote?.ar || '') : (siteData.searchNote?.en || '')}
+                onSave={v => {
+                  const note = siteData.searchNote ?? { ar: '', en: '' };
+                  updateSiteData({ searchNote: isAr ? { ...note, ar: v } : { ...note, en: v } });
+                }}
+                className="text-sm text-muted-foreground arabic w-full block"
+              />
+              {!(siteData.searchNote?.ar || siteData.searchNote?.en) && (
+                <span className="text-xs text-primary/50 italic arabic">
+                  {isAr ? 'انقر مرتين لإضافة ملاحظة تحت البحث...' : 'Double-click to add a note below search...'}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground arabic text-center">
+              {isAr ? siteData.searchNote?.ar : (siteData.searchNote?.en || siteData.searchNote?.ar)}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ── SECTIONS ── */}
       <main className="flex-1 px-4 md:px-12 py-10 space-y-16">
         {(() => {

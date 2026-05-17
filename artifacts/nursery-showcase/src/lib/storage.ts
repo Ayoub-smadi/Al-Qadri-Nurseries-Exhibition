@@ -59,6 +59,7 @@ export interface SiteData {
   owner: { photo: string };
   highlights: Highlight[];
   featuredImages: FeaturedImage[];
+  searchNote: { ar: string; en: string };
   sections: Section[];
   branches: Branch[];
   socialLinks: SocialLink[];
@@ -82,6 +83,7 @@ export const DEFAULT_DATA: SiteData = {
     { id: "h3", textAr: "نقدم خدمات الاستيراد والتصدير للنباتات والأشجار إلى مختلف دول المنطقة", textEn: "We offer import and export services for plants and trees across the region" },
   ],
   featuredImages: [],
+  searchNote: { ar: '', en: '' },
   sections: [
     {
       id: "sec-ornamental",
@@ -152,6 +154,7 @@ export async function fetchSiteData(): Promise<SiteData> {
           owner: { ...DEFAULT_DATA.owner, ...p.owner },
           highlights: p.highlights ?? DEFAULT_DATA.highlights,
           featuredImages: p.featuredImages ?? DEFAULT_DATA.featuredImages,
+          searchNote: p.searchNote ?? DEFAULT_DATA.searchNote,
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
