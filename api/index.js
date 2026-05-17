@@ -34,7 +34,7 @@ pool.query(`
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   );
-`).catch((e: Error) => console.error("DB init error:", e.message));
+`).catch((e) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const TOKEN_SECRET = crypto
@@ -42,11 +42,11 @@ const TOKEN_SECRET = crypto
   .update(process.env.DATABASE_URL)
   .digest();
 
-function hashPassword(password: string): string {
+function hashPassword(password) {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
-function createToken(): string {
+function createToken() {
   const expiry = Date.now() + SESSION_TTL_MS;
   const payload = Buffer.from(JSON.stringify({ expiry })).toString("base64url");
   const sig = crypto
@@ -56,7 +56,7 @@ function createToken(): string {
   return `${payload}.${sig}`;
 }
 
-function verifyToken(token: string): boolean {
+function verifyToken(token) {
   const dot = token.indexOf(".");
   if (dot === -1) return false;
   const payload = token.slice(0, dot);
@@ -74,10 +74,8 @@ function verifyToken(token: string): boolean {
   }
 }
 
-import type { Request, Response, NextFunction } from "express";
-
-function requireSession(req: Request, res: Response): boolean {
-  const auth = (req.headers["authorization"] ?? "") as string;
+function requireSession(req, res) {
+  const auth = req.headers["authorization"] ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (!verifyToken(token)) {
     res.status(403).json({ error: "Forbidden" });
@@ -95,11 +93,8 @@ app.get("/api/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/api/admin/login", async (req: Request, res: Response) => {
-  const { username, password } = req.body as {
-    username?: string;
-    password?: string;
-  };
+app.post("/api/admin/login", async (req, res) => {
+  const { username, password } = req.body ?? {};
   if (!username || !password) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
@@ -109,10 +104,7 @@ app.post("/api/admin/login", async (req: Request, res: Response) => {
       `SELECT password_hash FROM admins WHERE username = $1`,
       [username]
     );
-    if (
-      rows.rows.length === 0 ||
-      rows.rows[0].password_hash !== hashPassword(password)
-    ) {
+    if (rows.rows.length === 0 || rows.rows[0].password_hash !== hashPassword(password)) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
     }
@@ -122,12 +114,8 @@ app.post("/api/admin/login", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/admin/setup", async (req: Request, res: Response) => {
-  const { username, password, secret } = req.body as {
-    username?: string;
-    password?: string;
-    secret?: string;
-  };
+app.post("/api/admin/setup", async (req, res) => {
+  const { username, password, secret } = req.body ?? {};
   const setupSecret = process.env.ADMIN_SETUP_SECRET;
   if (!setupSecret || !secret || secret !== setupSecret) {
     res.status(403).json({ error: "Forbidden" });
@@ -149,24 +137,19 @@ app.post("/api/admin/setup", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/site-data", async (_req: Request, res: Response) => {
+app.get("/api/site-data", async (_req, res) => {
   try {
-    const rows = await pool.query(
-      `SELECT data FROM site_config WHERE id = 'main'`
-    );
-    if (rows.rows.length === 0) {
-      res.json({ data: null });
-      return;
-    }
+    const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
+    if (rows.rows.length === 0) { res.json({ data: null }); return; }
     res.json({ data: rows.rows[0].data });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
 });
 
-app.put("/api/site-data", async (req: Request, res: Response) => {
+app.put("/api/site-data", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { data } = req.body as { data?: unknown };
+  const { data } = req.body ?? {};
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     res.status(400).json({ error: "Invalid data" });
     return;
@@ -183,13 +166,8 @@ app.put("/api/site-data", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/quotes", async (req: Request, res: Response) => {
-  const { customerName, phone, items, notes } = req.body as {
-    customerName?: string;
-    phone?: string;
-    items?: unknown[];
-    notes?: string;
-  };
+app.post("/api/quotes", async (req, res) => {
+  const { customerName, phone, items, notes } = req.body ?? {};
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -207,27 +185,20 @@ app.post("/api/quotes", async (req: Request, res: Response) => {
   }
 });
 
-app.get("/api/quotes", async (req: Request, res: Response) => {
+app.get("/api/quotes", async (req, res) => {
   if (!requireSession(req, res)) return;
   try {
-    const result = await pool.query(
-      `SELECT * FROM quote_requests ORDER BY created_at DESC`
-    );
+    const result = await pool.query(`SELECT * FROM quote_requests ORDER BY created_at DESC`);
     res.json({ quotes: result.rows });
   } catch {
     res.status(500).json({ error: "Failed to load quotes" });
   }
 });
 
-app.put("/api/quotes/:id", async (req: Request, res: Response) => {
+app.put("/api/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status } = req.body as {
-    items?: unknown;
-    discount?: number;
-    tax?: number;
-    status?: string;
-  };
+  const { items, discount, tax, status } = req.body ?? {};
   try {
     await pool.query(
       `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4 WHERE id = $5`,
@@ -239,18 +210,15 @@ app.put("/api/quotes/:id", async (req: Request, res: Response) => {
   }
 });
 
-app.delete(
-  "/api/quotes/:id",
-  async (req: Request, res: Response, _next: NextFunction) => {
-    if (!requireSession(req, res)) return;
-    const { id } = req.params;
-    try {
-      await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
-      res.json({ ok: true });
-    } catch {
-      res.status(500).json({ error: "Failed to delete quote" });
-    }
+app.delete("/api/quotes/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete quote" });
   }
-);
+});
 
 export default app;
