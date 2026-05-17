@@ -59,6 +59,8 @@ export interface SiteData {
   owner: { photo: string };
   highlights: Highlight[];
   featuredImages: FeaturedImage[];
+  featuredVideo: { url: string; titleAr: string; titleEn: string } | null;
+  featuredMode: 'images' | 'video';
   searchNote: { ar: string; en: string };
   sections: Section[];
   branches: Branch[];
@@ -83,6 +85,8 @@ export const DEFAULT_DATA: SiteData = {
     { id: "h3", textAr: "نقدم خدمات الاستيراد والتصدير للنباتات والأشجار إلى مختلف دول المنطقة", textEn: "We offer import and export services for plants and trees across the region" },
   ],
   featuredImages: [],
+  featuredVideo: null,
+  featuredMode: 'images' as const,
   searchNote: { ar: '', en: '' },
   sections: [
     {
@@ -154,6 +158,8 @@ export async function fetchSiteData(): Promise<SiteData> {
           owner: { ...DEFAULT_DATA.owner, ...p.owner },
           highlights: p.highlights ?? DEFAULT_DATA.highlights,
           featuredImages: p.featuredImages ?? DEFAULT_DATA.featuredImages,
+          featuredVideo: p.featuredVideo ?? DEFAULT_DATA.featuredVideo,
+          featuredMode: p.featuredMode ?? DEFAULT_DATA.featuredMode,
           searchNote: p.searchNote ?? DEFAULT_DATA.searchNote,
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,

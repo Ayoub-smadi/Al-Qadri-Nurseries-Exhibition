@@ -611,9 +611,13 @@ export default function GalleryPage() {
       {/* ── FEATURED IMAGES ── */}
       <FeaturedImagesSection
         images={siteData.featuredImages ?? []}
+        video={siteData.featuredVideo ?? null}
+        mode={siteData.featuredMode ?? 'images'}
         isAr={isAr}
         isAdmin={isAdmin}
         onUpdate={items => updateSiteData({ featuredImages: items })}
+        onUpdateVideo={v => updateSiteData({ featuredVideo: v })}
+        onUpdateMode={m => updateSiteData({ featuredMode: m })}
       />
 
       {/* ── SERVICES ── */}
@@ -1435,160 +1439,238 @@ function ToolBtn({ icon, label, onClick, variant = 'default' }: {
   );
 }
 
-/* ── Featured Images Section ─────────────────────────────── */
-function FeaturedImagesSection({ images, isAr, isAdmin, onUpdate }: {
+/* ── helpers ─────────────────────────────────────────────── */
+function getVideoEmbed(url: string): { type: 'youtube' | 'vimeo' | 'direct'; embedUrl: string } | null {
+  if (!url) return null;
+  // YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (ytMatch) return { type: 'youtube', embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1` };
+  // Vimeo
+  const vmMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vmMatch) return { type: 'vimeo', embedUrl: `https://player.vimeo.com/video/${vmMatch[1]}?color=ffffff&title=0&byline=0&portrait=0` };
+  // Direct video file
+  if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return { type: 'direct', embedUrl: url };
+  return null;
+}
+
+/* ── Featured Images / Video Section ────────────────────── */
+function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, onUpdateVideo, onUpdateMode }: {
   images: FeaturedImage[];
+  video: { url: string; titleAr: string; titleEn: string } | null;
+  mode: 'images' | 'video';
   isAr: boolean;
   isAdmin: boolean;
   onUpdate: (items: FeaturedImage[]) => void;
+  onUpdateVideo: (v: { url: string; titleAr: string; titleEn: string } | null) => void;
+  onUpdateMode: (m: 'images' | 'video') => void;
 }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  /* images state */
+  const [imgModalOpen, setImgModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<FeaturedImage | null>(null);
   const [draftImage, setDraftImage] = useState('');
   const [draftTitleAr, setDraftTitleAr] = useState('');
   const [draftTitleEn, setDraftTitleEn] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  const openAdd = () => {
-    setEditItem(null); setDraftImage(''); setDraftTitleAr(''); setDraftTitleEn('');
-    setModalOpen(true);
-  };
-  const openEdit = (img: FeaturedImage) => {
-    setEditItem(img); setDraftImage(img.image); setDraftTitleAr(img.titleAr); setDraftTitleEn(img.titleEn);
-    setModalOpen(true);
-  };
-  const handleSave = () => {
+  /* video state */
+  const [vidModalOpen, setVidModalOpen] = useState(false);
+  const [draftVidUrl, setDraftVidUrl] = useState('');
+  const [draftVidTitleAr, setDraftVidTitleAr] = useState('');
+  const [draftVidTitleEn, setDraftVidTitleEn] = useState('');
+
+  /* image handlers */
+  const openAddImg = () => { setEditItem(null); setDraftImage(''); setDraftTitleAr(''); setDraftTitleEn(''); setImgModalOpen(true); };
+  const openEditImg = (img: FeaturedImage) => { setEditItem(img); setDraftImage(img.image); setDraftTitleAr(img.titleAr); setDraftTitleEn(img.titleEn); setImgModalOpen(true); };
+  const handleSaveImg = () => {
     if (!draftImage) return;
-    if (editItem) {
-      onUpdate(images.map(i => i.id === editItem.id ? { ...i, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn } : i));
-    } else {
-      onUpdate([...images, { id: `fi-${Date.now()}`, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn }]);
-    }
-    setModalOpen(false);
+    if (editItem) onUpdate(images.map(i => i.id === editItem.id ? { ...i, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn } : i));
+    else onUpdate([...images, { id: `fi-${Date.now()}`, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn }]);
+    setImgModalOpen(false);
   };
-  const handleDelete = (id: string) => {
+  const handleDeleteImg = (id: string) => {
     if (!confirm(isAr ? 'حذف هذه الصورة؟' : 'Delete this image?')) return;
     onUpdate(images.filter(i => i.id !== id));
   };
 
+  /* video handlers */
+  const openVidModal = () => { setDraftVidUrl(video?.url ?? ''); setDraftVidTitleAr(video?.titleAr ?? ''); setDraftVidTitleEn(video?.titleEn ?? ''); setVidModalOpen(true); };
+  const handleSaveVid = () => {
+    if (!draftVidUrl.trim()) return;
+    onUpdateVideo({ url: draftVidUrl.trim(), titleAr: draftVidTitleAr.trim(), titleEn: draftVidTitleEn.trim() });
+    setVidModalOpen(false);
+  };
+  const handleDeleteVid = () => {
+    if (!confirm(isAr ? 'حذف الفيديو؟' : 'Delete video?')) return;
+    onUpdateVideo(null);
+  };
+
   const displayed = images.slice(0, 3);
-  const showSection = displayed.length > 0 || isAdmin;
+  const embed = video ? getVideoEmbed(video.url) : null;
+  const showSection = mode === 'images' ? (displayed.length > 0 || isAdmin) : (video !== null || isAdmin);
   if (!showSection) return null;
 
   return (
     <>
       <section className="px-4 md:px-12 py-10 bg-background border-b border-border">
-        {/* Admin add button */}
+
+        {/* ── Admin controls bar ── */}
         {isAdmin && (
-          <div className="flex justify-center mb-6">
-            <button onClick={openAdd}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold transition-colors border border-primary/20">
-              <Plus className="w-4 h-4" />
-              {isAr ? 'إضافة صورة مميزة' : 'Add Featured Image'}
-            </button>
-          </div>
-        )}
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+            {/* Mode toggle */}
+            <div className="flex items-center gap-1 bg-muted border border-border rounded-xl p-1">
+              <button onClick={() => onUpdateMode('images')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all arabic ${mode === 'images' ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <ImagePlus className="w-3.5 h-3.5" />
+                {isAr ? 'صور' : 'Images'}
+              </button>
+              <button onClick={() => onUpdateMode('video')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all arabic ${mode === 'video' ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                {isAr ? 'فيديو' : 'Video'}
+              </button>
+            </div>
 
-        {displayed.length === 0 && isAdmin && (
-          <div className="border-2 border-dashed border-border rounded-2xl py-14 text-center text-muted-foreground text-sm arabic">
-            {isAr ? 'أضف ثلاث صور مميزة لعرضها هنا' : 'Add up to 3 featured images to display here'}
-          </div>
-        )}
-
-        {displayed.length > 0 && (
-          <div className={`max-w-5xl mx-auto grid gap-4 ${
-            displayed.length === 1 ? 'grid-cols-1' :
-            displayed.length === 2 ? 'grid-cols-2' :
-            'grid-cols-1 md:grid-cols-5'
-          }`}>
-            {displayed.length === 3 ? (
-              <>
-                {/* Large image — first */}
-                <div className="md:col-span-3 relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                  <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  {(displayed[0].titleAr || displayed[0].titleEn) && (
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 pt-10 pb-4">
-                      <p className="text-white font-bold arabic text-lg drop-shadow">
-                        {isAr ? displayed[0].titleAr : (displayed[0].titleEn || displayed[0].titleAr)}
-                      </p>
-                    </div>
-                  )}
-                  {isAdmin && (
-                    <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(displayed[0])}
-                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(displayed[0].id)}
-                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {/* Two stacked small images */}
-                <div className="md:col-span-2 flex flex-col gap-4">
-                  {[displayed[1], displayed[2]].map(img => (
-                    <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg flex-1 aspect-[4/3] md:aspect-auto">
-                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                      {(img.titleAr || img.titleEn) && (
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
-                          <p className="text-white font-bold arabic text-base drop-shadow">
-                            {isAr ? img.titleAr : (img.titleEn || img.titleAr)}
-                          </p>
-                        </div>
-                      )}
-                      {isAdmin && (
-                        <div className="no-print absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEdit(img)}
-                            className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
-                            <Pencil className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => handleDelete(img.id)}
-                            className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              displayed.map(img => (
-                <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                  <img src={img.image} alt={isAr ? img.titleAr : img.titleEn}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  {(img.titleAr || img.titleEn) && (
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
-                      <p className="text-white font-bold arabic text-base drop-shadow">
-                        {isAr ? img.titleAr : (img.titleEn || img.titleAr)}
-                      </p>
-                    </div>
-                  )}
-                  {isAdmin && (
-                    <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(img)}
-                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(img.id)}
-                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))
+            {/* Action button per mode */}
+            {mode === 'images' && displayed.length < 3 && (
+              <button onClick={openAddImg}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors border border-primary/20 arabic">
+                <Plus className="w-3.5 h-3.5" />
+                {isAr ? 'إضافة صورة' : 'Add Image'}
+              </button>
+            )}
+            {mode === 'video' && (
+              <button onClick={openVidModal}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors border border-primary/20 arabic">
+                <Pencil className="w-3.5 h-3.5" />
+                {video ? (isAr ? 'تعديل الفيديو' : 'Edit Video') : (isAr ? 'إضافة فيديو' : 'Add Video')}
+              </button>
+            )}
+            {mode === 'video' && video && (
+              <button onClick={handleDeleteVid}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-semibold transition-colors border border-destructive/20 arabic">
+                <Trash2 className="w-3.5 h-3.5" />
+                {isAr ? 'حذف' : 'Delete'}
+              </button>
             )}
           </div>
         )}
+
+        {/* ── IMAGES MODE ── */}
+        {mode === 'images' && (
+          <>
+            {displayed.length === 0 && isAdmin && (
+              <div className="border-2 border-dashed border-border rounded-2xl py-14 text-center text-muted-foreground text-sm arabic">
+                {isAr ? 'أضف حتى ثلاث صور مميزة' : 'Add up to 3 featured images'}
+              </div>
+            )}
+            {displayed.length > 0 && (
+              <div className={`max-w-5xl mx-auto grid gap-4 ${displayed.length === 1 ? 'grid-cols-1' : displayed.length === 2 ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-5'}`}>
+                {displayed.length === 3 ? (
+                  <>
+                    <div className="md:col-span-3 relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
+                      <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {(displayed[0].titleAr || displayed[0].titleEn) && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 pt-10 pb-4">
+                          <p className="text-white font-bold arabic text-lg drop-shadow">{isAr ? displayed[0].titleAr : (displayed[0].titleEn || displayed[0].titleAr)}</p>
+                        </div>
+                      )}
+                      {isAdmin && (
+                        <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditImg(displayed[0])} className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleDeleteImg(displayed[0].id)} className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="md:col-span-2 flex flex-col gap-4">
+                      {[displayed[1], displayed[2]].map(img => (
+                        <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg flex-1 aspect-[4/3] md:aspect-auto">
+                          <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          {(img.titleAr || img.titleEn) && (
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
+                              <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>
+                            </div>
+                          )}
+                          {isAdmin && (
+                            <div className="no-print absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => openEditImg(img)} className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors"><Pencil className="w-3 h-3" /></button>
+                              <button onClick={() => handleDeleteImg(img.id)} className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"><X className="w-3 h-3" /></button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  displayed.map(img => (
+                    <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
+                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {(img.titleAr || img.titleEn) && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
+                          <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>
+                        </div>
+                      )}
+                      {isAdmin && (
+                        <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditImg(img)} className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleDeleteImg(img.id)} className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── VIDEO MODE ── */}
+        {mode === 'video' && (
+          <>
+            {!video && isAdmin && (
+              <div className="border-2 border-dashed border-border rounded-2xl py-14 text-center text-muted-foreground text-sm arabic">
+                {isAr ? 'أضف رابط فيديو (يوتيوب، فيميو، أو رابط مباشر)' : 'Add a video URL (YouTube, Vimeo, or direct link)'}
+              </div>
+            )}
+            {video && (
+              <div className="max-w-4xl mx-auto">
+                {embed ? (
+                  embed.type === 'direct' ? (
+                    <video
+                      src={embed.embedUrl}
+                      controls
+                      playsInline
+                      className="w-full rounded-2xl shadow-xl aspect-video bg-black"
+                      style={{ maxHeight: '520px' }}
+                    />
+                  ) : (
+                    <div className="relative rounded-2xl overflow-hidden shadow-xl aspect-video bg-black">
+                      <iframe
+                        src={embed.embedUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        title={isAr ? video.titleAr : video.titleEn}
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-2xl py-10 text-center text-muted-foreground text-sm arabic">
+                    {isAr ? 'رابط الفيديو غير مدعوم — استخدم رابط يوتيوب أو فيميو أو mp4' : 'Unsupported URL — use YouTube, Vimeo, or .mp4 link'}
+                  </div>
+                )}
+                {(video.titleAr || video.titleEn) && (
+                  <p className="text-center text-base font-semibold arabic text-foreground/80 mt-4">
+                    {isAr ? video.titleAr : (video.titleEn || video.titleAr)}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </section>
 
-      {/* Add / Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={o => { if (!o) setModalOpen(false); }}>
+      {/* ── Image Add/Edit Modal ── */}
+      <Dialog open={imgModalOpen} onOpenChange={o => { if (!o) setImgModalOpen(false); }}>
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
             <DialogTitle className="arabic">
@@ -1623,10 +1705,60 @@ function FeaturedImagesSection({ images, isAr, isAdmin, onUpdate }: {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setModalOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
-              <Button onClick={handleSave} disabled={!draftImage} className="bg-primary text-primary-foreground">
-                {isAr ? 'حفظ' : 'Save'}
-              </Button>
+              <Button variant="outline" onClick={() => setImgModalOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button onClick={handleSaveImg} disabled={!draftImage} className="bg-primary text-primary-foreground">{isAr ? 'حفظ' : 'Save'}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Video Modal ── */}
+      <Dialog open={vidModalOpen} onOpenChange={o => { if (!o) setVidModalOpen(false); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic">{isAr ? 'إضافة / تعديل الفيديو' : 'Add / Edit Video'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="arabic">{isAr ? 'رابط الفيديو' : 'Video URL'}</Label>
+              <Input
+                value={draftVidUrl}
+                onChange={e => setDraftVidUrl(e.target.value)}
+                dir="ltr"
+                placeholder="https://youtube.com/watch?v=... أو https://vimeo.com/..."
+              />
+              <p className="text-xs text-muted-foreground arabic">
+                {isAr
+                  ? 'يدعم: يوتيوب، فيميو، أو رابط مباشر (.mp4) — بدون قيد على المدة'
+                  : 'Supports: YouTube, Vimeo, or direct .mp4 link — no time limit'}
+              </p>
+              {draftVidUrl && (() => {
+                const e = getVideoEmbed(draftVidUrl);
+                return e ? (
+                  <div className="mt-2 rounded-xl overflow-hidden aspect-video bg-black">
+                    {e.type === 'direct'
+                      ? <video src={e.embedUrl} controls className="w-full h-full" />
+                      : <iframe src={e.embedUrl} className="w-full h-full" allowFullScreen title="preview" />
+                    }
+                  </div>
+                ) : (
+                  <p className="text-xs text-destructive arabic mt-1">{isAr ? 'رابط غير معروف' : 'Unrecognized URL'}</p>
+                );
+              })()}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="arabic text-sm">{isAr ? 'عنوان عربي' : 'Title (AR)'}</Label>
+                <Input value={draftVidTitleAr} onChange={e => setDraftVidTitleAr(e.target.value)} dir="rtl" className="arabic" placeholder="عنوان الفيديو" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">{isAr ? 'عنوان إنجليزي' : 'Title (EN)'}</Label>
+                <Input value={draftVidTitleEn} onChange={e => setDraftVidTitleEn(e.target.value)} dir="ltr" placeholder="Video title" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setVidModalOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button onClick={handleSaveVid} disabled={!draftVidUrl.trim()} className="bg-primary text-primary-foreground">{isAr ? 'حفظ' : 'Save'}</Button>
             </div>
           </div>
         </DialogContent>
