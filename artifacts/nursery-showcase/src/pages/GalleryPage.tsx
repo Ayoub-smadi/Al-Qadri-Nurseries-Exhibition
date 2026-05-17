@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, uploadImage, adminLogin, setSessionToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -608,12 +608,12 @@ export default function GalleryPage() {
         </div>
       </header>
 
-      {/* ── HIGHLIGHTS CAROUSEL ── */}
-      <HighlightsCarousel
-        highlights={siteData.highlights ?? []}
+      {/* ── FEATURED IMAGES ── */}
+      <FeaturedImagesSection
+        images={siteData.featuredImages ?? []}
         isAr={isAr}
         isAdmin={isAdmin}
-        onUpdate={items => updateSiteData({ highlights: items })}
+        onUpdate={items => updateSiteData({ featuredImages: items })}
       />
 
       {/* ── SERVICES ── */}
@@ -1408,170 +1408,198 @@ function ToolBtn({ icon, label, onClick, variant = 'default' }: {
   );
 }
 
-/* ── Highlights Carousel ─────────────────────────────────── */
-function HighlightsCarousel({ highlights, isAr, isAdmin, onUpdate }: {
-  highlights: Highlight[];
+/* ── Featured Images Section ─────────────────────────────── */
+function FeaturedImagesSection({ images, isAr, isAdmin, onUpdate }: {
+  images: FeaturedImage[];
   isAr: boolean;
   isAdmin: boolean;
-  onUpdate: (items: Highlight[]) => void;
+  onUpdate: (items: FeaturedImage[]) => void;
 }) {
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editItem, setEditItem] = useState<Highlight | null>(null);
-  const [draftAr, setDraftAr] = useState('');
-  const [draftEn, setDraftEn] = useState('');
+  const [editItem, setEditItem] = useState<FeaturedImage | null>(null);
+  const [draftImage, setDraftImage] = useState('');
+  const [draftTitleAr, setDraftTitleAr] = useState('');
+  const [draftTitleEn, setDraftTitleEn] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const items = highlights.length > 0 ? highlights : [];
-
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const interval = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setActiveIdx(i => (i + 1) % items.length);
-        setVisible(true);
-      }, 500);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [items.length]);
-
-  const openAdd = () => { setEditItem(null); setDraftAr(''); setDraftEn(''); setModalOpen(true); };
-  const openEdit = (h: Highlight) => { setEditItem(h); setDraftAr(h.textAr); setDraftEn(h.textEn); setModalOpen(true); };
-
+  const openAdd = () => {
+    setEditItem(null); setDraftImage(''); setDraftTitleAr(''); setDraftTitleEn('');
+    setModalOpen(true);
+  };
+  const openEdit = (img: FeaturedImage) => {
+    setEditItem(img); setDraftImage(img.image); setDraftTitleAr(img.titleAr); setDraftTitleEn(img.titleEn);
+    setModalOpen(true);
+  };
   const handleSave = () => {
-    if (!draftAr.trim()) return;
+    if (!draftImage) return;
     if (editItem) {
-      onUpdate(items.map(h => h.id === editItem.id ? { ...h, textAr: draftAr.trim(), textEn: draftEn.trim() } : h));
+      onUpdate(images.map(i => i.id === editItem.id ? { ...i, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn } : i));
     } else {
-      onUpdate([...items, { id: `h-${Date.now()}`, textAr: draftAr.trim(), textEn: draftEn.trim() }]);
+      onUpdate([...images, { id: `fi-${Date.now()}`, image: draftImage, titleAr: draftTitleAr, titleEn: draftTitleEn }]);
     }
     setModalOpen(false);
   };
-
   const handleDelete = (id: string) => {
-    if (!confirm(isAr ? 'حذف هذه الفقرة؟' : 'Delete this highlight?')) return;
-    const next = items.filter(h => h.id !== id);
-    onUpdate(next);
-    setActiveIdx(0);
+    if (!confirm(isAr ? 'حذف هذه الصورة؟' : 'Delete this image?')) return;
+    onUpdate(images.filter(i => i.id !== id));
   };
 
-  if (items.length === 0 && !isAdmin) return null;
-
-  const current = items[Math.min(activeIdx, items.length - 1)];
+  const displayed = images.slice(0, 3);
+  const showSection = displayed.length > 0 || isAdmin;
+  if (!showSection) return null;
 
   return (
     <>
-      <section className="relative px-4 md:px-16 py-10 flex flex-col items-center bg-background">
-        {/* Ornamental border frame */}
-        <div className="relative w-full max-w-2xl">
-          {/* Outer decorative border */}
-          <div className="absolute inset-0 rounded-2xl border-2 border-foreground/10 pointer-events-none" />
-          {/* Corner ornaments */}
-          {['top-0 start-0', 'top-0 end-0', 'bottom-0 start-0', 'bottom-0 end-0'].map((pos, i) => (
-            <svg key={i} className={`absolute ${pos} w-6 h-6 text-foreground/25 -m-0.5`} viewBox="0 0 24 24" fill="none">
-              <path d="M2 2 L2 10 M2 2 L10 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                transform={i === 1 ? 'scale(-1,1) translate(-24,0)' : i === 2 ? 'scale(1,-1) translate(0,-24)' : i === 3 ? 'scale(-1,-1) translate(-24,-24)' : ''} />
-            </svg>
-          ))}
-
-          {/* Main content */}
-          <div className="relative px-8 py-8 md:px-14">
-            {/* Leaf decorations */}
-            <div className="flex items-center justify-center gap-3 mb-5">
-              <span className="text-foreground/20 text-xl select-none">❧</span>
-              <div className="h-px w-16 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
-              <span className="text-foreground/20 text-xl select-none rotate-180">❧</span>
-            </div>
-
-            {/* Text area */}
-            {items.length > 0 ? (
-              <div
-                className="text-center transition-all duration-500"
-                style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(6px)' }}
-              >
-                <p className="text-base md:text-lg leading-relaxed text-foreground/80 arabic font-medium">
-                  {isAr ? current?.textAr : (current?.textEn || current?.textAr)}
-                </p>
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground text-sm arabic">{isAr ? 'لا توجد فقرات بعد' : 'No highlights yet'}</p>
-            )}
-
-            {/* Bottom decoration */}
-            <div className="flex items-center justify-center gap-3 mt-5">
-              <span className="text-foreground/20 text-xl select-none rotate-180">❧</span>
-              <div className="h-px w-16 bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
-              <span className="text-foreground/20 text-xl select-none">❧</span>
-            </div>
-
-            {/* Dots */}
-            {items.length > 1 && (
-              <div className="flex justify-center gap-1.5 mt-4">
-                {items.map((_, i) => (
-                  <button key={i} onClick={() => { setVisible(false); setTimeout(() => { setActiveIdx(i); setVisible(true); }, 300); }}
-                    className={`rounded-full transition-all duration-300 ${i === activeIdx ? 'w-5 h-2 bg-foreground/50' : 'w-2 h-2 bg-foreground/20'}`} />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Admin controls */}
+      <section className="px-4 md:px-12 py-10 bg-background border-b border-border">
+        {/* Admin add button */}
         {isAdmin && (
-          <div className="flex flex-wrap gap-2 mt-4 justify-center">
+          <div className="flex justify-center mb-6">
             <button onClick={openAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-colors border border-primary/20">
-              <Plus className="w-3.5 h-3.5" />
-              {isAr ? 'إضافة فقرة' : 'Add Highlight'}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-sm font-semibold transition-colors border border-primary/20">
+              <Plus className="w-4 h-4" />
+              {isAr ? 'إضافة صورة مميزة' : 'Add Featured Image'}
             </button>
-            {items.map((h, i) => (
-              <div key={h.id} className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted border border-border text-xs">
-                <span className="text-muted-foreground max-w-[120px] truncate arabic">{h.textAr.slice(0, 25)}…</span>
-                <button onClick={() => openEdit(h)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
-                  <Pencil className="w-3 h-3" />
-                </button>
-                <button onClick={() => handleDelete(h.id)} className="text-muted-foreground hover:text-destructive transition-colors p-0.5">
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
+          </div>
+        )}
+
+        {displayed.length === 0 && isAdmin && (
+          <div className="border-2 border-dashed border-border rounded-2xl py-14 text-center text-muted-foreground text-sm arabic">
+            {isAr ? 'أضف ثلاث صور مميزة لعرضها هنا' : 'Add up to 3 featured images to display here'}
+          </div>
+        )}
+
+        {displayed.length > 0 && (
+          <div className={`max-w-5xl mx-auto grid gap-4 ${
+            displayed.length === 1 ? 'grid-cols-1' :
+            displayed.length === 2 ? 'grid-cols-2' :
+            'grid-cols-1 md:grid-cols-5'
+          }`}>
+            {displayed.length === 3 ? (
+              <>
+                {/* Large image — first */}
+                <div className="md:col-span-3 relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
+                  <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  {(displayed[0].titleAr || displayed[0].titleEn) && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 pt-10 pb-4">
+                      <p className="text-white font-bold arabic text-lg drop-shadow">
+                        {isAr ? displayed[0].titleAr : (displayed[0].titleEn || displayed[0].titleAr)}
+                      </p>
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(displayed[0])}
+                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(displayed[0].id)}
+                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Two stacked small images */}
+                <div className="md:col-span-2 flex flex-col gap-4">
+                  {[displayed[1], displayed[2]].map(img => (
+                    <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg flex-1 aspect-[4/3] md:aspect-auto">
+                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {(img.titleAr || img.titleEn) && (
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
+                          <p className="text-white font-bold arabic text-base drop-shadow">
+                            {isAr ? img.titleAr : (img.titleEn || img.titleAr)}
+                          </p>
+                        </div>
+                      )}
+                      {isAdmin && (
+                        <div className="no-print absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEdit(img)}
+                            className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button onClick={() => handleDelete(img.id)}
+                            className="w-7 h-7 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              displayed.map(img => (
+                <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
+                  <img src={img.image} alt={isAr ? img.titleAr : img.titleEn}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  {(img.titleAr || img.titleEn) && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
+                      <p className="text-white font-bold arabic text-base drop-shadow">
+                        {isAr ? img.titleAr : (img.titleEn || img.titleAr)}
+                      </p>
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <div className="no-print absolute top-2.5 end-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => openEdit(img)}
+                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(img.id)}
+                        className="w-8 h-8 bg-black/55 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
       </section>
 
-      {/* Edit / Add Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md">
+      {/* Add / Edit Modal */}
+      <Dialog open={modalOpen} onOpenChange={o => { if (!o) setModalOpen(false); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="arabic">{editItem ? (isAr ? 'تعديل الفقرة' : 'Edit Highlight') : (isAr ? 'إضافة فقرة' : 'Add Highlight')}</DialogTitle>
+            <DialogTitle className="arabic">
+              {editItem ? (isAr ? 'تعديل الصورة' : 'Edit Image') : (isAr ? 'إضافة صورة مميزة' : 'Add Featured Image')}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="arabic text-sm">{isAr ? 'النص بالعربي' : 'Arabic Text'}</Label>
-              <textarea
-                value={draftAr}
-                onChange={e => setDraftAr(e.target.value)}
-                rows={3}
-                dir="rtl"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="أدخل النص بالعربي..."
-              />
+              <Label className="arabic">{isAr ? 'الصورة' : 'Image'}</Label>
+              <div className="flex gap-2">
+                <Input value={draftImage} onChange={e => setDraftImage(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
+                <FileUploadBtn onFile={url => setDraftImage(url)} onLoading={setUploading}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={uploading}>
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                    {isAr ? 'رفع' : 'Upload'}
+                  </Button>
+                </FileUploadBtn>
+              </div>
+              {draftImage && (
+                <img src={draftImage} alt="preview" className="w-full h-40 object-cover rounded-xl mt-1"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              )}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm">{isAr ? 'النص بالإنجليزي' : 'English Text'}</Label>
-              <textarea
-                value={draftEn}
-                onChange={e => setDraftEn(e.target.value)}
-                rows={3}
-                dir="ltr"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm latin resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                placeholder="Enter English text..."
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="arabic text-sm">{isAr ? 'العنوان عربي' : 'Title (AR)'}</Label>
+                <Input value={draftTitleAr} onChange={e => setDraftTitleAr(e.target.value)} dir="rtl" className="arabic" placeholder="عنوان الصورة" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">{isAr ? 'العنوان إنجليزي' : 'Title (EN)'}</Label>
+                <Input value={draftTitleEn} onChange={e => setDraftTitleEn(e.target.value)} dir="ltr" placeholder="Image title" />
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
               <Button variant="outline" onClick={() => setModalOpen(false)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
-              <Button onClick={handleSave} disabled={!draftAr.trim()}>{isAr ? 'حفظ' : 'Save'}</Button>
+              <Button onClick={handleSave} disabled={!draftImage} className="bg-primary text-primary-foreground">
+                {isAr ? 'حفظ' : 'Save'}
+              </Button>
             </div>
           </div>
         </DialogContent>
