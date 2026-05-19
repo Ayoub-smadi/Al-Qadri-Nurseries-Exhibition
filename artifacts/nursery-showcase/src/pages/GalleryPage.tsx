@@ -579,14 +579,14 @@ export default function GalleryPage() {
             </div>
             {/* decorative dot */}
             <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-foreground/70 shadow-md" />
-            {/* Admin upload — only shown when no photo is set yet */}
-            {isAdmin && !siteData.owner?.photo && (
+            {/* Admin upload overlay */}
+            {isAdmin && (
               <FileUploadBtn
                 onFile={url => updateSiteData({ owner: { photo: url } })}
                 className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
               >
                 <ImagePlus className="w-7 h-7" />
-                <span className="text-xs arabic font-semibold">{isAr ? 'إضافة صورة' : 'Add Photo'}</span>
+                <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change Photo'}</span>
               </FileUploadBtn>
             )}
           </div>
