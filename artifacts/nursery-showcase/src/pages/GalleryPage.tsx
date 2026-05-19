@@ -311,7 +311,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
 
 /* ══ MAIN PAGE ═══════════════════════════════════════════ */
 export default function GalleryPage() {
-  const { lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData } = useApp();
+  const { lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded } = useApp();
   const isAr = lang === 'ar';
 
   /* login */
@@ -475,6 +475,22 @@ export default function GalleryPage() {
     updateSiteData({ socialLinks: (siteData.socialLinks ?? []).filter(l => l.id !== id) });
   };
 
+  if (!dataLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
+        <div className="flex flex-col items-center gap-4">
+          <svg width="56" height="76" viewBox="0 0 56 76" fill="none" className="animate-pulse">
+            <polygon points="28,4 50,32 6,32" fill="#4a7c59"/>
+            <polygon points="28,22 54,52 2,52" fill="#3d6b4a"/>
+            <polygon points="28,40 56,72 0,72" fill="#2e5438"/>
+            <rect x="23" y="72" width="10" height="12" rx="2" fill="#8b5e3c"/>
+          </svg>
+          <div className="w-8 h-8 border-4 border-green-700/30 border-t-green-700 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300" dir={isAr ? 'rtl' : 'ltr'}>
 
@@ -563,16 +579,6 @@ export default function GalleryPage() {
             </div>
             {/* decorative dot */}
             <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-foreground/70 shadow-md" />
-            {/* Admin upload overlay */}
-            {isAdmin && (
-              <FileUploadBtn
-                onFile={url => updateSiteData({ owner: { photo: url } })}
-                className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
-              >
-                <ImagePlus className="w-7 h-7" />
-                <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change Photo'}</span>
-              </FileUploadBtn>
-            )}
           </div>
 
           {/* Info */}
