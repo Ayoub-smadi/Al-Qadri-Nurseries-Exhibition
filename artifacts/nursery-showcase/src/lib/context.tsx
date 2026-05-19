@@ -15,14 +15,32 @@ interface AppContextType {
   dataLoaded: boolean;
 }
 
+const CACHE_KEY = 'gallery_site_data_cache';
+
+function loadCache(): SiteData | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) return JSON.parse(raw) as SiteData;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveCache(data: SiteData) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch { /* ignore – storage full */ }
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Language>('ar');
   const [isDark, setIsDark] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [siteData, setSiteData] = useState<SiteData>(DEFAULT_DATA);
-  const [dataLoaded, setDataLoaded] = useState(false);
+
+  const cached = loadCache();
+  const [siteData, setSiteData] = useState<SiteData>(cached ?? DEFAULT_DATA);
+  const [dataLoaded, setDataLoaded] = useState(cached !== null);
 
   useEffect(() => {
     const l = localStorage.getItem('gallery_lang') as Language;
@@ -32,6 +50,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     fetchSiteData().then(data => {
       setSiteData(data);
+      saveCache(data);
       setDataLoaded(true);
     });
   }, []);
@@ -55,6 +74,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateSiteData = (data: Partial<SiteData>) => {
     const next = { ...siteData, ...data };
     setSiteData(next);
+    saveCache(next);
     persistSiteData(next);
   };
 
