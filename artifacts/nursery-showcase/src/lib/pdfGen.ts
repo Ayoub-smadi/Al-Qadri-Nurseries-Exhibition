@@ -311,7 +311,7 @@ export async function downloadQuotePDF(
         <div style="text-align:center;">
           <div style="font-size:12px;color:#555;">المدير العام/ ثامر احمد القادري</div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ccc;width:160px;margin-left:auto;margin-right:auto;">
-            <span style="font-size:10px;color:#aaa;">التوقيع هاذ واقبلوا فائق الاحترام....</span>
+            <span style="font-size:10px;color:#aaa;">واقبلوا فائق الاحترام....</span>
           </div>
         </div>
         <div></div>
