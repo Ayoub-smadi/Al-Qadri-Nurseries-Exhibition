@@ -14,6 +14,7 @@ export interface Photo {
   nameEn: string;
   descriptionAr?: string;
   descriptionEn?: string;
+  extraImages?: string[];
 }
 
 export interface Section {

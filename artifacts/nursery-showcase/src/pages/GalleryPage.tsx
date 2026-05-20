@@ -337,7 +337,9 @@ export default function GalleryPage() {
   const [editPhotoNameEn, setEditPhotoNameEn] = useState('');
   const [editPhotoDescAr, setEditPhotoDescAr] = useState('');
   const [editPhotoDescEn, setEditPhotoDescEn] = useState('');
+  const [editPhotoExtraImages, setEditPhotoExtraImages] = useState<string[]>([]);
   const [editPhotoUploading, setEditPhotoUploading] = useState(false);
+  const [editExtraUploading, setEditExtraUploading] = useState(false);
 
   /* owner photo carousel */
   const [ownerPhotoIdx, setOwnerPhotoIdx] = useState(0);
@@ -430,6 +432,7 @@ export default function GalleryPage() {
     setEditPhotoNameEn(photo.nameEn);
     setEditPhotoDescAr(photo.descriptionAr || '');
     setEditPhotoDescEn(photo.descriptionEn || '');
+    setEditPhotoExtraImages(photo.extraImages ?? []);
   };
 
   const handleSaveEditPhoto = (e: React.FormEvent) => {
@@ -442,6 +445,7 @@ export default function GalleryPage() {
       nameEn: editPhotoNameEn,
       descriptionAr: editPhotoDescAr,
       descriptionEn: editPhotoDescEn,
+      extraImages: editPhotoExtraImages,
     };
     updateSiteData({
       sections: siteData.sections.map(s =>
@@ -1292,6 +1296,35 @@ export default function GalleryPage() {
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="e.g. Tropical plant that thrives in indirect light..." />
             </div>
+
+            {/* Extra images */}
+            <div className="space-y-2">
+              <Label>{isAr ? 'صور إضافية (كاروسيل)' : 'Extra images (carousel)'}</Label>
+              {editPhotoExtraImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {editPhotoExtraImages.map((img, idx) => (
+                    <div key={idx} className="relative group/ei w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border">
+                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <button type="button"
+                        onClick={() => setEditPhotoExtraImages(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover/ei:opacity-100 transition-opacity flex items-center justify-center">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <FileUploadBtn
+                onFile={url => setEditPhotoExtraImages(prev => [...prev, url])}
+                onLoading={setEditExtraUploading}
+              >
+                <Button type="button" variant="outline" size="sm" className="gap-1.5 arabic" disabled={editExtraUploading}>
+                  {editExtraUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                  {isAr ? 'إضافة صورة للكاروسيل' : 'Add image to carousel'}
+                </Button>
+              </FileUploadBtn>
+            </div>
+
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="outline" onClick={() => setEditPhotoTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
               <Button type="submit" className="bg-primary text-primary-foreground" disabled={!editPhotoUrl}>{isAr ? 'حفظ' : 'Save'}</Button>
@@ -1517,45 +1550,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {section.photos.map(photo => (
-            <div key={photo.id} className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5] cursor-pointer"
-              onClick={() => !isAdmin && onOpenLightbox(photo)}>
-              <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-              {!isAdmin && (
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                    </svg>
-                  </div>
-                </div>
-              )}
-              {(photo.nameAr || photo.nameEn) && (
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-12 pb-4 px-4">
-                  <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</p>
-                  {photo.nameAr && photo.nameEn && (
-                    <p className="text-white/65 text-xs mt-0.5 latin">{isAr ? photo.nameEn : photo.nameAr}</p>
-                  )}
-                  {(photo.descriptionAr || photo.descriptionEn) && (
-                    <p className="text-white/50 text-[11px] mt-1 arabic line-clamp-1">
-                      {isAr ? (photo.descriptionAr || photo.descriptionEn) : (photo.descriptionEn || photo.descriptionAr)}
-                    </p>
-                  )}
-                </div>
-              )}
-              {isAdmin && (
-                <>
-                  <button onClick={e => { e.stopPropagation(); onEditPhoto(photo); }}
-                    className="no-print absolute top-2.5 start-2.5 w-8 h-8 bg-primary/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary backdrop-blur-sm">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); onDeletePhoto(photo.id); }}
-                    className="no-print absolute top-2.5 end-2.5 w-8 h-8 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm">
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
+            <PlantCard key={photo.id} photo={photo} lang={lang} isAdmin={isAdmin}
+              onEdit={() => onEditPhoto(photo)}
+              onDelete={() => onDeletePhoto(photo.id)}
+              onOpenLightbox={onOpenLightbox}
+            />
           ))}
         </div>
       )}
@@ -1563,15 +1562,113 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
   );
 }
 
+/* ── Plant Card (with multi-image carousel) ──────────── */
+function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox }: {
+  photo: Photo; lang: string; isAdmin: boolean;
+  onEdit: () => void; onDelete: () => void;
+  onOpenLightbox: (photo: Photo) => void;
+}) {
+  const isAr = lang === 'ar';
+  const allImages = [photo.image, ...(photo.extraImages ?? [])].filter(Boolean);
+  const [imgIdx, setImgIdx] = useState(0);
+  const safeIdx = Math.min(imgIdx, allImages.length - 1);
+
+  const prev = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx(i => (i - 1 + allImages.length) % allImages.length); };
+  const next = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx(i => (i + 1) % allImages.length); };
+
+  return (
+    <div className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5] cursor-pointer"
+      onClick={() => !isAdmin && onOpenLightbox({ ...photo, image: allImages[safeIdx] ?? photo.image })}>
+
+      {/* image */}
+      <img src={allImages[safeIdx] || photo.image}
+        alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+
+      {/* zoom hint (visitor) */}
+      {!isAdmin && (
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-sm rounded-full p-3">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+          </div>
+        </div>
+      )}
+
+      {/* carousel nav — shown when multiple images */}
+      {allImages.length > 1 && (
+        <>
+          <button onClick={prev}
+            className="absolute top-1/2 start-1.5 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 backdrop-blur-sm z-10">
+            <ChevronDown className="w-4 h-4 rotate-90" />
+          </button>
+          <button onClick={next}
+            className="absolute top-1/2 end-1.5 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 backdrop-blur-sm z-10">
+            <ChevronDown className="w-4 h-4 -rotate-90" />
+          </button>
+          {/* dots */}
+          <div className="absolute top-2.5 inset-x-0 flex justify-center gap-1 z-10">
+            {allImages.map((_, i) => (
+              <button key={i} onClick={e => { e.stopPropagation(); setImgIdx(i); }}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${i === safeIdx ? 'bg-white scale-125' : 'bg-white/50'}`} />
+            ))}
+          </div>
+          {/* counter badge */}
+          <div className="absolute top-2.5 end-2.5 px-1.5 py-0.5 rounded-full bg-black/50 text-white text-[10px] font-mono backdrop-blur-sm z-10">
+            {safeIdx + 1}/{allImages.length}
+          </div>
+        </>
+      )}
+
+      {/* name overlay */}
+      {(photo.nameAr || photo.nameEn) && (
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-12 pb-4 px-4">
+          <p className="text-white text-base font-bold leading-tight arabic drop-shadow-sm">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</p>
+          {photo.nameAr && photo.nameEn && (
+            <p className="text-white/65 text-xs mt-0.5 latin">{isAr ? photo.nameEn : photo.nameAr}</p>
+          )}
+          {(photo.descriptionAr || photo.descriptionEn) && (
+            <p className="text-white/50 text-[11px] mt-1 arabic line-clamp-1">
+              {isAr ? (photo.descriptionAr || photo.descriptionEn) : (photo.descriptionEn || photo.descriptionAr)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* admin buttons */}
+      {isAdmin && (
+        <>
+          <button onClick={e => { e.stopPropagation(); onEdit(); }}
+            className="no-print absolute top-2.5 start-2.5 w-8 h-8 bg-primary/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary backdrop-blur-sm z-20">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={e => { e.stopPropagation(); onDelete(); }}
+            className="no-print absolute top-2.5 end-2.5 w-8 h-8 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm z-20">
+            <X className="w-4 h-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── Plant Lightbox ──────────────────────────────────── */
 function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; onClose: () => void }) {
   const isAr = lang === 'ar';
+  const allImages = [photo.image, ...(photo.extraImages ?? [])].filter(Boolean);
+  const [imgIdx, setImgIdx] = useState(0);
+  const safeIdx = Math.min(imgIdx, allImages.length - 1);
 
   React.useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') setImgIdx(i => (i - 1 + allImages.length) % allImages.length);
+      if (e.key === 'ArrowRight') setImgIdx(i => (i + 1) % allImages.length);
+    };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  }, [onClose, allImages.length]);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" dir={isAr ? 'rtl' : 'ltr'}
@@ -1585,10 +1682,33 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
 
         {/* image side */}
         <div className="md:w-[55%] aspect-[4/5] md:aspect-auto bg-muted shrink-0 relative">
-          <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-            className="w-full h-full object-cover" />
-          {/* decorative leaf gradient */}
+          <img src={allImages[safeIdx] || photo.image}
+            alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
+            className="w-full h-full object-cover transition-opacity duration-300" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+
+          {/* image nav when multiple */}
+          {allImages.length > 1 && (
+            <>
+              <button onClick={() => setImgIdx(i => (i - 1 + allImages.length) % allImages.length)}
+                className="absolute top-1/2 start-2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+                <ChevronDown className="w-5 h-5 rotate-90" />
+              </button>
+              <button onClick={() => setImgIdx(i => (i + 1) % allImages.length)}
+                className="absolute top-1/2 end-2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
+                <ChevronDown className="w-5 h-5 -rotate-90" />
+              </button>
+              {/* thumbnail strip */}
+              <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5 px-4">
+                {allImages.map((img, i) => (
+                  <button key={i} onClick={() => setImgIdx(i)}
+                    className={`w-8 h-8 rounded-lg overflow-hidden ring-2 transition-all shrink-0 ${i === safeIdx ? 'ring-white scale-110' : 'ring-white/30 opacity-60 hover:opacity-100'}`}>
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* info side */}
@@ -1623,6 +1743,13 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
             ) : (
               <p className="arabic text-muted-foreground text-sm italic">
                 {isAr ? 'لا يوجد وصف لهذه النبتة' : 'No description available'}
+              </p>
+            )}
+
+            {/* image count hint */}
+            {allImages.length > 1 && (
+              <p className="mt-3 text-xs text-muted-foreground arabic">
+                {isAr ? `${allImages.length} صور — استخدم الأسهم للتنقل` : `${allImages.length} photos — use arrows to navigate`}
               </p>
             )}
           </div>
