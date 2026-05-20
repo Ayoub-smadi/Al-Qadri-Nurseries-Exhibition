@@ -636,7 +636,7 @@ export default function GalleryPage() {
               className="relative overflow-hidden"
               style={hasBg ? { backgroundImage: `url(${siteData.owner.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
             >
-              {hasBg && <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />}
+              {hasBg && <div className="absolute inset-0 bg-black/20" />}
 
               <div className={`relative flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10 ${hasBg ? 'text-white' : ''}`}>
 

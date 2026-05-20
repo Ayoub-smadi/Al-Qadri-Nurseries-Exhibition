@@ -5,10 +5,11 @@ import crypto from "crypto";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL must be set");
+const DB_URL = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+if (!DB_URL) throw new Error("NEON_DATABASE_URL or DATABASE_URL must be set");
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: DB_URL,
   ssl: { rejectUnauthorized: false },
 });
 
