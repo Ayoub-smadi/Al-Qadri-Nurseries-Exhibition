@@ -40,7 +40,7 @@ pool.query(`
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const TOKEN_SECRET = crypto
   .createHash("sha256")
-  .update(process.env.DATABASE_URL)
+  .update(DB_URL)
   .digest();
 
 function hashPassword(password) {
