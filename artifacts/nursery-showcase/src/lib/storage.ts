@@ -128,10 +128,25 @@ export const DEFAULT_DATA: SiteData = {
   },
 };
 
+const ADMIN_TOKEN_KEY = 'gallery_admin_token';
+
 let _sessionToken: string | null = null;
 
 export function setSessionToken(token: string | null) {
   _sessionToken = token;
+  try {
+    if (token) {
+      localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+    }
+  } catch { /* ignore */ }
+}
+
+export function loadSavedToken(): string | null {
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_KEY);
+  } catch { return null; }
 }
 
 export async function adminLogin(username: string, password: string): Promise<string | null> {

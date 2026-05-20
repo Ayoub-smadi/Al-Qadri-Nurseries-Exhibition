@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, loadSavedToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -383,6 +383,15 @@ export default function GalleryPage() {
 
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
+
+  /* ── restore admin session on page load ── */
+  useEffect(() => {
+    const saved = loadSavedToken();
+    if (saved) {
+      setSessionToken(saved);
+      setIsAdmin(true);
+    }
+  }, []);
 
   /* ── handlers ── */
   const handleLogin = async (e: React.FormEvent) => {
