@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchSiteData, persistSiteData, SiteData, DEFAULT_DATA } from '@/lib/storage';
+import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
 
@@ -48,9 +49,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const d = localStorage.getItem('gallery_dark');
     if (d === '1') { setIsDark(true); document.documentElement.classList.add('dark'); }
 
-    fetchSiteData().then(data => {
-      setSiteData(data);
-      saveCache(data);
+    fetchSiteData().then(serverData => {
+      if (serverData !== null) {
+        // Server has real saved data — use it and update cache
+        setSiteData(serverData);
+        saveCache(serverData);
+      }
+      // If serverData is null (no DB record yet, or network error),
+      // keep the localStorage cache / default data as-is.
       setDataLoaded(true);
     });
   }, []);
@@ -75,7 +81,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = { ...siteData, ...data };
     setSiteData(next);
     saveCache(next);
-    persistSiteData(next);
+    persistSiteData(next).then(ok => {
+      if (!ok) {
+        toast.error(
+          lang === 'ar'
+            ? 'فشل حفظ البيانات على السيرفر — تأكد من تسجيل الدخول'
+            : 'Failed to save to server — please log in again',
+          { duration: 5000 }
+        );
+      }
+    });
   };
 
   return (

@@ -56,7 +56,11 @@ export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
-  owner: { photo: string };
+  owner: {
+    photo: string;
+    bgImage?: string;
+    extraPhotos?: string[];
+  };
   highlights: Highlight[];
   featuredImages: FeaturedImage[];
   featuredVideo: { url: string; titleAr: string; titleEn: string } | null;
@@ -78,7 +82,7 @@ export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
   logo: { customUrl: "" },
-  owner: { photo: "" },
+  owner: { photo: "", bgImage: "", extraPhotos: [] },
   highlights: [
     { id: "h1", textAr: "نوفر أجود أنواع النباتات والأشجار المزهرة بأسعار منافسة لتجميل منزلك وحديقتك", textEn: "We provide the finest flowering plants and trees at competitive prices to beautify your home and garden" },
     { id: "h2", textAr: "خبرة تتجاوز عشرين عاماً في مجال تنسيق الحدائق وتوريد المنتجات الزراعية", textEn: "Over twenty years of expertise in landscape design and agricultural product supply" },
@@ -144,7 +148,13 @@ export async function adminLogin(username: string, password: string): Promise<st
   return null;
 }
 
-export async function fetchSiteData(): Promise<SiteData> {
+/**
+ * Fetches site data from the API.
+ * Returns null if no data exists in the DB yet (i.e., never been saved).
+ * Returns SiteData if data exists.
+ * This distinction is important: null means "keep local cache", not "use defaults".
+ */
+export async function fetchSiteData(): Promise<SiteData | null> {
   try {
     const res = await fetch("/api/site-data");
     if (res.ok) {
@@ -155,7 +165,11 @@ export async function fetchSiteData(): Promise<SiteData> {
           titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
-          owner: { ...DEFAULT_DATA.owner, ...p.owner },
+          owner: {
+            photo: p.owner?.photo ?? DEFAULT_DATA.owner.photo,
+            bgImage: p.owner?.bgImage ?? '',
+            extraPhotos: p.owner?.extraPhotos ?? [],
+          },
           highlights: p.highlights ?? DEFAULT_DATA.highlights,
           featuredImages: p.featuredImages ?? DEFAULT_DATA.featuredImages,
           featuredVideo: p.featuredVideo ?? DEFAULT_DATA.featuredVideo,
@@ -167,15 +181,21 @@ export async function fetchSiteData(): Promise<SiteData> {
           footer: { ...DEFAULT_DATA.footer, ...p.footer },
         };
       }
+      // API responded but no data in DB — return null to preserve cache
+      return null;
     }
   } catch { /* fall through */ }
-  return DEFAULT_DATA;
+  // Network error or server down — return null to preserve cache
+  return null;
 }
 
-export async function persistSiteData(data: SiteData): Promise<void> {
-  if (!_sessionToken) return;
+/**
+ * Persists site data to the API. Returns true on success, false on failure.
+ */
+export async function persistSiteData(data: SiteData): Promise<boolean> {
+  if (!_sessionToken) return false;
   try {
-    await fetch("/api/site-data", {
+    const res = await fetch("/api/site-data", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -183,7 +203,10 @@ export async function persistSiteData(data: SiteData): Promise<void> {
       },
       body: JSON.stringify({ data }),
     });
-  } catch { /* ignore */ }
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function uploadImage(file: File): Promise<string> {
@@ -192,7 +215,8 @@ export async function uploadImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const MAX = 600;
+      // Keep max 800px but compress more aggressively to stay under Vercel's 4.5MB limit
+      const MAX = 800;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
@@ -203,7 +227,7 @@ export async function uploadImage(file: File): Promise<string> {
       canvas.height = height;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.65));
+      resolve(canvas.toDataURL("image/jpeg", 0.55));
     };
     img.onerror = () => reject(new Error("Upload failed"));
     img.src = url;

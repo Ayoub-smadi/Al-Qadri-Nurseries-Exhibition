@@ -8,6 +8,7 @@ import {
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt, ShoppingCart, CheckCircle2, Minus, Inbox,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -329,6 +330,18 @@ export default function GalleryPage() {
   const [photoDescEn, setPhotoDescEn] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
 
+  /* edit photo */
+  const [editPhotoTarget, setEditPhotoTarget] = useState<{ sectionId: string; photo: Photo } | null>(null);
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [editPhotoNameAr, setEditPhotoNameAr] = useState('');
+  const [editPhotoNameEn, setEditPhotoNameEn] = useState('');
+  const [editPhotoDescAr, setEditPhotoDescAr] = useState('');
+  const [editPhotoDescEn, setEditPhotoDescEn] = useState('');
+  const [editPhotoUploading, setEditPhotoUploading] = useState(false);
+
+  /* owner photo carousel */
+  const [ownerPhotoIdx, setOwnerPhotoIdx] = useState(0);
+
   /* plant lightbox */
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
 
@@ -398,6 +411,47 @@ export default function GalleryPage() {
   const handleDeleteSection = (id: string) => {
     if (!confirm(isAr ? 'حذف القسم وجميع صوره؟' : 'Delete this section and all photos?')) return;
     updateSiteData({ sections: siteData.sections.filter(s => s.id !== id) });
+  };
+
+  const handleMoveSection = (id: string, dir: 'up' | 'down') => {
+    const idx = siteData.sections.findIndex(s => s.id === id);
+    if (dir === 'up' && idx === 0) return;
+    if (dir === 'down' && idx === siteData.sections.length - 1) return;
+    const next = [...siteData.sections];
+    const swap = dir === 'up' ? idx - 1 : idx + 1;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    updateSiteData({ sections: next });
+  };
+
+  const handleEditPhotoOpen = (sectionId: string, photo: Photo) => {
+    setEditPhotoTarget({ sectionId, photo });
+    setEditPhotoUrl(photo.image);
+    setEditPhotoNameAr(photo.nameAr);
+    setEditPhotoNameEn(photo.nameEn);
+    setEditPhotoDescAr(photo.descriptionAr || '');
+    setEditPhotoDescEn(photo.descriptionEn || '');
+  };
+
+  const handleSaveEditPhoto = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPhotoTarget) return;
+    const updated: Photo = {
+      ...editPhotoTarget.photo,
+      image: editPhotoUrl,
+      nameAr: editPhotoNameAr,
+      nameEn: editPhotoNameEn,
+      descriptionAr: editPhotoDescAr,
+      descriptionEn: editPhotoDescEn,
+    };
+    updateSiteData({
+      sections: siteData.sections.map(s =>
+        s.id === editPhotoTarget.sectionId
+          ? { ...s, photos: s.photos.map(p => p.id === updated.id ? updated : p) }
+          : s
+      ),
+    });
+    setEditPhotoTarget(null);
+    toast.success(isAr ? 'تم حفظ التعديلات' : 'Changes saved');
   };
 
   const handleAddSection = (e: React.FormEvent) => {
@@ -566,62 +620,145 @@ export default function GalleryPage() {
         </div>
 
         {/* ── Owner card ── */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10">
-
-          {/* Photo */}
-          <div className="relative shrink-0 group/owner">
-            <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-foreground/70 ring-offset-4 ring-offset-background shadow-2xl">
-              <img
-                src={siteData.owner?.photo || '/owner.png'}
-                alt="مهندس ثامر القادري"
-                className="w-full h-full object-cover object-top scale-105"
-              />
-            </div>
-            {/* decorative dot */}
-            <div className="absolute -bottom-1 -end-1 w-6 h-6 rounded-full bg-foreground/70 shadow-md" />
-            {/* Admin upload overlay */}
-            {isAdmin && (
-              <FileUploadBtn
-                onFile={url => updateSiteData({ owner: { photo: url } })}
-                className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
-              >
-                <ImagePlus className="w-7 h-7" />
-                <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change Photo'}</span>
-              </FileUploadBtn>
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
-            {/* Title badge */}
-            <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic bg-foreground/10 text-foreground border border-foreground/20 tracking-wide shadow-sm">
-              {isAr ? 'المدير العام' : 'General Manager'}
-            </span>
-
-            {/* Name */}
-            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground leading-snug mt-1">
-              {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
-            </h2>
-
-            {/* Name subtitle (other lang) */}
-            <p className="text-sm text-muted-foreground latin tracking-widest uppercase">
-              {isAr ? 'Eng. Thamer Al-Qadri' : 'مهندس ثامر القادري'}
-            </p>
-
-            {/* Thin rule */}
-            <div className="w-12 h-0.5 rounded-full bg-foreground/30 my-1" />
-
-            {/* Phone */}
-            <a
-              href="tel:0777772211"
-              className="flex items-center gap-2 hover:opacity-70 transition-opacity latin ltr"
-              dir="ltr"
+        {(() => {
+          const allPhotos = [
+            ...(siteData.owner?.photo ? [siteData.owner.photo] : []),
+            ...(siteData.owner?.extraPhotos ?? []),
+          ];
+          const safeIdx = Math.min(ownerPhotoIdx, Math.max(0, allPhotos.length - 1));
+          const hasBg = !!siteData.owner?.bgImage;
+          return (
+            <div
+              className="relative overflow-hidden"
+              style={hasBg ? { backgroundImage: `url(${siteData.owner.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
             >
-              <span className="text-base">📞</span>
-              <span className="text-base font-mono font-semibold tracking-widest text-foreground">0777772211</span>
-            </a>
-          </div>
-        </div>
+              {hasBg && <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" />}
+
+              <div className={`relative flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10 ${hasBg ? 'text-white' : ''}`}>
+
+                {/* Photo side */}
+                <div className="flex flex-col items-center gap-3 shrink-0">
+                  <div className="relative group/owner">
+                    <div className={`w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ${hasBg ? 'ring-white/80' : 'ring-foreground/70'} ring-offset-4 ${hasBg ? 'ring-offset-transparent' : 'ring-offset-background'} shadow-2xl`}>
+                      <img
+                        src={allPhotos[safeIdx] || '/owner.png'}
+                        alt="مهندس ثامر القادري"
+                        className="w-full h-full object-cover object-top scale-105 transition-all duration-500"
+                      />
+                    </div>
+                    <div className={`absolute -bottom-1 -end-1 w-6 h-6 rounded-full ${hasBg ? 'bg-white/60' : 'bg-foreground/70'} shadow-md`} />
+                    {isAdmin && (
+                      <FileUploadBtn
+                        onFile={url => updateSiteData({ owner: { ...siteData.owner, photo: url } })}
+                        className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
+                      >
+                        <ImagePlus className="w-7 h-7" />
+                        <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change'}</span>
+                      </FileUploadBtn>
+                    )}
+                  </div>
+
+                  {/* Thumbnail strip — visible when multiple photos exist */}
+                  {(allPhotos.length > 1 || isAdmin) && (
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
+                      {allPhotos.map((ph, idx) => (
+                        <div key={idx} className="relative group/thumb">
+                          <button
+                            onClick={() => setOwnerPhotoIdx(idx)}
+                            className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all ${safeIdx === idx ? 'ring-primary scale-110 shadow-md' : `${hasBg ? 'ring-white/30' : 'ring-foreground/20'} opacity-60 hover:opacity-100`}`}
+                          >
+                            <img src={ph} alt="" className="w-full h-full object-cover object-top" />
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => {
+                                if (idx === 0) {
+                                  const next = allPhotos.slice(1);
+                                  updateSiteData({ owner: { ...siteData.owner, photo: next[0] ?? '', extraPhotos: next.slice(1) } });
+                                } else {
+                                  updateSiteData({ owner: { ...siteData.owner, extraPhotos: (siteData.owner?.extraPhotos ?? []).filter((_, i) => i !== idx - 1) } });
+                                }
+                                setOwnerPhotoIdx(0);
+                              }}
+                              className="no-print absolute -top-0.5 -end-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Add extra photo button (admin) */}
+                      {isAdmin && (
+                        <FileUploadBtn
+                          onFile={url => {
+                            const extras = siteData.owner?.extraPhotos ?? [];
+                            updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...extras, url] } });
+                          }}
+                        >
+                          <div className={`w-10 h-10 rounded-full border-2 border-dashed ${hasBg ? 'border-white/50 bg-white/10 hover:bg-white/20' : 'border-border bg-muted hover:bg-muted/80'} flex items-center justify-center cursor-pointer transition-colors`}>
+                            <Plus className={`w-4 h-4 ${hasBg ? 'text-white/70' : 'text-muted-foreground'}`} />
+                          </div>
+                        </FileUploadBtn>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show add-photo prompt when no extras and admin */}
+                  {isAdmin && allPhotos.length <= 1 && (
+                    <FileUploadBtn
+                      onFile={url => updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...(siteData.owner?.extraPhotos ?? []), url] } })}
+                    >
+                      <div className={`no-print flex items-center gap-1 text-xs cursor-pointer arabic transition-colors ${hasBg ? 'text-white/60 hover:text-white' : 'text-muted-foreground hover:text-primary'}`}>
+                        <Plus className="w-3 h-3" />
+                        {isAr ? 'إضافة صورة أخرى' : 'Add photo'}
+                      </div>
+                    </FileUploadBtn>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
+                  <span className={`inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic tracking-wide shadow-sm ${hasBg ? 'bg-white/15 text-white border border-white/30' : 'bg-foreground/10 text-foreground border border-foreground/20'}`}>
+                    {isAr ? 'المدير العام' : 'General Manager'}
+                  </span>
+                  <h2 className={`text-2xl md:text-3xl font-bold arabic leading-snug mt-1 ${hasBg ? 'text-white' : 'text-foreground'}`}>
+                    {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
+                  </h2>
+                  <p className={`text-sm latin tracking-widest uppercase ${hasBg ? 'text-white/70' : 'text-muted-foreground'}`}>
+                    {isAr ? 'Eng. Thamer Al-Qadri' : 'مهندس ثامر القادري'}
+                  </p>
+                  <div className={`w-12 h-0.5 rounded-full my-1 ${hasBg ? 'bg-white/40' : 'bg-foreground/30'}`} />
+                  <a href="tel:0777772211" className={`flex items-center gap-2 transition-opacity hover:opacity-70 latin ltr`} dir="ltr">
+                    <span className="text-base">📞</span>
+                    <span className={`text-base font-mono font-semibold tracking-widest ${hasBg ? 'text-white' : 'text-foreground'}`}>0777772211</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Admin: background image controls */}
+              {isAdmin && (
+                <div className="no-print absolute top-2 end-2 flex gap-1.5 z-10">
+                  <FileUploadBtn onFile={url => updateSiteData({ owner: { ...siteData.owner, bgImage: url } })}>
+                    <div className="h-7 px-3 rounded-full bg-black/60 text-white text-xs flex items-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors backdrop-blur-sm arabic whitespace-nowrap">
+                      <ImagePlus className="w-3 h-3" />
+                      {isAr ? 'خلفية القسم' : 'Section BG'}
+                    </div>
+                  </FileUploadBtn>
+                  {hasBg && (
+                    <button
+                      onClick={() => updateSiteData({ owner: { ...siteData.owner, bgImage: '' } })}
+                      className="h-7 px-2 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1 hover:bg-red-600 transition-colors backdrop-blur-sm"
+                      title={isAr ? 'إزالة الخلفية' : 'Remove BG'}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </header>
 
       {/* ── FEATURED IMAGES ── */}
@@ -765,17 +902,25 @@ export default function GalleryPage() {
                 .filter(s => s.photos.length > 0)
             : siteData.sections;
           return filtered;
-        })().map(section => (
+        })().map((section, _i, arr) => {
+          const realIdx = siteData.sections.findIndex(s => s.id === section.id);
+          return (
           <SectionBlock key={section.id}
             section={section} lang={lang} isAdmin={isAdmin}
             onUpdateName={(f, v) => updateSectionName(section.id, f, v)}
             onAddPhoto={() => setAddPhotoSectionId(section.id)}
             onDeletePhoto={pid => handleDeletePhoto(section.id, pid)}
+            onEditPhoto={photo => handleEditPhotoOpen(section.id, photo)}
             onDeleteSection={() => handleDeleteSection(section.id)}
             onDownloadPDF={() => setPdfModalTarget(section.id)}
+            onMoveUp={() => handleMoveSection(section.id, 'up')}
+            onMoveDown={() => handleMoveSection(section.id, 'down')}
+            isFirst={realIdx === 0}
+            isLast={realIdx === siteData.sections.length - 1}
             onOpenLightbox={setLightboxPhoto}
           />
-        ))}
+          );
+        })}
         {siteData.sections.length === 0 && (
           <div className="text-center py-20 text-muted-foreground arabic">
             {isAr ? 'لا توجد أقسام بعد' : 'No sections yet'}
@@ -1102,6 +1247,59 @@ export default function GalleryPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Photo */}
+      <Dialog open={!!editPhotoTarget} onOpenChange={o => { if (!o) setEditPhotoTarget(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic">{isAr ? 'تعديل النبتة' : 'Edit Plant'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveEditPhoto} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'الصورة' : 'Image'}</Label>
+              <div className="flex gap-2">
+                <Input value={editPhotoUrl} onChange={e => setEditPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
+                <FileUploadBtn onFile={url => setEditPhotoUrl(url)} onLoading={setEditPhotoUploading}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={editPhotoUploading}>
+                    {editPhotoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                    {isAr ? 'رفع' : 'Upload'}
+                  </Button>
+                </FileUploadBtn>
+              </div>
+              {editPhotoUrl && (
+                <img src={editPhotoUrl} alt="preview" className="w-full h-44 object-cover rounded-xl mt-2"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'الاسم عربي' : 'Name (AR)'}</Label>
+                <Input value={editPhotoNameAr} onChange={e => setEditPhotoNameAr(e.target.value)} dir="rtl" className="arabic" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
+                <Input value={editPhotoNameEn} onChange={e => setEditPhotoNameEn(e.target.value)} dir="ltr" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
+              <textarea value={editPhotoDescAr} onChange={e => setEditPhotoDescAr(e.target.value)} dir="rtl" rows={2}
+                className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder={isAr ? 'مثال: نبتة استوائية تحب الضوء غير المباشر...' : 'e.g. Tropical plant that thrives in indirect light...'} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'وصف مختصر (إنجليزي) — اختياري' : 'Short description (EN) — optional'}</Label>
+              <textarea value={editPhotoDescEn} onChange={e => setEditPhotoDescEn(e.target.value)} dir="ltr" rows={2}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="e.g. Tropical plant that thrives in indirect light..." />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setEditPhotoTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+              <Button type="submit" className="bg-primary text-primary-foreground" disabled={!editPhotoUrl}>{isAr ? 'حفظ' : 'Save'}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Section */}
       <Dialog open={addSecOpen} onOpenChange={setAddSecOpen}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
@@ -1264,11 +1462,18 @@ export default function GalleryPage() {
 }
 
 /* ── Section block ───────────────────────────────────── */
-function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onDeleteSection, onDownloadPDF, onOpenLightbox }: {
+function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox }: {
   section: Section; lang: string; isAdmin: boolean;
   onUpdateName: (f: 'nameAr' | 'nameEn', v: string) => void;
-  onAddPhoto: () => void; onDeletePhoto: (id: string) => void;
-  onDeleteSection: () => void; onDownloadPDF: () => void;
+  onAddPhoto: () => void;
+  onDeletePhoto: (id: string) => void;
+  onEditPhoto: (photo: Photo) => void;
+  onDeleteSection: () => void;
+  onDownloadPDF: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  isFirst: boolean;
+  isLast: boolean;
   onOpenLightbox: (photo: Photo) => void;
 }) {
   const isAr = lang === 'ar';
@@ -1290,6 +1495,12 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         <div className="flex-1 h-px bg-border" />
         {isAdmin && (
           <div className="no-print flex items-center gap-1 shrink-0">
+            <AdminIconBtn onClick={onMoveUp} title={isAr ? 'تحريك لأعلى' : 'Move up'} variant="default" disabled={isFirst}>
+              <ArrowUp className="w-3.5 h-3.5" />
+            </AdminIconBtn>
+            <AdminIconBtn onClick={onMoveDown} title={isAr ? 'تحريك لأسفل' : 'Move down'} variant="default" disabled={isLast}>
+              <ArrowDown className="w-3.5 h-3.5" />
+            </AdminIconBtn>
             <AdminIconBtn onClick={onAddPhoto} title={isAr ? 'إضافة صورة' : 'Add photo'} variant="primary"><Plus className="w-3.5 h-3.5" /></AdminIconBtn>
             <AdminIconBtn onClick={onDownloadPDF} title={isAr ? 'تنزيل PDF' : 'Download PDF'}><FileDown className="w-3.5 h-3.5" /></AdminIconBtn>
             <AdminIconBtn onClick={onDeleteSection} title={isAr ? 'حذف القسم' : 'Delete section'} variant="danger"><Trash2 className="w-3.5 h-3.5" /></AdminIconBtn>
@@ -1333,10 +1544,16 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
                 </div>
               )}
               {isAdmin && (
-                <button onClick={e => { e.stopPropagation(); onDeletePhoto(photo.id); }}
-                  className="no-print absolute top-2.5 end-2.5 w-8 h-8 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm">
-                  <X className="w-4 h-4" />
-                </button>
+                <>
+                  <button onClick={e => { e.stopPropagation(); onEditPhoto(photo); }}
+                    className="no-print absolute top-2.5 start-2.5 w-8 h-8 bg-primary/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary backdrop-blur-sm">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); onDeletePhoto(photo.id); }}
+                    className="no-print absolute top-2.5 end-2.5 w-8 h-8 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm">
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
               )}
             </div>
           ))}
@@ -1427,8 +1644,8 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
 }
 
 /* ── Small icon button ───────────────────────────────── */
-function AdminIconBtn({ onClick, title, variant = 'default', children }: {
-  onClick: () => void; title: string; variant?: 'default' | 'primary' | 'danger'; children: React.ReactNode;
+function AdminIconBtn({ onClick, title, variant = 'default', disabled = false, children }: {
+  onClick: () => void; title: string; variant?: 'default' | 'primary' | 'danger'; disabled?: boolean; children: React.ReactNode;
 }) {
   const cls = {
     default: 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted',
@@ -1436,8 +1653,8 @@ function AdminIconBtn({ onClick, title, variant = 'default', children }: {
     danger: 'bg-card border border-border text-destructive hover:bg-destructive/10',
   }[variant];
   return (
-    <button onClick={onClick} title={title}
-      className={`h-7 w-7 rounded-full flex items-center justify-center transition-colors ${cls}`}>
+    <button onClick={onClick} title={title} disabled={disabled}
+      className={`h-7 w-7 rounded-full flex items-center justify-center transition-colors ${cls} disabled:opacity-30 disabled:cursor-not-allowed`}>
       {children}
     </button>
   );
