@@ -1322,79 +1322,81 @@ export default function GalleryPage() {
 
       {/* Edit Photo */}
       <Dialog open={!!editPhotoTarget} onOpenChange={o => { if (!o) setEditPhotoTarget(null); }}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle className="arabic">{isAr ? 'تعديل النبتة' : 'Edit Plant'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveEditPhoto} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label>{isAr ? 'الصورة' : 'Image'}</Label>
-              <div className="flex gap-2">
-                <Input value={editPhotoUrl} onChange={e => setEditPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
-                <FileUploadBtn onFile={url => setEditPhotoUrl(url)} onLoading={setEditPhotoUploading}>
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={editPhotoUploading}>
-                    {editPhotoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                    {isAr ? 'رفع' : 'Upload'}
+          <form onSubmit={handleSaveEditPhoto} className="flex flex-col flex-1 min-h-0 pt-2">
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1 pb-2">
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'الصورة' : 'Image'}</Label>
+                <div className="flex gap-2">
+                  <Input value={editPhotoUrl} onChange={e => setEditPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
+                  <FileUploadBtn onFile={url => setEditPhotoUrl(url)} onLoading={setEditPhotoUploading}>
+                    <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={editPhotoUploading}>
+                      {editPhotoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                      {isAr ? 'رفع' : 'Upload'}
+                    </Button>
+                  </FileUploadBtn>
+                </div>
+                {editPhotoUrl && (
+                  <img src={editPhotoUrl} alt="preview" className="w-full h-44 object-cover rounded-xl mt-2"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{isAr ? 'الاسم عربي' : 'Name (AR)'}</Label>
+                  <Input value={editPhotoNameAr} onChange={e => setEditPhotoNameAr(e.target.value)} dir="rtl" className="arabic" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
+                  <Input value={editPhotoNameEn} onChange={e => setEditPhotoNameEn(e.target.value)} dir="ltr" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
+                <textarea value={editPhotoDescAr} onChange={e => setEditPhotoDescAr(e.target.value)} dir="rtl" rows={2}
+                  className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder={isAr ? 'مثال: نبتة استوائية تحب الضوء غير المباشر...' : 'e.g. Tropical plant that thrives in indirect light...'} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'وصف مختصر (إنجليزي) — اختياري' : 'Short description (EN) — optional'}</Label>
+                <textarea value={editPhotoDescEn} onChange={e => setEditPhotoDescEn(e.target.value)} dir="ltr" rows={2}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="e.g. Tropical plant that thrives in indirect light..." />
+              </div>
+
+              {/* Extra images */}
+              <div className="space-y-2">
+                <Label>{isAr ? 'صور إضافية (كاروسيل)' : 'Extra images (carousel)'}</Label>
+                {editPhotoExtraImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {editPhotoExtraImages.map((img, idx) => (
+                      <div key={idx} className="relative group/ei w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border">
+                        <img src={img} alt="" className="w-full h-full object-cover" />
+                        <button type="button"
+                          onClick={() => setEditPhotoExtraImages(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover/ei:opacity-100 transition-opacity flex items-center justify-center">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <FileUploadBtn
+                  onFile={url => setEditPhotoExtraImages(prev => [...prev, url])}
+                  onLoading={setEditExtraUploading}
+                >
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5 arabic" disabled={editExtraUploading}>
+                    {editExtraUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
+                    {isAr ? 'إضافة صورة للكاروسيل' : 'Add image to carousel'}
                   </Button>
                 </FileUploadBtn>
               </div>
-              {editPhotoUrl && (
-                <img src={editPhotoUrl} alt="preview" className="w-full h-44 object-cover rounded-xl mt-2"
-                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{isAr ? 'الاسم عربي' : 'Name (AR)'}</Label>
-                <Input value={editPhotoNameAr} onChange={e => setEditPhotoNameAr(e.target.value)} dir="rtl" className="arabic" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
-                <Input value={editPhotoNameEn} onChange={e => setEditPhotoNameEn(e.target.value)} dir="ltr" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
-              <textarea value={editPhotoDescAr} onChange={e => setEditPhotoDescAr(e.target.value)} dir="rtl" rows={2}
-                className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder={isAr ? 'مثال: نبتة استوائية تحب الضوء غير المباشر...' : 'e.g. Tropical plant that thrives in indirect light...'} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{isAr ? 'وصف مختصر (إنجليزي) — اختياري' : 'Short description (EN) — optional'}</Label>
-              <textarea value={editPhotoDescEn} onChange={e => setEditPhotoDescEn(e.target.value)} dir="ltr" rows={2}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="e.g. Tropical plant that thrives in indirect light..." />
             </div>
 
-            {/* Extra images */}
-            <div className="space-y-2">
-              <Label>{isAr ? 'صور إضافية (كاروسيل)' : 'Extra images (carousel)'}</Label>
-              {editPhotoExtraImages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {editPhotoExtraImages.map((img, idx) => (
-                    <div key={idx} className="relative group/ei w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border">
-                      <img src={img} alt="" className="w-full h-full object-cover" />
-                      <button type="button"
-                        onClick={() => setEditPhotoExtraImages(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute inset-0 bg-black/50 text-white opacity-0 group-hover/ei:opacity-100 transition-opacity flex items-center justify-center">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <FileUploadBtn
-                onFile={url => setEditPhotoExtraImages(prev => [...prev, url])}
-                onLoading={setEditExtraUploading}
-              >
-                <Button type="button" variant="outline" size="sm" className="gap-1.5 arabic" disabled={editExtraUploading}>
-                  {editExtraUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
-                  {isAr ? 'إضافة صورة للكاروسيل' : 'Add image to carousel'}
-                </Button>
-              </FileUploadBtn>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="flex justify-end gap-2 pt-3 border-t border-border shrink-0">
               <Button type="button" variant="outline" onClick={() => setEditPhotoTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
               <Button type="submit" className="bg-primary text-primary-foreground" disabled={!editPhotoUrl}>{isAr ? 'حفظ' : 'Save'}</Button>
             </div>
