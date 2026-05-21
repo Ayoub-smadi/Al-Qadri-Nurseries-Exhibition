@@ -244,13 +244,18 @@ export async function validateToken(): Promise<boolean> {
   }
 }
 
+const VERCEL_BODY_LIMIT = 4 * 1024 * 1024; // 4MB conservative limit
+
 /**
  * Persists site data to the API.
- * Returns { ok: true } on success, { ok: false, unauthorized: true } on auth failure,
- * or { ok: false, unauthorized: false } on other errors.
+ * Returns { ok, unauthorized, tooBig } where tooBig means payload exceeded server limit.
  */
-export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; unauthorized: boolean }> {
-  if (!_sessionToken) return { ok: false, unauthorized: true };
+export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; unauthorized: boolean; tooBig: boolean }> {
+  if (!_sessionToken) return { ok: false, unauthorized: true, tooBig: false };
+  const body = JSON.stringify({ data });
+  if (body.length > VERCEL_BODY_LIMIT) {
+    return { ok: false, unauthorized: false, tooBig: true };
+  }
   try {
     const res = await fetch("/api/site-data", {
       method: "PUT",
@@ -258,13 +263,14 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
         "Content-Type": "application/json",
         "Authorization": `Bearer ${_sessionToken}`,
       },
-      body: JSON.stringify({ data }),
+      body,
     });
-    if (res.ok) return { ok: true, unauthorized: false };
-    if (res.status === 401 || res.status === 403) return { ok: false, unauthorized: true };
-    return { ok: false, unauthorized: false };
+    if (res.ok) return { ok: true, unauthorized: false, tooBig: false };
+    if (res.status === 413) return { ok: false, unauthorized: false, tooBig: true };
+    if (res.status === 401 || res.status === 403) return { ok: false, unauthorized: true, tooBig: false };
+    return { ok: false, unauthorized: false, tooBig: false };
   } catch {
-    return { ok: false, unauthorized: false };
+    return { ok: false, unauthorized: false, tooBig: false };
   }
 }
 
@@ -274,8 +280,8 @@ export async function uploadImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      // Keep max 800px but compress more aggressively to stay under Vercel's 4.5MB limit
-      const MAX = 800;
+      // Max 500px & quality 0.35 — keeps each image under ~40KB base64
+      const MAX = 500;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
@@ -286,7 +292,7 @@ export async function uploadImage(file: File): Promise<string> {
       canvas.height = height;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.55));
+      resolve(canvas.toDataURL("image/jpeg", 0.35));
     };
     img.onerror = () => reject(new Error("Upload failed"));
     img.src = url;

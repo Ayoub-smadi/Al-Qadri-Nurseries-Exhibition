@@ -85,19 +85,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSiteData(next);
     saveCache(next);
     persistSiteData(next).then(result => {
-      if (!result.ok) {
-        if (result.unauthorized) {
-          setSessionToken(null);
-          setIsAdmin(false);
-          setSessionExpired(true);
-        } else {
-          toast.error(
-            lang === 'ar'
-              ? 'فشل حفظ البيانات — تحقق من الاتصال بالإنترنت'
-              : 'Failed to save — check your internet connection',
-            { duration: 5000 }
-          );
-        }
+      if (result.ok) {
+        toast.success(lang === 'ar' ? '✓ تم الحفظ' : '✓ Saved', { duration: 2000 });
+      } else if (result.unauthorized) {
+        setSessionToken(null);
+        setIsAdmin(false);
+        setSessionExpired(true);
+      } else if (result.tooBig) {
+        toast.error(
+          lang === 'ar'
+            ? 'حجم البيانات كبير جداً — حاول تقليل عدد الصور أو حجمها'
+            : 'Data too large — try reducing the number or size of images',
+          { duration: 8000 }
+        );
+      } else {
+        toast.error(
+          lang === 'ar'
+            ? 'فشل حفظ البيانات — تحقق من الاتصال بالإنترنت'
+            : 'Failed to save — check your internet connection',
+          { duration: 5000 }
+        );
       }
     });
   };
