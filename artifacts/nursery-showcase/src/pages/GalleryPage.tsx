@@ -3,12 +3,13 @@ import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt, ShoppingCart, CheckCircle2, Minus, Inbox,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -386,6 +387,17 @@ export default function GalleryPage() {
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
 
+  /* backup / restore */
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  /* excel import */
+  const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const [xlsxOpen, setXlsxOpen] = useState(false);
+  const [xlsxResult, setXlsxResult] = useState<{ added: number; sections: string[] } | null>(null);
+  const [xlsxError, setXlsxError] = useState<string | null>(null);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
+
   /* ── restore admin session on page load — validate token first ── */
   useEffect(() => {
     const saved = loadSavedToken();
@@ -448,6 +460,129 @@ export default function GalleryPage() {
     const needs = await checkNeedsSetup();
     setIsSetupMode(needs);
     setLoginOpen(true);
+  };
+
+  /* ── backup: download siteData as JSON file ── */
+  const handleBackup = () => {
+    const payload = { version: 1, date: new Date().toISOString(), siteData };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `alqadri-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast.success(isAr ? 'تم تنزيل النسخة الاحتياطية' : 'Backup downloaded');
+  };
+
+  /* ── restore: upload JSON backup file ── */
+  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!confirm(isAr ? 'سيتم استبدال جميع بيانات الموقع بالنسخة الاحتياطية. متأكد؟' : 'This will replace all site data with the backup. Are you sure?')) return;
+    setRestoring(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const data = parsed.siteData ?? parsed;
+      await updateSiteData(data);
+      toast.success(isAr ? 'تم استعادة البيانات بنجاح' : 'Data restored successfully');
+    } catch {
+      toast.error(isAr ? 'فشل في قراءة الملف' : 'Failed to read backup file');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  /* ── Excel import: parse xlsx and add plants to sections ── */
+  const HEADER_MAP: Record<string, string[]> = {
+    section_ar: ['القسم', 'قسم', 'section', 'section_ar', 'القسم العربي', 'اسم القسم'],
+    section_en: ['القسم الانجليزي', 'section_en', 'section en', 'section english', 'قسم انجليزي'],
+    name_ar:    ['الاسم العربي', 'الاسم', 'name_ar', 'name ar', 'اسم عربي', 'اسم النبتة'],
+    name_en:    ['الاسم الانجليزي', 'name_en', 'name en', 'اسم انجليزي', 'english name'],
+    desc_ar:    ['الوصف العربي', 'وصف', 'desc_ar', 'description', 'الوصف'],
+    desc_en:    ['الوصف الانجليزي', 'desc_en', 'description en', 'وصف انجليزي'],
+    image:      ['رابط الصورة', 'image', 'image_url', 'صورة', 'الصورة', 'url', 'link', 'رابط'],
+  };
+
+  const matchHeader = (raw: string): string | null => {
+    const norm = raw.trim().toLowerCase();
+    for (const [key, aliases] of Object.entries(HEADER_MAP)) {
+      if (aliases.some(a => a.toLowerCase() === norm)) return key;
+    }
+    return null;
+  };
+
+  const handleExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setXlsxLoading(true);
+    setXlsxError(null);
+    setXlsxResult(null);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (rows.length === 0) { setXlsxError(isAr ? 'الملف فارغ' : 'File is empty'); setXlsxLoading(false); return; }
+
+      const firstRow = rows[0];
+      const colMap: Record<string, string> = {};
+      for (const raw of Object.keys(firstRow)) {
+        const key = matchHeader(raw);
+        if (key) colMap[key] = raw;
+      }
+      if (!colMap.section_ar && !colMap.name_ar) {
+        setXlsxError(isAr ? 'لم يتم التعرف على الأعمدة. تأكد من الرؤوس: القسم، الاسم العربي، رابط الصورة' : 'Could not detect columns. Use headers: القسم, الاسم العربي, رابط الصورة');
+        setXlsxLoading(false); return;
+      }
+
+      const newSections = siteData.sections.map(s => ({ ...s, photos: [...s.photos] }));
+      let addedCount = 0;
+      const affectedSections: Set<string> = new Set();
+
+      for (const row of rows) {
+        const sectionNameAr = (colMap.section_ar ? row[colMap.section_ar] : '').toString().trim();
+        const sectionNameEn = (colMap.section_en ? row[colMap.section_en] : '').toString().trim();
+        const nameAr = (colMap.name_ar ? row[colMap.name_ar] : '').toString().trim();
+        const nameEn = (colMap.name_en ? row[colMap.name_en] : '').toString().trim();
+        const descAr = (colMap.desc_ar ? row[colMap.desc_ar] : '').toString().trim();
+        const descEn = (colMap.desc_en ? row[colMap.desc_en] : '').toString().trim();
+        const imageUrl = (colMap.image ? row[colMap.image] : '').toString().trim();
+
+        if (!nameAr && !imageUrl) continue;
+
+        let sec = newSections.find(s => s.nameAr === sectionNameAr);
+        if (!sec && sectionNameAr) {
+          sec = { id: uid(), nameAr: sectionNameAr, nameEn: sectionNameEn || sectionNameAr, photos: [] };
+          newSections.push(sec);
+        }
+        if (!sec) sec = newSections[0];
+        if (!sec) continue;
+
+        sec.photos.push({
+          id: uid(),
+          image: imageUrl,
+          nameAr: nameAr || sectionNameAr,
+          nameEn: nameEn || '',
+          descriptionAr: descAr || undefined,
+          descriptionEn: descEn || undefined,
+        });
+        addedCount++;
+        affectedSections.add(sec.nameAr);
+      }
+
+      if (addedCount === 0) { setXlsxError(isAr ? 'لم يتم العثور على نباتات صالحة في الملف' : 'No valid plants found in file'); setXlsxLoading(false); return; }
+
+      await updateSiteData({ ...siteData, sections: newSections });
+      setXlsxResult({ added: addedCount, sections: Array.from(affectedSections) });
+    } catch (err) {
+      setXlsxError(isAr ? 'فشل في قراءة الملف — تأكد أنه ملف Excel صحيح' : 'Failed to read file — ensure it is a valid Excel file');
+      console.error(err);
+    } finally {
+      setXlsxLoading(false);
+    }
   };
 
   const handleAddPhoto = (e: React.FormEvent) => {
@@ -1168,6 +1303,11 @@ export default function GalleryPage() {
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} onClick={() => setAdminQuotesOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
+            <div className="w-px h-5 bg-border shrink-0" />
+            <ToolBtn icon={<FileSpreadsheet className="w-3.5 h-3.5" />} label={isAr ? 'Excel' : 'Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
+            <ToolBtn icon={<Download className="w-3.5 h-3.5" />} label={isAr ? 'نسخ احتياطي' : 'Backup'} onClick={handleBackup} />
+            <ToolBtn icon={restoring ? undefined : <Upload className="w-3.5 h-3.5" />} label={isAr ? 'استرجاع' : 'Restore'} onClick={() => restoreInputRef.current?.click()} />
+            <input ref={restoreInputRef} type="file" accept=".json" className="hidden" onChange={handleRestoreFile} />
             <button onClick={() => { setSessionToken(null); setIsAdmin(false); }}
               className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
               <LogOut className="w-3.5 h-3.5" />
@@ -1177,6 +1317,64 @@ export default function GalleryPage() {
       )}
 
       {/* ── MODALS ── */}
+
+      {/* ── Excel Import Dialog ── */}
+      <Dialog open={xlsxOpen} onOpenChange={o => { setXlsxOpen(o); if (!o) { setXlsxResult(null); setXlsxError(null); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-green-600" />
+              {isAr ? 'استيراد نباتات من Excel' : 'Import Plants from Excel'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {/* Format guide */}
+            <div className="rounded-xl bg-muted/50 border border-border p-3 space-y-2">
+              <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'أعمدة الملف المطلوبة:' : 'Required Excel columns:'}</p>
+              <div className="grid grid-cols-2 gap-1 text-xs arabic text-foreground/60">
+                <span>القسم</span><span className="text-muted-foreground">section name (AR)</span>
+                <span>الاسم العربي</span><span className="text-muted-foreground">plant name (AR)</span>
+                <span>الاسم الانجليزي</span><span className="text-muted-foreground">plant name (EN) — optional</span>
+                <span>رابط الصورة</span><span className="text-muted-foreground">image URL</span>
+                <span>الوصف العربي</span><span className="text-muted-foreground">description (AR) — optional</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground arabic">{isAr ? '⚠ استخدم روابط صور (http...) وليس صور مرفوعة' : '⚠ Use image URLs (http...) not uploaded images'}</p>
+            </div>
+
+            {/* Result / Error */}
+            {xlsxError && (
+              <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 text-sm arabic text-destructive">{xlsxError}</div>
+            )}
+            {xlsxResult && (
+              <div className="rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 p-3 space-y-1">
+                <p className="text-sm font-bold arabic text-green-700 dark:text-green-400">
+                  ✓ {isAr ? `تمت إضافة ${xlsxResult.added} نبتة بنجاح` : `Added ${xlsxResult.added} plants successfully`}
+                </p>
+                <p className="text-xs arabic text-green-600 dark:text-green-500">
+                  {isAr ? 'الأقسام: ' : 'Sections: '}{xlsxResult.sections.join('، ')}
+                </p>
+              </div>
+            )}
+
+            {/* File input */}
+            <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelFile} />
+            <div className="flex gap-2">
+              <Button
+                onClick={() => { setXlsxResult(null); setXlsxError(null); xlsxInputRef.current?.click(); }}
+                disabled={xlsxLoading}
+                className="flex-1 arabic"
+              >
+                {xlsxLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin me-2" />{isAr ? 'جاري الاستيراد...' : 'Importing...'}</>
+                  : <><FileSpreadsheet className="w-4 h-4 me-2" />{isAr ? 'اختر ملف Excel' : 'Choose Excel File'}</>}
+              </Button>
+              <Button variant="outline" onClick={() => setXlsxOpen(false)} className="arabic">
+                {xlsxResult ? (isAr ? 'إغلاق' : 'Close') : (isAr ? 'إلغاء' : 'Cancel')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Branch */}
       <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchImageUrl(''); } }}>
@@ -2555,7 +2753,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced' });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -2736,13 +2934,18 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   </div>
                 </div>
 
-                {/* Notes */}
-                {editQuote.notes && (
-                  <div className="rounded-xl border border-border p-4">
-                    <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'ملاحظات الزبون' : "Customer's Notes"}</p>
-                    <p className="text-sm arabic text-foreground">{editQuote.notes}</p>
-                  </div>
-                )}
+                {/* Notes — editable */}
+                <div className="rounded-xl border border-border p-4 space-y-2">
+                  <p className="text-xs font-bold arabic text-muted-foreground">{isAr ? 'الملاحظات' : 'Notes'}</p>
+                  <textarea
+                    value={editQuote.notes ?? ''}
+                    onChange={e => setEditQuote({ ...editQuote, notes: e.target.value })}
+                    rows={3}
+                    dir="rtl"
+                    placeholder={isAr ? 'أضف ملاحظات هنا...' : 'Add notes here...'}
+                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
               </div>
             </div>
           ) : (

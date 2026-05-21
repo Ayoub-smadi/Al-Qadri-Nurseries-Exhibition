@@ -200,13 +200,13 @@ router.get("/quotes", async (req, res) => {
 router.put("/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status } = req.body as {
-    items?: unknown; discount?: number; tax?: number; status?: string;
+  const { items, discount, tax, status, notes } = req.body as {
+    items?: unknown; discount?: number; tax?: number; status?: string; notes?: string;
   };
   try {
     await pool.query(
-      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4 WHERE id = $5`,
-      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? 'priced', id]
+      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes) WHERE id = $6`,
+      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? 'priced', notes ?? null, id]
     );
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to update quote" }); }

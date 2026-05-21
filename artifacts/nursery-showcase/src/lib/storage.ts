@@ -344,7 +344,7 @@ export async function fetchQuotes(): Promise<QuoteRequest[]> {
   return [];
 }
 
-export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string }): Promise<boolean> {
+export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string }): Promise<boolean> {
   if (!_sessionToken) return false;
   try {
     const res = await fetch(`/api/quotes/${id}`, {

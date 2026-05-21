@@ -217,11 +217,11 @@ app.get("/api/quotes", async (req, res) => {
 app.put("/api/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status } = req.body ?? {};
+  const { items, discount, tax, status, notes } = req.body ?? {};
   try {
     await pool.query(
-      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4 WHERE id = $5`,
-      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? "priced", id]
+      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes) WHERE id = $6`,
+      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? "priced", notes ?? null, id]
     );
     res.json({ ok: true });
   } catch {
