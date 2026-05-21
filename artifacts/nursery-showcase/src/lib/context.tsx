@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchSiteData, persistSiteData, SiteData, DEFAULT_DATA } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, setSessionToken, SiteData, DEFAULT_DATA } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
@@ -14,6 +14,8 @@ interface AppContextType {
   siteData: SiteData;
   updateSiteData: (data: Partial<SiteData>) => void;
   dataLoaded: boolean;
+  sessionExpired: boolean;
+  setSessionExpired: (v: boolean) => void;
 }
 
 const CACHE_KEY = 'gallery_site_data_cache';
@@ -38,6 +40,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Language>('ar');
   const [isDark, setIsDark] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const cached = loadCache();
   const [siteData, setSiteData] = useState<SiteData>(cached ?? DEFAULT_DATA);
@@ -81,20 +84,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = { ...siteData, ...data };
     setSiteData(next);
     saveCache(next);
-    persistSiteData(next).then(ok => {
-      if (!ok) {
-        toast.error(
-          lang === 'ar'
-            ? 'فشل حفظ البيانات على السيرفر — تأكد من تسجيل الدخول'
-            : 'Failed to save to server — please log in again',
-          { duration: 5000 }
-        );
+    persistSiteData(next).then(result => {
+      if (!result.ok) {
+        if (result.unauthorized) {
+          setSessionToken(null);
+          setIsAdmin(false);
+          setSessionExpired(true);
+        } else {
+          toast.error(
+            lang === 'ar'
+              ? 'فشل حفظ البيانات — تحقق من الاتصال بالإنترنت'
+              : 'Failed to save — check your internet connection',
+            { duration: 5000 }
+          );
+        }
       }
     });
   };
 
   return (
-    <AppContext.Provider value={{ lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded }}>
+    <AppContext.Provider value={{ lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded, sessionExpired, setSessionExpired }}>
       {children}
     </AppContext.Provider>
   );

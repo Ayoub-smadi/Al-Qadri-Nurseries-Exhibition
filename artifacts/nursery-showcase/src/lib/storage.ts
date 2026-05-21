@@ -206,10 +206,28 @@ export async function fetchSiteData(): Promise<SiteData | null> {
 }
 
 /**
- * Persists site data to the API. Returns true on success, false on failure.
+ * Validates the current session token against the server.
+ * Returns true if valid, false if expired or invalid.
  */
-export async function persistSiteData(data: SiteData): Promise<boolean> {
+export async function validateToken(): Promise<boolean> {
   if (!_sessionToken) return false;
+  try {
+    const res = await fetch("/api/admin/verify", {
+      headers: { "Authorization": `Bearer ${_sessionToken}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Persists site data to the API.
+ * Returns { ok: true } on success, { ok: false, unauthorized: true } on auth failure,
+ * or { ok: false, unauthorized: false } on other errors.
+ */
+export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; unauthorized: boolean }> {
+  if (!_sessionToken) return { ok: false, unauthorized: true };
   try {
     const res = await fetch("/api/site-data", {
       method: "PUT",
@@ -219,9 +237,11 @@ export async function persistSiteData(data: SiteData): Promise<boolean> {
       },
       body: JSON.stringify({ data }),
     });
-    return res.ok;
+    if (res.ok) return { ok: true, unauthorized: false };
+    if (res.status === 401 || res.status === 403) return { ok: false, unauthorized: true };
+    return { ok: false, unauthorized: false };
   } catch {
-    return false;
+    return { ok: false, unauthorized: false };
   }
 }
 

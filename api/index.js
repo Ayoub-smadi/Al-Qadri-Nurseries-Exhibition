@@ -94,6 +94,11 @@ app.get("/api/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/api/admin/verify", (req, res) => {
+  if (!requireSession(req, res)) return;
+  res.json({ ok: true });
+});
+
 app.post("/api/admin/login", async (req, res) => {
   const { username, password } = req.body ?? {};
   if (!username || !password) {

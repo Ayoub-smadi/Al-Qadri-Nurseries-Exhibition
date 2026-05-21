@@ -124,6 +124,11 @@ router.post("/admin/setup", async (req, res) => {
   }
 });
 
+router.get("/admin/verify", (req, res) => {
+  if (!requireSession(req, res)) return;
+  res.json({ ok: true });
+});
+
 router.get("/site-data", async (_req, res) => {
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);

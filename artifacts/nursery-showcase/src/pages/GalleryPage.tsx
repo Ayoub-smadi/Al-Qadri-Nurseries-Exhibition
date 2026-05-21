@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, loadSavedToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -312,7 +312,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
 
 /* ══ MAIN PAGE ═══════════════════════════════════════════ */
 export default function GalleryPage() {
-  const { lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded } = useApp();
+  const { lang, setLang, isDark, toggleDark, isAdmin, setIsAdmin, siteData, updateSiteData, dataLoaded, sessionExpired, setSessionExpired } = useApp();
   const isAr = lang === 'ar';
 
   /* login */
@@ -384,14 +384,29 @@ export default function GalleryPage() {
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
 
-  /* ── restore admin session on page load ── */
+  /* ── restore admin session on page load — validate token first ── */
   useEffect(() => {
     const saved = loadSavedToken();
     if (saved) {
       setSessionToken(saved);
-      setIsAdmin(true);
+      validateToken().then(valid => {
+        if (valid) {
+          setIsAdmin(true);
+        } else {
+          setSessionToken(null);
+        }
+      });
     }
   }, []);
+
+  /* ── open login modal when session expires mid-session ── */
+  useEffect(() => {
+    if (sessionExpired) {
+      setLoginOpen(true);
+      setSessionExpired(false);
+      toast.error(isAr ? 'انتهت صلاحية الجلسة — سجّل الدخول مجدداً' : 'Session expired — please log in again', { duration: 6000 });
+    }
+  }, [sessionExpired]);
 
   /* ── handlers ── */
   const handleLogin = async (e: React.FormEvent) => {
