@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import {
@@ -320,6 +320,8 @@ export default function GalleryPage() {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [loginErr, setLoginErr] = useState('');
+  const [isSetupMode, setIsSetupMode] = useState(false);
+  const [setupPass2, setSetupPass2] = useState('');
 
   /* add photo */
   const [addPhotoSectionId, setAddPhotoSectionId] = useState<string | null>(null);
@@ -402,7 +404,7 @@ export default function GalleryPage() {
   /* ── open login modal when session expires mid-session ── */
   useEffect(() => {
     if (sessionExpired) {
-      setLoginOpen(true);
+      openLoginModal();
       setSessionExpired(false);
       toast.error(isAr ? 'انتهت صلاحية الجلسة — سجّل الدخول مجدداً' : 'Session expired — please log in again', { duration: 6000 });
     }
@@ -411,6 +413,28 @@ export default function GalleryPage() {
   /* ── handlers ── */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSetupMode) {
+      if (pass !== setupPass2) {
+        setLoginErr(isAr ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
+        return;
+      }
+      if (pass.length < 6) {
+        setLoginErr(isAr ? 'كلمة المرور قصيرة جداً (6 أحرف على الأقل)' : 'Password too short (min 6 chars)');
+        return;
+      }
+      const ok = await adminSetup(user, pass);
+      if (ok) {
+        const token = await adminLogin(user, pass);
+        if (token) {
+          setSessionToken(token);
+          setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setSetupPass2(''); setLoginErr(''); setIsSetupMode(false);
+          toast.success(isAr ? 'تم إنشاء حساب المدير بنجاح' : 'Admin account created');
+        }
+      } else {
+        setLoginErr(isAr ? 'فشل إنشاء الحساب' : 'Setup failed');
+      }
+      return;
+    }
     const token = await adminLogin(user, pass);
     if (token) {
       setSessionToken(token);
@@ -418,6 +442,12 @@ export default function GalleryPage() {
     } else {
       setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
     }
+  };
+
+  const openLoginModal = async () => {
+    const needs = await checkNeedsSetup();
+    setIsSetupMode(needs);
+    setLoginOpen(true);
   };
 
   const handleAddPhoto = (e: React.FormEvent) => {
@@ -590,7 +620,7 @@ export default function GalleryPage() {
 
       {!isAdmin && (
         <button className="no-print fixed top-3 end-3 w-2.5 h-2.5 rounded-full bg-border hover:bg-primary transition-colors z-50"
-          onClick={() => setLoginOpen(true)} aria-label="Admin" />
+          onClick={() => openLoginModal()} aria-label="Admin" />
       )}
 
       {/* ── HEADER ── */}
@@ -1202,10 +1232,17 @@ export default function GalleryPage() {
       </Dialog>
 
       {/* Login */}
-      <Dialog open={loginOpen} onOpenChange={o => { setLoginOpen(o); if (!o) { setUser(''); setPass(''); setLoginErr(''); } }}>
+      <Dialog open={loginOpen} onOpenChange={o => { setLoginOpen(o); if (!o) { setUser(''); setPass(''); setSetupPass2(''); setLoginErr(''); setIsSetupMode(false); } }}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl text-center arabic">{isAr ? 'دخول المدير' : 'Admin Login'}</DialogTitle>
+            <DialogTitle className="text-xl text-center arabic">
+              {isSetupMode ? (isAr ? 'إعداد حساب المدير' : 'Create Admin Account') : (isAr ? 'دخول المدير' : 'Admin Login')}
+            </DialogTitle>
+            {isSetupMode && (
+              <p className="text-sm text-muted-foreground text-center arabic pt-1">
+                {isAr ? 'لم يتم إنشاء أي حساب بعد — أنشئ حساب المدير الأول' : 'No admin account yet — create the first one'}
+              </p>
+            )}
           </DialogHeader>
           <form onSubmit={handleLogin} className="space-y-4 pt-2">
             <div className="space-y-1.5">
@@ -1214,10 +1251,18 @@ export default function GalleryPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{isAr ? 'كلمة المرور' : 'Password'}</Label>
-              <Input type="password" value={pass} onChange={e => setPass(e.target.value)} dir="ltr" autoComplete="current-password" />
+              <Input type="password" value={pass} onChange={e => setPass(e.target.value)} dir="ltr" autoComplete={isSetupMode ? 'new-password' : 'current-password'} />
             </div>
+            {isSetupMode && (
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'تأكيد كلمة المرور' : 'Confirm Password'}</Label>
+                <Input type="password" value={setupPass2} onChange={e => setSetupPass2(e.target.value)} dir="ltr" autoComplete="new-password" />
+              </div>
+            )}
             {loginErr && <p className="text-destructive text-sm">{loginErr}</p>}
-            <Button type="submit" className="w-full bg-primary text-primary-foreground">{isAr ? 'دخول' : 'Login'}</Button>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground">
+              {isSetupMode ? (isAr ? 'إنشاء الحساب' : 'Create Account') : (isAr ? 'دخول' : 'Login')}
+            </Button>
           </form>
         </DialogContent>
       </Dialog>

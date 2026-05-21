@@ -102,18 +102,31 @@ router.post("/admin/login", async (req, res) => {
   }
 });
 
+router.get("/admin/needs-setup", async (_req, res) => {
+  try {
+    const rows = await pool.query(`SELECT COUNT(*) AS c FROM admins`);
+    res.json({ needsSetup: parseInt(rows.rows[0].c, 10) === 0 });
+  } catch {
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 router.post("/admin/setup", async (req, res) => {
   const { username, password, secret } = req.body as { username?: string; password?: string; secret?: string };
-  const setupSecret = process.env.ADMIN_SETUP_SECRET;
-  if (!setupSecret || !secret || secret !== setupSecret) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
     return;
   }
   try {
+    const countRows = await pool.query(`SELECT COUNT(*) AS c FROM admins`);
+    const isEmpty = parseInt(countRows.rows[0].c, 10) === 0;
+    if (!isEmpty) {
+      const setupSecret = process.env.ADMIN_SETUP_SECRET;
+      if (!setupSecret || !secret || secret !== setupSecret) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
     await pool.query(
       `INSERT INTO admins (username, password_hash) VALUES ($1, $2) ON CONFLICT (username) DO UPDATE SET password_hash = $2`,
       [username, hashPassword(password)]

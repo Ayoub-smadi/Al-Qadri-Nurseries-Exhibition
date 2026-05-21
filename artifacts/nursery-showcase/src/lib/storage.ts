@@ -164,6 +164,29 @@ export async function adminLogin(username: string, password: string): Promise<st
   return null;
 }
 
+export async function checkNeedsSetup(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/needs-setup");
+    if (res.ok) {
+      const json = await res.json() as { needsSetup?: boolean };
+      return json.needsSetup === true;
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
+export async function adminSetup(username: string, password: string): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
 /**
  * Fetches site data from the API.
  * Returns null if no data exists in the DB yet (i.e., never been saved).
