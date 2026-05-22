@@ -35,6 +35,12 @@ pool.query(`
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS images (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  );
 `).catch((e) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -237,6 +243,122 @@ app.delete("/api/quotes/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete quote" });
+  }
+});
+
+// ── Image upload & retrieval ──────────────────────────────────────────────────
+
+app.post("/api/images", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { data, mimeType } = req.body ?? {};
+  if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
+  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const mime = mimeType ?? "image/jpeg";
+  try {
+    const raw = data.startsWith("data:") ? data.split(",")[1] : data;
+    await pool.query(
+      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
+      [id, raw, mime]
+    );
+    res.json({ id, url: `/api/images/${id}` });
+  } catch {
+    res.status(500).json({ error: "Failed to save image" });
+  }
+});
+
+app.post("/api/images/from-url", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { url } = req.body ?? {};
+  if (!url || !url.startsWith("http")) {
+    res.status(400).json({ error: "رابط غير صالح — يجب أن يبدأ بـ http" });
+    return;
+  }
+  const knownBadHosts = ["drive.google.com", "docs.google.com", "dropbox.com", "icloud.com", "onedrive.live.com"];
+  try {
+    const urlHost = new URL(url).hostname;
+    if (knownBadHosts.some(h => urlHost.includes(h))) {
+      res.status(400).json({
+        error: "هذا الرابط لا يخدم الصورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png",
+      });
+      return;
+    }
+  } catch {
+    res.status(400).json({ error: "رابط غير صالح" });
+    return;
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let response;
+    try {
+      response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "image/*,*/*;q=0.8",
+        },
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!response.ok) {
+      res.status(400).json({ error: `تعذّر تنزيل الصورة (خطأ ${response.status})` });
+      return;
+    }
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) {
+      res.status(400).json({ error: "الرابط لا يشير إلى صورة مباشرة" });
+      return;
+    }
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > 20 * 1024 * 1024) {
+      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 20MB)" });
+      return;
+    }
+    const base64 = Buffer.from(buffer).toString("base64");
+    const mime = contentType.split(";")[0].trim();
+    const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await pool.query(
+      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
+      [id, base64, mime]
+    );
+    res.json({ id, url: `/api/images/${id}` });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("abort") || msg.includes("timeout")) {
+      res.status(400).json({ error: "انتهت مهلة التنزيل" });
+    } else {
+      res.status(500).json({ error: "فشل تنزيل الصورة" });
+    }
+  }
+});
+
+app.get("/api/images/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT data, mime_type FROM images WHERE id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) { res.status(404).end(); return; }
+    const { data, mime_type } = result.rows[0];
+    const buf = Buffer.from(data, "base64");
+    res.setHeader("Content-Type", mime_type);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.end(buf);
+  } catch {
+    res.status(500).end();
+  }
+});
+
+app.delete("/api/images/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM images WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete image" });
   }
 });
 
