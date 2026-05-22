@@ -36,6 +36,12 @@ pool.query(`
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS images (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  );
 `).catch((e: Error) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -218,6 +224,51 @@ router.delete("/quotes/:id", async (req, res) => {
     await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete quote" }); }
+});
+
+router.post("/images", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { data, mimeType } = req.body as { data?: string; mimeType?: string };
+  if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
+  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const mime = mimeType ?? "image/jpeg";
+  try {
+    const raw = data.startsWith("data:") ? data.split(",")[1] : data;
+    await pool.query(
+      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
+      [id, raw, mime]
+    );
+    res.json({ id, url: `/api/images/${id}` });
+  } catch {
+    res.status(500).json({ error: "Failed to save image" });
+  }
+});
+
+router.get("/images/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT data, mime_type FROM images WHERE id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) { res.status(404).end(); return; }
+    const { data, mime_type } = result.rows[0] as { data: string; mime_type: string };
+    const buf = Buffer.from(data, "base64");
+    res.setHeader("Content-Type", mime_type);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.end(buf);
+  } catch {
+    res.status(500).end();
+  }
+});
+
+router.delete("/images/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM images WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete image" }); }
 });
 
 export default router;

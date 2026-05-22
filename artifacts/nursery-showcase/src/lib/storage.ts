@@ -278,10 +278,10 @@ export async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    img.onload = () => {
+    img.onload = async () => {
       URL.revokeObjectURL(url);
-      // Max 400px & quality 0.28 — keeps each image under ~20KB base64
-      const MAX = 400;
+      // Max 600px & quality 0.75 — good quality since images are stored separately
+      const MAX = 600;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
@@ -292,7 +292,23 @@ export async function uploadImage(file: File): Promise<string> {
       canvas.height = height;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.28));
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+      try {
+        const res = await fetch("/api/images", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${_sessionToken}`,
+          },
+          body: JSON.stringify({ data: dataUrl, mimeType: "image/jpeg" }),
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const json = await res.json() as { url?: string };
+        if (!json.url) throw new Error("No URL returned");
+        resolve(json.url);
+      } catch (e) {
+        reject(e);
+      }
     };
     img.onerror = () => reject(new Error("Upload failed"));
     img.src = url;
