@@ -591,7 +591,6 @@ export default function GalleryPage() {
     const photo: Photo = { id: uid(), image: photoUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
     updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
     setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
-    toast.success(isAr ? 'تمت إضافة الصورة' : 'Photo added');
   };
 
   const handleDeletePhoto = (sectionId: string, photoId: string) => {
