@@ -241,10 +241,11 @@ export async function fetchSiteData(): Promise<SiteData | null> {
  * Returns true if valid, false if expired or invalid.
  */
 export async function validateToken(): Promise<boolean> {
-  if (!_sessionToken) return false;
+  const token = getToken();
+  if (!token) return false;
   try {
     const res = await fetch("/api/admin/verify", {
-      headers: { "Authorization": `Bearer ${_sessionToken}` },
+      headers: { "Authorization": `Bearer ${token}` },
     });
     return res.ok;
   } catch {

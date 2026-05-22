@@ -230,26 +230,54 @@ router.post("/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { url } = req.body as { url?: string };
   if (!url || !url.startsWith("http")) {
-    res.status(400).json({ error: "Invalid URL" });
+    res.status(400).json({ error: "رابط غير صالح — يجب أن يبدأ بـ http" });
+    return;
+  }
+  // Reject known non-direct-image hosts
+  const knownBadHosts = ["drive.google.com", "docs.google.com", "dropbox.com", "icloud.com", "onedrive.live.com"];
+  try {
+    const urlHost = new URL(url).hostname;
+    if (knownBadHosts.some(h => urlHost.includes(h))) {
+      res.status(400).json({
+        error: "هذا الرابط لا يخدم الصورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png مثل: https://example.com/photo.jpg",
+      });
+      return;
+    }
+  } catch {
+    res.status(400).json({ error: "رابط غير صالح" });
     return;
   }
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; NurseryBot/1.0)",
-        "Referer": url,
-      },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "image/*,*/*;q=0.8",
+        },
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok) {
-      res.status(400).json({ error: `Failed to fetch image: ${response.status}` });
+      res.status(400).json({ error: `تعذّر تنزيل الصورة (خطأ ${response.status}) — تأكد أن الرابط عام وليس محمياً` });
       return;
     }
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const contentType = response.headers.get("content-type") || "";
     if (!contentType.startsWith("image/")) {
-      res.status(400).json({ error: "URL does not point to an image" });
+      res.status(400).json({
+        error: "الرابط لا يشير إلى صورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png",
+      });
       return;
     }
     const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > 20 * 1024 * 1024) {
+      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 20MB)" });
+      return;
+    }
     const base64 = Buffer.from(buffer).toString("base64");
     const mime = contentType.split(";")[0].trim();
     const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -259,8 +287,12 @@ router.post("/images/from-url", async (req, res) => {
     );
     res.json({ id, url: `/api/images/${id}` });
   } catch (e) {
-    console.error("from-url error:", e);
-    res.status(500).json({ error: "Failed to fetch or save image" });
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("abort") || msg.includes("timeout")) {
+      res.status(400).json({ error: "انتهت مهلة التنزيل — تأكد أن الرابط سريع وعام" });
+    } else {
+      res.status(500).json({ error: "فشل تنزيل الصورة — تأكد أن الرابط صحيح وعام" });
+    }
   }
 });
 
