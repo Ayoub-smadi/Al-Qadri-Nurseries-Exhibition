@@ -818,132 +818,157 @@ export default function GalleryPage() {
             ...(siteData.owner?.extraPhotos ?? []),
           ];
           const safeIdx = Math.min(ownerPhotoIdx, Math.max(0, allPhotos.length - 1));
-          const hasBg = !!siteData.owner?.bgImage;
+          const bgUrl = siteData.owner?.bgImage || '/nursery-owner-bg.jpg';
           return (
             <div
-              className="relative overflow-hidden"
-              style={hasBg ? { backgroundImage: `url(${siteData.owner.bgImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+              className="relative overflow-hidden min-h-[380px] md:min-h-[440px]"
+              style={{ backgroundImage: `url(${bgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center 30%' }}
             >
-              {hasBg && <div className="absolute inset-0 bg-black/20" />}
+              {/* Gradient overlay — heavier on RIGHT side (where content sits) */}
+              <div
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(0,10,3,0.40) 40%, rgba(0,15,5,0.82) 70%, rgba(0,18,5,0.94) 100%)' }}
+              />
+              {/* Subtle top/bottom vignette */}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.20) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.30) 100%)' }} />
 
-              <div className={`relative flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 px-8 py-10 ${hasBg ? 'text-white' : ''}`}>
+              {/* Content — pushed to the RIGHT (justify-start in RTL = visual right) */}
+              <div className="relative h-full flex items-center justify-start px-6 md:px-14 py-12 md:py-16" dir="rtl">
+                <div className="flex flex-col md:flex-row items-center gap-8 md:gap-10 max-w-xl w-full md:w-auto">
 
-                {/* Photo side */}
-                <div className="flex flex-col items-center gap-3 shrink-0">
-                  <div className="relative group/owner">
-                    <div className={`w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ${hasBg ? 'ring-white/80' : 'ring-foreground/70'} ring-offset-4 ${hasBg ? 'ring-offset-transparent' : 'ring-offset-background'} shadow-2xl`}>
-                      <img
-                        src={allPhotos[safeIdx] || '/owner.png'}
-                        alt="مهندس ثامر القادري"
-                        className="w-full h-full object-cover object-top scale-105 transition-all duration-500"
-                      />
+                  {/* Photo column */}
+                  <div className="flex flex-col items-center gap-4 shrink-0">
+                    <div className="relative group/owner">
+                      {/* Decorative rings */}
+                      <div className="absolute inset-0 rounded-full ring-1 ring-white/20 scale-110 pointer-events-none" />
+                      <div className="absolute inset-0 rounded-full ring-1 ring-white/10 scale-125 pointer-events-none" />
+                      <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-white/70 ring-offset-4 ring-offset-transparent shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+                        <img
+                          src={allPhotos[safeIdx] || '/owner.png'}
+                          alt="مهندس ثامر القادري"
+                          className="w-full h-full object-cover object-top scale-105 transition-all duration-500"
+                        />
+                      </div>
+                      {/* Green dot badge */}
+                      <div className="absolute bottom-2 end-2 w-5 h-5 rounded-full bg-green-400 ring-2 ring-black/40 shadow-md" />
+                      {isAdmin && (
+                        <FileUploadBtn
+                          onFile={url => updateSiteData({ owner: { ...siteData.owner, photo: url } })}
+                          className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/60 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
+                        >
+                          <ImagePlus className="w-7 h-7" />
+                          <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change'}</span>
+                        </FileUploadBtn>
+                      )}
                     </div>
-                    <div className={`absolute -bottom-1 -end-1 w-6 h-6 rounded-full ${hasBg ? 'bg-white/60' : 'bg-foreground/70'} shadow-md`} />
-                    {isAdmin && (
+
+                    {/* Thumbnail strip */}
+                    {(allPhotos.length > 1 || isAdmin) && (
+                      <div className="flex items-center gap-2 flex-wrap justify-center">
+                        {allPhotos.map((ph, idx) => (
+                          <div key={idx} className="relative group/thumb">
+                            <button
+                              onClick={() => setOwnerPhotoIdx(idx)}
+                              className={`w-9 h-9 rounded-full overflow-hidden ring-2 transition-all ${safeIdx === idx ? 'ring-white scale-110 shadow-md' : 'ring-white/30 opacity-60 hover:opacity-100'}`}
+                            >
+                              <img src={ph} alt="" className="w-full h-full object-cover object-top" />
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  if (idx === 0) {
+                                    const next = allPhotos.slice(1);
+                                    updateSiteData({ owner: { ...siteData.owner, photo: next[0] ?? '', extraPhotos: next.slice(1) } });
+                                  } else {
+                                    updateSiteData({ owner: { ...siteData.owner, extraPhotos: (siteData.owner?.extraPhotos ?? []).filter((_, i) => i !== idx - 1) } });
+                                  }
+                                  setOwnerPhotoIdx(0);
+                                }}
+                                className="no-print absolute -top-0.5 -end-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {isAdmin && (
+                          <FileUploadBtn
+                            onFile={url => {
+                              const extras = siteData.owner?.extraPhotos ?? [];
+                              updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...extras, url] } });
+                            }}
+                          >
+                            <div className="w-9 h-9 rounded-full border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors">
+                              <Plus className="w-4 h-4 text-white/70" />
+                            </div>
+                          </FileUploadBtn>
+                        )}
+                      </div>
+                    )}
+                    {isAdmin && allPhotos.length <= 1 && (
                       <FileUploadBtn
-                        onFile={url => updateSiteData({ owner: { ...siteData.owner, photo: url } })}
-                        className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
+                        onFile={url => updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...(siteData.owner?.extraPhotos ?? []), url] } })}
                       >
-                        <ImagePlus className="w-7 h-7" />
-                        <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change'}</span>
+                        <div className="no-print flex items-center gap-1 text-xs cursor-pointer arabic text-white/50 hover:text-white transition-colors">
+                          <Plus className="w-3 h-3" />
+                          {isAr ? 'إضافة صورة أخرى' : 'Add photo'}
+                        </div>
                       </FileUploadBtn>
                     )}
                   </div>
 
-                  {/* Thumbnail strip — visible when multiple photos exist */}
-                  {(allPhotos.length > 1 || isAdmin) && (
-                    <div className="flex items-center gap-2 flex-wrap justify-center">
-                      {allPhotos.map((ph, idx) => (
-                        <div key={idx} className="relative group/thumb">
-                          <button
-                            onClick={() => setOwnerPhotoIdx(idx)}
-                            className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all ${safeIdx === idx ? 'ring-primary scale-110 shadow-md' : `${hasBg ? 'ring-white/30' : 'ring-foreground/20'} opacity-60 hover:opacity-100`}`}
-                          >
-                            <img src={ph} alt="" className="w-full h-full object-cover object-top" />
-                          </button>
-                          {isAdmin && (
-                            <button
-                              onClick={() => {
-                                if (idx === 0) {
-                                  const next = allPhotos.slice(1);
-                                  updateSiteData({ owner: { ...siteData.owner, photo: next[0] ?? '', extraPhotos: next.slice(1) } });
-                                } else {
-                                  updateSiteData({ owner: { ...siteData.owner, extraPhotos: (siteData.owner?.extraPhotos ?? []).filter((_, i) => i !== idx - 1) } });
-                                }
-                                setOwnerPhotoIdx(0);
-                              }}
-                              className="no-print absolute -top-0.5 -end-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                  {/* Info column */}
+                  <div className="flex flex-col items-center md:items-start gap-3 text-center md:text-start">
+                    {/* Badge */}
+                    <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold arabic tracking-widest uppercase bg-white/10 text-white border border-white/25 backdrop-blur-sm shadow-sm">
+                      {isAr ? 'المدير العام' : 'General Manager'}
+                    </span>
 
-                      {/* Add extra photo button (admin) */}
-                      {isAdmin && (
-                        <FileUploadBtn
-                          onFile={url => {
-                            const extras = siteData.owner?.extraPhotos ?? [];
-                            updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...extras, url] } });
-                          }}
-                        >
-                          <div className={`w-10 h-10 rounded-full border-2 border-dashed ${hasBg ? 'border-white/50 bg-white/10 hover:bg-white/20' : 'border-border bg-muted hover:bg-muted/80'} flex items-center justify-center cursor-pointer transition-colors`}>
-                            <Plus className={`w-4 h-4 ${hasBg ? 'text-white/70' : 'text-muted-foreground'}`} />
-                          </div>
-                        </FileUploadBtn>
-                      )}
+                    {/* Name */}
+                    <h2 className="text-3xl md:text-4xl font-bold arabic leading-tight text-white drop-shadow-lg mt-1">
+                      {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
+                    </h2>
+                    <p className="text-sm latin tracking-[0.2em] uppercase text-white/55 -mt-1">
+                      {isAr ? 'ENG. THAMER AL-QADRI' : 'مهندس ثامر القادري'}
+                    </p>
+
+                    {/* Decorative divider */}
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <div className="h-px w-8 bg-white/30" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400/80" />
+                      <div className="h-px flex-1 bg-white/15" />
                     </div>
-                  )}
 
-                  {/* Show add-photo prompt when no extras and admin */}
-                  {isAdmin && allPhotos.length <= 1 && (
-                    <FileUploadBtn
-                      onFile={url => updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...(siteData.owner?.extraPhotos ?? []), url] } })}
-                    >
-                      <div className={`no-print flex items-center gap-1 text-xs cursor-pointer arabic transition-colors ${hasBg ? 'text-white/60 hover:text-white' : 'text-muted-foreground hover:text-primary'}`}>
-                        <Plus className="w-3 h-3" />
-                        {isAr ? 'إضافة صورة أخرى' : 'Add photo'}
+                    {/* Phone */}
+                    <a href="tel:0777772211" className="flex items-center gap-3 group/phone" dir="ltr">
+                      <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center group-hover/phone:bg-white/20 transition-colors">
+                        <span className="text-sm">📞</span>
                       </div>
-                    </FileUploadBtn>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex flex-col items-center md:items-start gap-2 text-center md:text-start">
-                  <span className={`inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold arabic tracking-wide shadow-sm ${hasBg ? 'bg-white/15 text-white border border-white/30' : 'bg-foreground/10 text-foreground border border-foreground/20'}`}>
-                    {isAr ? 'المدير العام' : 'General Manager'}
-                  </span>
-                  <h2 className={`text-2xl md:text-3xl font-bold arabic leading-snug mt-1 ${hasBg ? 'text-white' : 'text-foreground'}`}>
-                    {isAr ? 'مهندس ثامر القادري' : 'Eng. Thamer Al-Qadri'}
-                  </h2>
-                  <p className={`text-sm latin tracking-widest uppercase ${hasBg ? 'text-white/70' : 'text-muted-foreground'}`}>
-                    {isAr ? 'Eng. Thamer Al-Qadri' : 'مهندس ثامر القادري'}
-                  </p>
-                  <div className={`w-12 h-0.5 rounded-full my-1 ${hasBg ? 'bg-white/40' : 'bg-foreground/30'}`} />
-                  <a href="tel:0777772211" className={`flex items-center gap-2 transition-opacity hover:opacity-70 latin ltr`} dir="ltr">
-                    <span className="text-base">📞</span>
-                    <span className={`text-base font-mono font-semibold tracking-widest ${hasBg ? 'text-white' : 'text-foreground'}`}>0777772211</span>
-                  </a>
+                      <span className="text-lg font-mono font-bold tracking-widest text-white group-hover/phone:text-white/80 transition-colors">
+                        0777772211
+                      </span>
+                    </a>
+                  </div>
                 </div>
               </div>
 
-              {/* Admin: background image controls */}
+              {/* Admin controls — top-left (visual) = top-start in RTL */}
               {isAdmin && (
-                <div className="no-print absolute top-2 end-2 flex gap-1.5 z-10">
+                <div className="no-print absolute top-3 start-3 flex gap-1.5 z-10">
                   <FileUploadBtn onFile={url => updateSiteData({ owner: { ...siteData.owner, bgImage: url } })}>
                     <div className="h-7 px-3 rounded-full bg-black/60 text-white text-xs flex items-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors backdrop-blur-sm arabic whitespace-nowrap">
                       <ImagePlus className="w-3 h-3" />
-                      {isAr ? 'خلفية القسم' : 'Section BG'}
+                      {isAr ? 'تغيير الخلفية' : 'Change BG'}
                     </div>
                   </FileUploadBtn>
-                  {hasBg && (
+                  {siteData.owner?.bgImage && (
                     <button
                       onClick={() => updateSiteData({ owner: { ...siteData.owner, bgImage: '' } })}
-                      className="h-7 px-2 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1 hover:bg-red-600 transition-colors backdrop-blur-sm"
-                      title={isAr ? 'إزالة الخلفية' : 'Remove BG'}
+                      className="h-7 px-2 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1 hover:bg-red-600 transition-colors backdrop-blur-sm arabic"
+                      title={isAr ? 'استعادة الخلفية الافتراضية' : 'Reset to default BG'}
                     >
                       <X className="w-3 h-3" />
+                      <span className="text-[10px]">{isAr ? 'إعادة' : 'Reset'}</span>
                     </button>
                   )}
                 </div>
