@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchSiteData, persistSiteData, setSessionToken, SiteData, DEFAULT_DATA } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
@@ -52,16 +52,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const d = localStorage.getItem('gallery_dark');
     if (d === '1') { setIsDark(true); document.documentElement.classList.add('dark'); }
 
-    fetchSiteData().then(serverData => {
+    async function init() {
+      // Restore admin session from saved token (survives page refreshes)
+      const savedToken = loadSavedToken();
+      let sessionRestored = false;
+      if (savedToken) {
+        setSessionToken(savedToken);
+        sessionRestored = await validateToken();
+        if (sessionRestored) {
+          setIsAdmin(true);
+        } else {
+          setSessionToken(null);
+        }
+      }
+
+      const serverData = await fetchSiteData();
       if (serverData !== null) {
         // Server has real saved data — use it and update cache
         setSiteData(serverData);
         saveCache(serverData);
+      } else if (sessionRestored) {
+        // Admin session valid but server has no data — sync localStorage cache to DB
+        const localData = loadCache();
+        if (localData) {
+          persistSiteData(localData).then(result => {
+            if (result.ok) {
+              console.log('[sync] localStorage data synced to server');
+            }
+          });
+        }
       }
-      // If serverData is null (no DB record yet, or network error),
-      // keep the localStorage cache / default data as-is.
       setDataLoaded(true);
-    });
+    }
+
+    init();
   }, []);
 
   useEffect(() => {
