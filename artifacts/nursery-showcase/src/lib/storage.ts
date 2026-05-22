@@ -280,8 +280,9 @@ export async function uploadImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = async () => {
       URL.revokeObjectURL(url);
-      // Max 600px & quality 0.75 — good quality since images are stored separately
-      const MAX = 600;
+      const isPng = file.type === "image/png";
+      // PNGs keep transparency — larger max size, no JPEG conversion
+      const MAX = isPng ? 900 : 600;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
@@ -291,8 +292,15 @@ export async function uploadImage(file: File): Promise<string> {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d")!;
+      if (!isPng) {
+        // Fill white background for JPEGs to avoid black fill
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+      }
       ctx.drawImage(img, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+      // PNG → keep as PNG to preserve transparency; JPEG → compress normally
+      const mimeType = isPng ? "image/png" : "image/jpeg";
+      const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.75);
       try {
         const res = await fetch("/api/images", {
           method: "POST",
@@ -300,7 +308,7 @@ export async function uploadImage(file: File): Promise<string> {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${_sessionToken}`,
           },
-          body: JSON.stringify({ data: dataUrl, mimeType: "image/jpeg" }),
+          body: JSON.stringify({ data: dataUrl, mimeType }),
         });
         if (!res.ok) throw new Error("Upload failed");
         const json = await res.json() as { url?: string };

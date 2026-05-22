@@ -836,40 +836,36 @@ export default function GalleryPage() {
               <div className="relative h-full flex items-center justify-start px-6 md:px-14 py-12 md:py-16" dir="rtl">
                 <div className="flex flex-col md:flex-row items-center gap-8 md:gap-10 max-w-xl w-full md:w-auto">
 
-                  {/* Photo column */}
-                  <div className="flex flex-col items-center gap-4 shrink-0">
+                  {/* Photo column — transparent PNG cutout */}
+                  <div className="flex flex-col items-end gap-3 shrink-0">
                     <div className="relative group/owner">
-                      {/* Decorative rings */}
-                      <div className="absolute inset-0 rounded-full ring-1 ring-white/20 scale-110 pointer-events-none" />
-                      <div className="absolute inset-0 rounded-full ring-1 ring-white/10 scale-125 pointer-events-none" />
-                      <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-white/70 ring-offset-4 ring-offset-transparent shadow-[0_0_40px_rgba(0,0,0,0.6)]">
-                        <img
-                          src={allPhotos[safeIdx] || '/owner.png'}
-                          alt="مهندس ثامر القادري"
-                          className="w-full h-full object-cover object-top scale-105 transition-all duration-500"
-                        />
-                      </div>
-                      {/* Green dot badge */}
-                      <div className="absolute bottom-2 end-2 w-5 h-5 rounded-full bg-green-400 ring-2 ring-black/40 shadow-md" />
+                      <img
+                        src={allPhotos[safeIdx] || '/owner.png'}
+                        alt="مهندس ثامر القادري"
+                        className="h-56 md:h-72 w-auto object-contain object-bottom drop-shadow-[0_8px_32px_rgba(0,0,0,0.7)] transition-all duration-500"
+                        style={{ maxWidth: '220px' }}
+                      />
                       {isAdmin && (
                         <FileUploadBtn
                           onFile={url => updateSiteData({ owner: { ...siteData.owner, photo: url } })}
-                          className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/60 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
+                          className="no-print absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer rounded-lg"
                         >
                           <ImagePlus className="w-7 h-7" />
-                          <span className="text-xs arabic font-semibold">{isAr ? 'تغيير الصورة' : 'Change'}</span>
+                          <span className="text-xs arabic font-semibold text-center px-2">
+                            {isAr ? 'ارفع PNG بدون خلفية' : 'Upload PNG (no BG)'}
+                          </span>
                         </FileUploadBtn>
                       )}
                     </div>
 
                     {/* Thumbnail strip */}
                     {(allPhotos.length > 1 || isAdmin) && (
-                      <div className="flex items-center gap-2 flex-wrap justify-center">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
                         {allPhotos.map((ph, idx) => (
                           <div key={idx} className="relative group/thumb">
                             <button
                               onClick={() => setOwnerPhotoIdx(idx)}
-                              className={`w-9 h-9 rounded-full overflow-hidden ring-2 transition-all ${safeIdx === idx ? 'ring-white scale-110 shadow-md' : 'ring-white/30 opacity-60 hover:opacity-100'}`}
+                              className={`w-9 h-9 rounded-lg overflow-hidden ring-2 transition-all bg-black/20 ${safeIdx === idx ? 'ring-white scale-110 shadow-md' : 'ring-white/30 opacity-60 hover:opacity-100'}`}
                             >
                               <img src={ph} alt="" className="w-full h-full object-cover object-top" />
                             </button>
@@ -898,7 +894,7 @@ export default function GalleryPage() {
                               updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...extras, url] } });
                             }}
                           >
-                            <div className="w-9 h-9 rounded-full border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors">
+                            <div className="w-9 h-9 rounded-lg border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors">
                               <Plus className="w-4 h-4 text-white/70" />
                             </div>
                           </FileUploadBtn>
