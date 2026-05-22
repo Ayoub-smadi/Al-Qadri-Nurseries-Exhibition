@@ -244,7 +244,7 @@ export async function validateToken(): Promise<boolean> {
   }
 }
 
-const VERCEL_BODY_LIMIT = 4 * 1024 * 1024; // 4MB conservative limit
+const BODY_LIMIT = 20 * 1024 * 1024; // 20MB — matches Replit/Express server limit
 
 /**
  * Persists site data to the API.
@@ -253,7 +253,7 @@ const VERCEL_BODY_LIMIT = 4 * 1024 * 1024; // 4MB conservative limit
 export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; unauthorized: boolean; tooBig: boolean }> {
   if (!_sessionToken) return { ok: false, unauthorized: true, tooBig: false };
   const body = JSON.stringify({ data });
-  if (body.length > VERCEL_BODY_LIMIT) {
+  if (body.length > BODY_LIMIT) {
     return { ok: false, unauthorized: false, tooBig: true };
   }
   try {
@@ -280,8 +280,8 @@ export async function uploadImage(file: File): Promise<string> {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      // Max 500px & quality 0.35 — keeps each image under ~40KB base64
-      const MAX = 500;
+      // Max 400px & quality 0.28 — keeps each image under ~20KB base64
+      const MAX = 400;
       let { width, height } = img;
       if (width > MAX || height > MAX) {
         if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
@@ -292,7 +292,7 @@ export async function uploadImage(file: File): Promise<string> {
       canvas.height = height;
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.35));
+      resolve(canvas.toDataURL("image/jpeg", 0.28));
     };
     img.onerror = () => reject(new Error("Upload failed"));
     img.src = url;
