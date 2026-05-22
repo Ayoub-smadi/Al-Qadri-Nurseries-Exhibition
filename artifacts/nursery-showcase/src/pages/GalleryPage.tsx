@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -100,8 +100,9 @@ function FileUploadBtn({ onFile, onLoading, children, className }: {
           try {
             const url = await uploadImage(f);
             onFile(url);
-          } catch {
-            alert('فشل رفع الصورة — Upload failed');
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Upload failed';
+            toast.error(`فشل رفع الصورة — ${msg}`);
           } finally {
             onLoading?.(false);
             e.target.value = '';
@@ -332,6 +333,7 @@ export default function GalleryPage() {
   const [photoDescAr, setPhotoDescAr] = useState('');
   const [photoDescEn, setPhotoDescEn] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUrlLoading, setPhotoUrlLoading] = useState(false);
 
   /* edit photo */
   const [editPhotoTarget, setEditPhotoTarget] = useState<{ sectionId: string; photo: Photo } | null>(null);
@@ -342,6 +344,7 @@ export default function GalleryPage() {
   const [editPhotoDescEn, setEditPhotoDescEn] = useState('');
   const [editPhotoExtraImages, setEditPhotoExtraImages] = useState<string[]>([]);
   const [editPhotoUploading, setEditPhotoUploading] = useState(false);
+  const [editPhotoUrlLoading, setEditPhotoUrlLoading] = useState(false);
   const [editExtraUploading, setEditExtraUploading] = useState(false);
 
   /* owner photo carousel */
@@ -1501,6 +1504,22 @@ export default function GalleryPage() {
               <Label>{isAr ? 'الصورة' : 'Image'}</Label>
               <div className="flex gap-2">
                 <Input value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
+                {photoUrl.startsWith('http') && !photoUrl.startsWith('/api/') && (
+                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={photoUrlLoading}
+                    onClick={async () => {
+                      setPhotoUrlLoading(true);
+                      try {
+                        const stored = await uploadImageFromUrl(photoUrl);
+                        setPhotoUrl(stored);
+                      } catch (err) {
+                        const msg = err instanceof Error ? err.message : 'Failed';
+                        toast.error(isAr ? `فشل تحميل الصورة — ${msg}` : `Failed to load image — ${msg}`);
+                      } finally { setPhotoUrlLoading(false); }
+                    }}>
+                    {photoUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {isAr ? 'تحميل' : 'Load'}
+                  </Button>
+                )}
                 <FileUploadBtn onFile={url => setPhotoUrl(url)} onLoading={setPhotoUploading}>
                   <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={photoUploading}>
                     {photoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}
@@ -1555,6 +1574,22 @@ export default function GalleryPage() {
                 <Label>{isAr ? 'الصورة' : 'Image'}</Label>
                 <div className="flex gap-2">
                   <Input value={editPhotoUrl} onChange={e => setEditPhotoUrl(e.target.value)} dir="ltr" placeholder="https://..." className="flex-1" />
+                  {editPhotoUrl.startsWith('http') && !editPhotoUrl.startsWith('/api/') && (
+                    <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={editPhotoUrlLoading}
+                      onClick={async () => {
+                        setEditPhotoUrlLoading(true);
+                        try {
+                          const stored = await uploadImageFromUrl(editPhotoUrl);
+                          setEditPhotoUrl(stored);
+                        } catch (err) {
+                          const msg = err instanceof Error ? err.message : 'Failed';
+                          toast.error(isAr ? `فشل تحميل الصورة — ${msg}` : `Failed to load image — ${msg}`);
+                        } finally { setEditPhotoUrlLoading(false); }
+                      }}>
+                      {editPhotoUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      {isAr ? 'تحميل' : 'Load'}
+                    </Button>
+                  )}
                   <FileUploadBtn onFile={url => setEditPhotoUrl(url)} onLoading={setEditPhotoUploading}>
                     <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" disabled={editPhotoUploading}>
                       {editPhotoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImagePlus className="w-4 h-4" />}

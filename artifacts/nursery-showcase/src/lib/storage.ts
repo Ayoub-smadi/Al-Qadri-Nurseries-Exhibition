@@ -274,6 +274,25 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
   }
 }
 
+export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
+  if (!_sessionToken) throw new Error("Not authenticated");
+  const res = await fetch("/api/images/from-url", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${_sessionToken}`,
+    },
+    body: JSON.stringify({ url: imageUrl }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error ?? "Failed to import image from URL");
+  }
+  const json = await res.json() as { url?: string };
+  if (!json.url) throw new Error("No URL returned");
+  return json.url;
+}
+
 export async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();

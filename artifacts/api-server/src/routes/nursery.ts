@@ -226,6 +226,44 @@ router.delete("/quotes/:id", async (req, res) => {
   } catch { res.status(500).json({ error: "Failed to delete quote" }); }
 });
 
+router.post("/images/from-url", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { url } = req.body as { url?: string };
+  if (!url || !url.startsWith("http")) {
+    res.status(400).json({ error: "Invalid URL" });
+    return;
+  }
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; NurseryBot/1.0)",
+        "Referer": url,
+      },
+    });
+    if (!response.ok) {
+      res.status(400).json({ error: `Failed to fetch image: ${response.status}` });
+      return;
+    }
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    if (!contentType.startsWith("image/")) {
+      res.status(400).json({ error: "URL does not point to an image" });
+      return;
+    }
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const mime = contentType.split(";")[0].trim();
+    const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    await pool.query(
+      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
+      [id, base64, mime]
+    );
+    res.json({ id, url: `/api/images/${id}` });
+  } catch (e) {
+    console.error("from-url error:", e);
+    res.status(500).json({ error: "Failed to fetch or save image" });
+  }
+});
+
 router.post("/images", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { data, mimeType } = req.body as { data?: string; mimeType?: string };
