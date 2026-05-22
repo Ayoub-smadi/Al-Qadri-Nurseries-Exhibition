@@ -4,15 +4,14 @@ import crypto from "crypto";
 
 const { Pool } = pg;
 
-const DB_URL = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+const DB_URL = process.env.DATABASE_URL;
 
 if (!DB_URL) {
-  throw new Error("NEON_DATABASE_URL or DATABASE_URL must be set.");
+  throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
 }
 
 const pool = new Pool({
   connectionString: DB_URL,
-  ssl: DB_URL.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.query(`
