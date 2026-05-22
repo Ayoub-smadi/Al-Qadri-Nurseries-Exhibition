@@ -149,6 +149,14 @@ export function loadSavedToken(): string | null {
   } catch { return null; }
 }
 
+/** Always returns the best available token — memory first, then localStorage fallback. */
+function getToken(): string | null {
+  if (_sessionToken) return _sessionToken;
+  const saved = loadSavedToken();
+  if (saved) { _sessionToken = saved; }
+  return saved;
+}
+
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   try {
     const res = await fetch("/api/admin/login", {
@@ -251,7 +259,8 @@ const BODY_LIMIT = 20 * 1024 * 1024; // 20MB — matches Replit/Express server l
  * Returns { ok, unauthorized, tooBig } where tooBig means payload exceeded server limit.
  */
 export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; unauthorized: boolean; tooBig: boolean }> {
-  if (!_sessionToken) return { ok: false, unauthorized: true, tooBig: false };
+  const token = getToken();
+  if (!token) return { ok: false, unauthorized: true, tooBig: false };
   const body = JSON.stringify({ data });
   if (body.length > BODY_LIMIT) {
     return { ok: false, unauthorized: false, tooBig: true };
@@ -261,7 +270,7 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${_sessionToken}`,
+        "Authorization": `Bearer ${token}`,
       },
       body,
     });
@@ -275,12 +284,13 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
 }
 
 export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
-  if (!_sessionToken) throw new Error("Not authenticated");
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated");
   const res = await fetch("/api/images/from-url", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${_sessionToken}`,
+      "Authorization": `Bearer ${token}`,
     },
     body: JSON.stringify({ url: imageUrl }),
   });
@@ -294,6 +304,8 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
 }
 
 export async function uploadImage(file: File): Promise<string> {
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated — please log in");
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -310,7 +322,8 @@ export async function uploadImage(file: File): Promise<string> {
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas not supported")); return; }
       if (!isPng) {
         // Fill white background for JPEGs to avoid black fill
         ctx.fillStyle = "#ffffff";
@@ -325,11 +338,14 @@ export async function uploadImage(file: File): Promise<string> {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${_sessionToken}`,
+            "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify({ data: dataUrl, mimeType }),
         });
-        if (!res.ok) throw new Error("Upload failed");
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({})) as { error?: string };
+          throw new Error(errJson.error ?? `Server error ${res.status}`);
+        }
         const json = await res.json() as { url?: string };
         if (!json.url) throw new Error("No URL returned");
         resolve(json.url);
@@ -337,7 +353,7 @@ export async function uploadImage(file: File): Promise<string> {
         reject(e);
       }
     };
-    img.onerror = () => reject(new Error("Upload failed"));
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read image file")); };
     img.src = url;
   });
 }
@@ -379,20 +395,22 @@ export async function submitQuote(data: { customerName: string; phone: string; i
 }
 
 export async function fetchQuotes(): Promise<QuoteRequest[]> {
-  if (!_sessionToken) return [];
+  const token = getToken();
+  if (!token) return [];
   try {
-    const res = await fetch('/api/quotes', { headers: { 'Authorization': `Bearer ${_sessionToken}` } });
+    const res = await fetch('/api/quotes', { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
   } catch { /* ignore */ }
   return [];
 }
 
 export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string }): Promise<boolean> {
-  if (!_sessionToken) return false;
+  const token = getToken();
+  if (!token) return false;
   try {
     const res = await fetch(`/api/quotes/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_sessionToken}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data),
     });
     return res.ok;
@@ -401,9 +419,10 @@ export async function updateQuote(id: string, data: { items: QuoteItem[]; discou
 }
 
 export async function deleteQuote(id: string): Promise<boolean> {
-  if (!_sessionToken) return false;
+  const token = getToken();
+  if (!token) return false;
   try {
-    const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${_sessionToken}` } });
+    const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;
