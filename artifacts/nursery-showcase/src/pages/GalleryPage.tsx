@@ -1763,6 +1763,8 @@ export default function GalleryPage() {
 }
 
 /* ── Section block ───────────────────────────────────── */
+const SECTION_PAGE_SIZE = 24;
+
 function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox }: {
   section: Section; lang: string; isAdmin: boolean;
   onUpdateName: (f: 'nameAr' | 'nameEn', v: string) => void;
@@ -1778,6 +1780,12 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
   onOpenLightbox: (photo: Photo) => void;
 }) {
   const isAr = lang === 'ar';
+  const [visibleCount, setVisibleCount] = useState(SECTION_PAGE_SIZE);
+
+  const visiblePhotos = section.photos.slice(0, visibleCount);
+  const hasMore = section.photos.length > visibleCount;
+  const remaining = section.photos.length - visibleCount;
+
   return (
     <section className="w-full max-w-5xl mx-auto">
       {/* Header */}
@@ -1792,6 +1800,11 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
           <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">
             {isAr ? section.nameEn : section.nameAr}
           </p>
+          {section.photos.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1 arabic">
+              {isAr ? `${section.photos.length} نبتة` : `${section.photos.length} plants`}
+            </p>
+          )}
         </div>
         <div className="flex-1 h-px bg-border" />
         {isAdmin && (
@@ -1816,15 +1829,42 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
           {isAdmin && <p className="mt-1 text-primary text-xs">{isAr ? 'اضغط + لإضافة صور' : 'Press + to add photos'}</p>}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-          {section.photos.map(photo => (
-            <PlantCard key={photo.id} photo={photo} lang={lang} isAdmin={isAdmin}
-              onEdit={() => onEditPhoto(photo)}
-              onDelete={() => onDeletePhoto(photo.id)}
-              onOpenLightbox={onOpenLightbox}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            {visiblePhotos.map(photo => (
+              <PlantCard key={photo.id} photo={photo} lang={lang} isAdmin={isAdmin}
+                onEdit={() => onEditPhoto(photo)}
+                onDelete={() => onDeletePhoto(photo.id)}
+                onOpenLightbox={onOpenLightbox}
+              />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex flex-col items-center gap-2 mt-10">
+              <p className="text-xs text-muted-foreground arabic">
+                {isAr
+                  ? `يعرض ${visibleCount} من أصل ${section.photos.length}`
+                  : `Showing ${visibleCount} of ${section.photos.length}`}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setVisibleCount(c => c + SECTION_PAGE_SIZE)}
+                  className="px-5 py-2 rounded-full border border-primary text-primary text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors arabic"
+                >
+                  {isAr ? `تحميل ${Math.min(remaining, SECTION_PAGE_SIZE)} نبتة أخرى` : `Load ${Math.min(remaining, SECTION_PAGE_SIZE)} more`}
+                </button>
+                {remaining > SECTION_PAGE_SIZE && (
+                  <button
+                    onClick={() => setVisibleCount(section.photos.length)}
+                    className="px-5 py-2 rounded-full border border-border text-muted-foreground text-sm font-medium hover:bg-muted transition-colors arabic"
+                  >
+                    {isAr ? `عرض الكل (${section.photos.length})` : `Show all (${section.photos.length})`}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
