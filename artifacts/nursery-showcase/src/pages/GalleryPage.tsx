@@ -463,10 +463,9 @@ export default function GalleryPage() {
     }
   };
 
-  const openLoginModal = async () => {
-    const needs = await checkNeedsSetup();
-    setIsSetupMode(needs);
+  const openLoginModal = () => {
     setLoginOpen(true);
+    checkNeedsSetup().then(needs => setIsSetupMode(needs)).catch(() => {});
   };
 
   /* ── backup: download siteData as JSON file ── */
