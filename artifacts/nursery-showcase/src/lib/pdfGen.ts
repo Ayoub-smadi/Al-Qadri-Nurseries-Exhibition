@@ -227,11 +227,13 @@ export async function downloadQuotePDF(
         <div style="direction:ltr;text-align:left;">
           <div style="font-size:13px;font-weight:700;color:#333;font-family:'Cormorant Garamond',serif;">Al-Qadri Agricultural Establishment</div>
           <div style="font-size:11px;color:#666;margin-top:2px;">Jerash – Al-Rashaidah</div>
+          <div style="font-size:11px;color:#2e7d32;margin-top:2px;">alkadrionline.com</div>
         </div>
         ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:70px;height:70px;object-fit:contain;" />` : ''}
         <div style="text-align:right;">
           <div style="font-size:18px;font-weight:800;color:#1a1a1a;">مؤسسة ومشاتل القادري الزراعية</div>
-          <div style="font-size:11px;color:#666;margin-top:2px;">جرش – الرشيدة</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">جرش – الرشايدة</div>
+          <div style="font-size:11px;color:#2e7d32;margin-top:2px;">alkadrionline.com</div>
         </div>
       </div>
 
@@ -337,23 +339,11 @@ export async function downloadQuotePDF(
   const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
   document.body.removeChild(div);
 
-  const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-  const ratio = pageW / canvas.width;
-  const fullH = canvas.height * ratio;
-  let drawn = 0;
-  while (drawn < fullH) {
-    if (drawn > 0) pdf.addPage();
-    const sliceH = Math.min(pageH, fullH - drawn);
-    const srcY = drawn / ratio;
-    const srcH = sliceH / ratio;
-    const slice = document.createElement('canvas');
-    slice.width = canvas.width;
-    slice.height = Math.ceil(srcH);
-    slice.getContext('2d')!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-    pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, sliceH);
-    drawn += pageH;
-  }
+  // Single-page PDF sized to content — no row splitting
+  const PX_PER_MM = 3.7795275591;
+  const pageW = canvas.width / PX_PER_MM;
+  const pageH = canvas.height / PX_PER_MM;
+  const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
   pdf.save(`quote-${quoteNum}.pdf`);
 }
