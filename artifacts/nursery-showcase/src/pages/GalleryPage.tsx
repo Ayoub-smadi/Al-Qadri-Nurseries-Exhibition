@@ -2969,7 +2969,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, shippingDestination: q.shipping_destination });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -3019,8 +3019,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={load} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" title={isAr ? 'تحديث' : 'Refresh'}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            <button onClick={load} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" title={isAr ? 'تحديث القائمة' : 'Refresh list'}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
             </button>
             <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
               <X className="w-4 h-4" />
@@ -3169,13 +3169,17 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
                 </div>
-                {editQuote.shipping_destination && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground arabic bg-muted/40 rounded-lg px-3 py-2">
-                    <span>📍</span>
-                    <span>{isAr ? 'منطقة الشحن:' : 'Ship to:'}</span>
-                    <span className="font-bold text-foreground">{editQuote.shipping_destination}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 text-xs arabic bg-muted/40 rounded-lg px-3 py-2">
+                  <span>📍</span>
+                  <span className="text-muted-foreground shrink-0">{isAr ? 'منطقة الشحن:' : 'Ship to:'}</span>
+                  <Input
+                    value={editQuote.shipping_destination || ''}
+                    onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
+                    placeholder={isAr ? 'لم يتم تحديد منطقة' : 'No region selected'}
+                    className="h-7 text-xs arabic border-0 bg-transparent shadow-none px-1 flex-1 focus-visible:ring-0 font-bold text-foreground placeholder:font-normal placeholder:text-muted-foreground"
+                    dir="rtl"
+                  />
+                </div>
 
                 {/* Totals summary */}
                 <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
