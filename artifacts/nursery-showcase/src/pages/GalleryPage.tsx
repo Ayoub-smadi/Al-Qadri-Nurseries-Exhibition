@@ -3115,18 +3115,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     className={`w-full text-start px-4 py-3.5 hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
-                        {q.shipping_destination && (
-                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
-                        )}
-                      </div>
+                      <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
                       <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${q.status === 'priced' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
                         {q.status === 'priced' ? (isAr ? 'مسعّر' : 'Priced') : (isAr ? 'جديد' : 'New')}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                     {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
+                    {q.shipping_destination && <p className="text-xs text-blue-600 dark:text-blue-400 arabic mt-0.5 font-medium">📍 {q.shipping_destination}</p>}
                   </button>
                 ))}
               </div>
@@ -3141,13 +3137,11 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <ChevronDown className="w-4 h-4 rotate-90" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
-                    {editQuote.shipping_destination && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium shrink-0">📍 {editQuote.shipping_destination}</span>
-                    )}
-                  </div>
+                  <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
+                  {editQuote.shipping_destination && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 arabic font-medium mt-0.5">📍 {editQuote.shipping_destination}</p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
@@ -3237,18 +3231,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs arabic bg-muted/40 rounded-lg px-3 py-2">
-                  <span>📍</span>
-                  <span className="text-muted-foreground shrink-0">{isAr ? 'منطقة الشحن:' : 'Ship to:'}</span>
-                  <Input
-                    value={editQuote.shipping_destination || ''}
-                    onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
-                    placeholder={isAr ? 'لم يتم تحديد منطقة' : 'No region selected'}
-                    className="h-7 text-xs arabic border-0 bg-transparent shadow-none px-1 flex-1 focus-visible:ring-0 font-bold text-foreground placeholder:font-normal placeholder:text-muted-foreground"
-                    dir="rtl"
-                  />
-                </div>
-
                 {/* Totals summary */}
                 <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
                   <div className="flex justify-between arabic">
