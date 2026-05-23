@@ -194,7 +194,8 @@ export async function downloadQuotePDF(
   const discountAmt = subtotal * (Number(quote.discount) / 100);
   const afterDiscount = subtotal - discountAmt;
   const taxAmt = afterDiscount * (Number(quote.tax) / 100);
-  const grand = afterDiscount + taxAmt;
+  const shippingFee = Number(quote.shipping_fee) || 0;
+  const grand = afterDiscount + taxAmt + shippingFee;
 
   const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const quoteNum = quote.id.replace('q-', '').split('-')[0];
@@ -281,7 +282,7 @@ export async function downloadQuotePDF(
         </tfoot>
       </table>
 
-      <!-- DISCOUNT / TAX -->
+      <!-- DISCOUNT / TAX / SHIPPING -->
       <div style="display:flex;gap:12px;margin-top:12px;direction:rtl;">
         <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">نسبة الخصم (%)</div>
@@ -293,8 +294,17 @@ export async function downloadQuotePDF(
           <div style="font-size:13px;font-weight:700;">${Number(quote.tax).toFixed(2)}</div>
           <div style="font-size:11px;color:#555;">+ ${fmt(taxAmt)} د.أ</div>
         </div>
+        ${shippingFee > 0 ? `
+        <div style="flex:1;border:1px solid #1565c0;border-radius:6px;padding:8px 12px;background:#f0f4ff;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الشحن${quote.shipping_destination ? ` — ${quote.shipping_destination}` : ''}</div>
+          <div style="font-size:13px;font-weight:700;color:#1565c0;">${fmt(shippingFee)} د.أ</div>
+        </div>` : (quote.shipping_destination ? `
+        <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">منطقة الشحن</div>
+          <div style="font-size:13px;font-weight:700;">${quote.shipping_destination}</div>
+        </div>` : '')}
         <div style="flex:2;border:2px solid #2e7d32;border-radius:6px;padding:8px 12px;background:#f1f8f1;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي بعد الخصم والضريبة</div>
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>
           <div style="font-size:18px;font-weight:800;color:#2e7d32;">${fmt(grand)} د.أ</div>
         </div>
       </div>

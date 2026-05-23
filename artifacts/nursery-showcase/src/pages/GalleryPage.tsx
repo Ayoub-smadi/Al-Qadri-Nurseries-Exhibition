@@ -2538,6 +2538,23 @@ interface QuoteCartItem {
 }
 
 /* ── Quote Request Modal (customer) ─────────────────────── */
+const SHIPPING_LOCATIONS = [
+  { groupAr: 'محافظات الأردن', groupEn: 'Jordan Governorates', options: [
+    { ar: 'جرش', en: 'Jerash' }, { ar: 'عجلون', en: 'Ajloun' }, { ar: 'عمان', en: 'Amman' },
+    { ar: 'إربد', en: 'Irbid' }, { ar: 'الزرقاء', en: 'Zarqa' }, { ar: 'الكرك', en: 'Karak' },
+    { ar: 'الطفيلة', en: 'Tafilah' }, { ar: 'مادبا', en: 'Madaba' }, { ar: 'الأغوار', en: 'Aghwar' },
+    { ar: 'السلط', en: 'Salt' }, { ar: 'المفرق', en: 'Mafraq' }, { ar: 'العقبة', en: 'Aqaba' },
+  ]},
+  { groupAr: 'دول الخليج', groupEn: 'Gulf Countries', options: [
+    { ar: 'قطر', en: 'Qatar' }, { ar: 'الكويت', en: 'Kuwait' },
+    { ar: 'المملكة العربية السعودية', en: 'Saudi Arabia' },
+    { ar: 'الإمارات العربية المتحدة', en: 'UAE' }, { ar: 'البحرين', en: 'Bahrain' },
+  ]},
+  { groupAr: 'دول أخرى', groupEn: 'Other Countries', options: [
+    { ar: 'سوريا', en: 'Syria' }, { ar: 'مصر', en: 'Egypt' }, { ar: 'العراق', en: 'Iraq' },
+  ]},
+];
+
 function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   open: boolean; onClose: () => void; sections: Section[];
   lang: string; cart: QuoteCartItem[]; setCart: React.Dispatch<React.SetStateAction<QuoteCartItem[]>>;
@@ -2548,6 +2565,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
+  const [custShipping, setCustShipping] = useState('');
+  const [custShippingCustom, setCustShippingCustom] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -2588,12 +2607,13 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     if (!custName.trim() || cart.length === 0) return;
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes });
+    const finalShipping = custShipping === 'custom' ? custShippingCustom.trim() : custShipping;
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: finalShipping });
     setSubmitting(false);
     if (id) {
       setSuccess(true);
       setCart([]);
-      setCustName(''); setCustPhone(''); setCustNotes('');
+      setCustName(''); setCustPhone(''); setCustNotes(''); setCustShipping(''); setCustShippingCustom('');
       setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
     } else {
       toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
@@ -2754,6 +2774,34 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" />
               </div>
               <div>
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'منطقة الشحن' : 'Shipping Destination'}</Label>
+                <select
+                  value={custShipping}
+                  onChange={e => { setCustShipping(e.target.value); if (e.target.value !== 'custom') setCustShippingCustom(''); }}
+                  dir="rtl"
+                  className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm arabic text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">{isAr ? '-- اختر المنطقة --' : '-- Select destination --'}</option>
+                  {SHIPPING_LOCATIONS.map(group => (
+                    <optgroup key={group.groupAr} label={isAr ? group.groupAr : group.groupEn}>
+                      {group.options.map(opt => (
+                        <option key={opt.ar} value={opt.ar}>{isAr ? opt.ar : opt.en}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                  <option value="custom">{isAr ? 'أخرى - اكتب الموقع' : 'Other - type location'}</option>
+                </select>
+                {custShipping === 'custom' && (
+                  <Input
+                    value={custShippingCustom}
+                    onChange={e => setCustShippingCustom(e.target.value)}
+                    dir="rtl"
+                    className="arabic mt-2"
+                    placeholder={isAr ? 'اكتب موقعك...' : 'Enter your location...'}
+                  />
+                )}
+              </div>
+              <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'ملاحظات إضافية' : 'Additional Notes'}</Label>
                 <textarea value={custNotes} onChange={e => setCustNotes(e.target.value)}
                   dir="rtl"
@@ -2853,7 +2901,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -2885,7 +2933,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
-    return after + after * (Number(q.tax) / 100);
+    return after + after * (Number(q.tax) / 100) + (Number(q.shipping_fee) || 0);
   };
 
   if (!open) return null;
@@ -2938,6 +2986,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     </div>
                     <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                     {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
+                    {q.shipping_destination && <p className="text-xs text-blue-600 dark:text-blue-400 arabic mt-0.5">📍 {q.shipping_destination}</p>}
                   </button>
                 ))}
               </div>
@@ -3022,8 +3071,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   </div>
                 </div>
 
-                {/* Discount / Tax */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Discount / Tax / Shipping */}
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="arabic text-xs mb-1 block">{isAr ? 'نسبة الخصم (%)' : 'Discount (%)'}</Label>
                     <Input type="number" min={0} max={100} step={0.1} value={editQuote.discount || ''}
@@ -3036,7 +3085,20 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       onChange={e => setEditQuote({ ...editQuote, tax: Number(e.target.value) })}
                       placeholder="0" className="h-9" dir="ltr" />
                   </div>
+                  <div>
+                    <Label className="arabic text-xs mb-1 block">{isAr ? 'رسوم الشحن (د.أ)' : 'Shipping (JD)'}</Label>
+                    <Input type="number" min={0} step={0.01} value={editQuote.shipping_fee || ''}
+                      onChange={e => setEditQuote({ ...editQuote, shipping_fee: Number(e.target.value) })}
+                      placeholder="0.00" className="h-9" dir="ltr" />
+                  </div>
                 </div>
+                {editQuote.shipping_destination && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground arabic bg-muted/40 rounded-lg px-3 py-2">
+                    <span>📍</span>
+                    <span>{isAr ? 'منطقة الشحن:' : 'Ship to:'}</span>
+                    <span className="font-bold text-foreground">{editQuote.shipping_destination}</span>
+                  </div>
+                )}
 
                 {/* Totals summary */}
                 <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
@@ -3054,6 +3116,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     <div className="flex justify-between arabic text-amber-600">
                       <span>{isAr ? `ضريبة ${editQuote.tax}%` : `Tax ${editQuote.tax}%`}</span>
                       <span>+ {((subtotal(editQuote) - subtotal(editQuote) * Number(editQuote.discount) / 100) * Number(editQuote.tax) / 100).toFixed(2)} د.أ</span>
+                    </div>
+                  )}
+                  {Number(editQuote.shipping_fee) > 0 && (
+                    <div className="flex justify-between arabic text-blue-600">
+                      <span>{isAr ? 'رسوم الشحن' : 'Shipping'}{editQuote.shipping_destination ? ` (${editQuote.shipping_destination})` : ''}</span>
+                      <span>+ {Number(editQuote.shipping_fee).toFixed(2)} د.أ</span>
                     </div>
                   )}
                   <div className="flex justify-between arabic border-t border-border pt-2 font-extrabold text-base text-green-600">
