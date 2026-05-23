@@ -3073,7 +3073,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <ChevronDown className="w-4 h-4 rotate-90" />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
+                    {editQuote.shipping_destination && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium shrink-0">📍 {editQuote.shipping_destination}</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
                 </div>
                 <div className="flex gap-2">
