@@ -3122,7 +3122,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     </div>
                     <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                     {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
-                    {q.shipping_destination && <p className="text-xs text-blue-600 dark:text-blue-400 arabic mt-0.5 font-medium">📍 {q.shipping_destination}</p>}
+                    {q.shipping_destination && (
+                      <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -3230,38 +3232,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       onChange={e => setEditQuote({ ...editQuote, shipping_fee: Number(e.target.value) })}
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
-                </div>
-                {/* Shipping destination */}
-                <div>
-                  <Label className="arabic text-xs mb-1 block">📍 {isAr ? 'منطقة الشحن' : 'Shipping Destination'}</Label>
-                  <select
-                    value={SHIPPING_LOCATIONS.flatMap(g => g.options.map(o => o.ar)).includes(editQuote.shipping_destination || '') ? (editQuote.shipping_destination || '') : (editQuote.shipping_destination ? 'custom' : '')}
-                    onChange={e => {
-                      if (e.target.value === 'custom') return;
-                      setEditQuote({ ...editQuote, shipping_destination: e.target.value });
-                    }}
-                    dir="rtl"
-                    className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm arabic text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="">{isAr ? '-- لم تُحدَّد --' : '-- Not specified --'}</option>
-                    {SHIPPING_LOCATIONS.map(group => (
-                      <optgroup key={group.groupAr} label={isAr ? group.groupAr : group.groupEn}>
-                        {group.options.map(opt => (
-                          <option key={opt.ar} value={opt.ar}>{isAr ? opt.ar : opt.en}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                    <option value="custom">{isAr ? 'أخرى' : 'Other'}</option>
-                  </select>
-                  {(editQuote.shipping_destination && !SHIPPING_LOCATIONS.flatMap(g => g.options.map(o => o.ar)).includes(editQuote.shipping_destination)) && (
-                    <Input
-                      value={editQuote.shipping_destination}
-                      onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
-                      dir="rtl"
-                      className="arabic mt-1.5 h-9 text-sm"
-                      placeholder={isAr ? 'اكتب الموقع...' : 'Enter location...'}
-                    />
-                  )}
                 </div>
                 {/* Totals summary */}
                 <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
