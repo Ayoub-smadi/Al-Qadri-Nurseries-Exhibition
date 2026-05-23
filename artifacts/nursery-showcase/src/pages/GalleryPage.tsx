@@ -393,6 +393,7 @@ export default function GalleryPage() {
 
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
+  const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
 
   /* backup / restore */
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -404,6 +405,18 @@ export default function GalleryPage() {
   const [xlsxResult, setXlsxResult] = useState<{ added: number; sections: string[] } | null>(null);
   const [xlsxError, setXlsxError] = useState<string | null>(null);
   const [xlsxLoading, setXlsxLoading] = useState(false);
+
+  /* ── poll pending quotes count when admin is logged in ── */
+  useEffect(() => {
+    if (!isAdmin) { setPendingQuoteCount(0); return; }
+    const poll = async () => {
+      const qs = await fetchQuotes();
+      setPendingQuoteCount(qs.filter(q => q.status === 'pending').length);
+    };
+    poll();
+    const id = setInterval(poll, 60_000);
+    return () => clearInterval(id);
+  }, [isAdmin]);
 
   /* ── restore admin session on page load — validate token first ── */
   useEffect(() => {
@@ -617,6 +630,19 @@ export default function GalleryPage() {
     const swap = dir === 'up' ? idx - 1 : idx + 1;
     [next[idx], next[swap]] = [next[swap], next[idx]];
     updateSiteData({ sections: next });
+  };
+
+  const handleReorderPhotos = (sectionId: string, fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    updateSiteData({
+      sections: siteData.sections.map(s => {
+        if (s.id !== sectionId) return s;
+        const photos = [...s.photos];
+        const [moved] = photos.splice(fromIdx, 1);
+        photos.splice(toIdx, 0, moved);
+        return { ...s, photos };
+      }),
+    });
   };
 
   const handleEditPhotoOpen = (sectionId: string, photo: Photo) => {
@@ -1207,6 +1233,7 @@ export default function GalleryPage() {
             isFirst={realIdx === 0}
             isLast={realIdx === siteData.sections.length - 1}
             onOpenLightbox={setLightboxPhoto}
+            onReorderPhotos={(from, to) => handleReorderPhotos(section.id, from, to)}
           />
           );
         })}
@@ -1397,7 +1424,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
             <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
-            <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} onClick={() => setAdminQuotesOpen(true)} />
+            <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <div className="w-px h-5 bg-border shrink-0" />
             <ToolBtn icon={<FileSpreadsheet className="w-3.5 h-3.5" />} label={isAr ? 'Excel' : 'Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
@@ -1894,7 +1921,7 @@ export default function GalleryPage() {
 /* ── Section block ───────────────────────────────────── */
 const SECTION_PAGE_SIZE = 24;
 
-function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox }: {
+function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox, onReorderPhotos }: {
   section: Section; lang: string; isAdmin: boolean;
   onUpdateName: (f: 'nameAr' | 'nameEn', v: string) => void;
   onAddPhoto: () => void;
@@ -1907,9 +1934,12 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
   isFirst: boolean;
   isLast: boolean;
   onOpenLightbox: (photo: Photo) => void;
+  onReorderPhotos: (fromIdx: number, toIdx: number) => void;
 }) {
   const isAr = lang === 'ar';
   const [visibleCount, setVisibleCount] = useState(SECTION_PAGE_SIZE);
+  const dragIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   const visiblePhotos = section.photos.slice(0, visibleCount);
   const hasMore = section.photos.length > visibleCount;
@@ -1959,14 +1989,47 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         </div>
       ) : (
         <>
+          {isAdmin && (
+            <p className="text-[11px] text-muted-foreground arabic text-center mb-3 select-none">
+              {isAr ? '✦ اسحب البطاقات لإعادة ترتيب النباتات' : '✦ Drag cards to reorder plants'}
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {visiblePhotos.map(photo => (
-              <PlantCard key={photo.id} photo={photo} lang={lang} isAdmin={isAdmin}
-                onEdit={() => onEditPhoto(photo)}
-                onDelete={() => onDeletePhoto(photo.id)}
-                onOpenLightbox={onOpenLightbox}
-              />
-            ))}
+            {visiblePhotos.map((photo, idx) => {
+              const realIdx = section.photos.indexOf(photo);
+              const isDragging = dragIdx.current === realIdx;
+              const isOver = dragOverIdx === realIdx && dragIdx.current !== realIdx;
+              return isAdmin ? (
+                <div
+                  key={photo.id}
+                  draggable
+                  onDragStart={() => { dragIdx.current = realIdx; }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(realIdx); }}
+                  onDragLeave={() => setDragOverIdx(null)}
+                  onDrop={() => {
+                    if (dragIdx.current !== null && dragIdx.current !== realIdx) {
+                      onReorderPhotos(dragIdx.current, realIdx);
+                    }
+                    dragIdx.current = null;
+                    setDragOverIdx(null);
+                  }}
+                  onDragEnd={() => { dragIdx.current = null; setDragOverIdx(null); }}
+                  className={`cursor-grab active:cursor-grabbing rounded-2xl transition-all duration-150 ${isDragging ? 'opacity-40 scale-95' : ''} ${isOver ? 'ring-2 ring-primary ring-offset-2 scale-[1.02]' : ''}`}
+                >
+                  <PlantCard photo={photo} lang={lang} isAdmin={isAdmin}
+                    onEdit={() => onEditPhoto(photo)}
+                    onDelete={() => onDeletePhoto(photo.id)}
+                    onOpenLightbox={onOpenLightbox}
+                  />
+                </div>
+              ) : (
+                <PlantCard key={photo.id} photo={photo} lang={lang} isAdmin={isAdmin}
+                  onEdit={() => onEditPhoto(photo)}
+                  onDelete={() => onDeletePhoto(photo.id)}
+                  onOpenLightbox={onOpenLightbox}
+                />
+              );
+            })}
           </div>
           {hasMore && (
             <div className="flex flex-col items-center gap-2 mt-10">
@@ -2225,13 +2288,18 @@ function AdminIconBtn({ onClick, title, variant = 'default', disabled = false, c
 }
 
 /* ── Toolbar button ──────────────────────────────────── */
-function ToolBtn({ icon, label, onClick, variant = 'default' }: {
-  icon: React.ReactNode; label: string; onClick: () => void; variant?: 'default' | 'dark';
+function ToolBtn({ icon, label, onClick, variant = 'default', badge = 0 }: {
+  icon: React.ReactNode; label: string; onClick: () => void; variant?: 'default' | 'dark'; badge?: number;
 }) {
   return (
     <button onClick={onClick}
-      className={`flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium transition-colors ${variant === 'dark' ? 'bg-foreground text-background hover:bg-foreground/90' : 'bg-accent border border-border text-foreground hover:bg-muted'}`}>
+      className={`relative flex items-center gap-1.5 h-8 px-3 rounded-full text-xs font-medium transition-colors ${variant === 'dark' ? 'bg-foreground text-background hover:bg-foreground/90' : 'bg-accent border border-border text-foreground hover:bg-muted'}`}>
       {icon}<span className="hidden sm:inline">{label}</span>
+      {badge > 0 && (
+        <span className="absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
     </button>
   );
 }
