@@ -216,6 +216,8 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
+          announcement: p.announcement ?? DEFAULT_DATA.announcement,
+          newsTicker: p.newsTicker ?? DEFAULT_DATA.newsTicker,
           owner: {
             photo: p.owner?.photo ?? DEFAULT_DATA.owner.photo,
             bgImage: p.owner?.bgImage ?? '',
