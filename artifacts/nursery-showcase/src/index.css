@@ -127,3 +127,18 @@
   animation: announcement-shimmer 2.2s linear infinite;
   pointer-events: none;
 }
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(100vw); }
+  100% { transform: translateX(-100%); }
+}
+
+.ticker-text {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker-scroll 22s linear infinite;
+}
+
+.ticker-text:hover {
+  animation-play-state: paused;
+}

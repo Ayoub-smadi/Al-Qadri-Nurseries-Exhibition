@@ -325,6 +325,10 @@ export default function GalleryPage() {
   const [isSetupMode, setIsSetupMode] = useState(false);
   const [setupPass2, setSetupPass2] = useState('');
 
+  /* news ticker */
+  const [editingTicker, setEditingTicker] = useState(false);
+  const [tickerDraft, setTickerDraft] = useState('');
+
   /* add photo */
   const [addPhotoSectionId, setAddPhotoSectionId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -740,11 +744,75 @@ export default function GalleryPage() {
     );
   }
 
+  const ticker = siteData.newsTicker;
+  const tickerActive = ticker?.enabled && ticker?.text;
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300" dir={isAr ? 'rtl' : 'ltr'}>
 
+      {/* ── NEWS TICKER BAR ── */}
+      {(tickerActive || isAdmin) && (
+        <div className="no-print fixed top-0 left-0 right-0 z-[60] bg-black text-white h-8 flex items-center overflow-hidden" dir="ltr">
+          {/* Logo slot */}
+          <div className="shrink-0 h-full flex items-center px-2 bg-black border-r border-white/20 gap-1.5">
+            {ticker?.logoUrl ? (
+              <div className="relative group/tlogo flex items-center">
+                <img src={ticker.logoUrl} alt="logo" className="h-5 w-auto object-contain" />
+                {isAdmin && (
+                  <FileUploadBtn onFile={url => updateSiteData({ newsTicker: { ...ticker!, logoUrl: url } })}>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/tlogo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                      <ImagePlus className="w-3 h-3 text-white" />
+                    </div>
+                  </FileUploadBtn>
+                )}
+              </div>
+            ) : isAdmin ? (
+              <FileUploadBtn onFile={url => updateSiteData({ newsTicker: { ...(ticker ?? { enabled: true, text: '' }), logoUrl: url } })}>
+                <div className="w-5 h-5 border border-dashed border-white/40 rounded flex items-center justify-center cursor-pointer hover:border-white/80 transition-colors">
+                  <ImagePlus className="w-3 h-3 text-white/60" />
+                </div>
+              </FileUploadBtn>
+            ) : null}
+          </div>
+
+          {/* Scrolling text */}
+          <div className="flex-1 overflow-hidden relative h-full flex items-center">
+            {editingTicker ? (
+              <form className="flex items-center gap-1 px-2 w-full" onSubmit={e => { e.preventDefault(); updateSiteData({ newsTicker: { ...(ticker ?? { enabled: true, logoUrl: '' }), text: tickerDraft } }); setEditingTicker(false); }}>
+                <input autoFocus value={tickerDraft} onChange={e => setTickerDraft(e.target.value)}
+                  className="flex-1 bg-white/10 text-white text-xs px-2 py-0.5 rounded border border-white/30 outline-none arabic"
+                  placeholder="نص الشريط الإخباري..." dir="rtl" />
+                <button type="submit" className="text-[10px] px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded">✓</button>
+                <button type="button" onClick={() => setEditingTicker(false)} className="text-[10px] px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded">✗</button>
+              </form>
+            ) : (
+              <>
+                {ticker?.text
+                  ? <span className="ticker-text text-xs arabic font-medium tracking-wide">{ticker.text}</span>
+                  : isAdmin && <span className="text-xs text-white/40 arabic px-3">اضغط تحرير لكتابة نص الشريط...</span>
+                }
+              </>
+            )}
+          </div>
+
+          {/* Admin controls */}
+          {isAdmin && !editingTicker && (
+            <div className="shrink-0 flex items-center gap-1 px-2 border-l border-white/20">
+              <button onClick={() => { setTickerDraft(ticker?.text ?? ''); setEditingTicker(true); }}
+                className="text-[10px] px-2 py-0.5 bg-white/15 hover:bg-white/25 rounded transition-colors">
+                تحرير
+              </button>
+              <button onClick={() => updateSiteData({ newsTicker: { ...(ticker ?? { logoUrl: '', text: '' }), enabled: !ticker?.enabled } })}
+                className={`text-[10px] px-2 py-0.5 rounded transition-colors ${ticker?.enabled ? 'bg-green-600/60 hover:bg-red-600/60' : 'bg-white/15 hover:bg-white/25'}`}>
+                {ticker?.enabled ? 'مفعّل' : 'مخفي'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── TOP CONTROLS ── */}
-      <div className="no-print fixed top-3 start-3 flex items-center gap-2 z-50">
+      <div className="no-print fixed start-3 flex items-center gap-2 z-50" style={{ top: tickerActive || isAdmin ? '2.5rem' : '0.75rem' }}>
         <button onClick={() => setLang(isAr ? 'en' : 'ar')}
           className="h-8 px-3 rounded-full bg-card border border-border shadow-sm text-xs font-bold text-muted-foreground hover:text-foreground transition-all">
           {isAr ? 'EN' : 'ع'}
@@ -756,7 +824,8 @@ export default function GalleryPage() {
       </div>
 
       {!isAdmin && (
-        <button className="no-print fixed top-3 end-3 w-2.5 h-2.5 rounded-full bg-border hover:bg-primary transition-colors z-50"
+        <button className="no-print fixed end-3 w-2.5 h-2.5 rounded-full bg-border hover:bg-primary transition-colors z-50"
+          style={{ top: tickerActive ? '2.75rem' : '0.75rem' }}
           onClick={() => openLoginModal()} aria-label="Admin" />
       )}
 
