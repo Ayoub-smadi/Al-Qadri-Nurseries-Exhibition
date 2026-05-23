@@ -3231,6 +3231,38 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
                 </div>
+                {/* Shipping destination */}
+                <div>
+                  <Label className="arabic text-xs mb-1 block">📍 {isAr ? 'منطقة الشحن' : 'Shipping Destination'}</Label>
+                  <select
+                    value={SHIPPING_LOCATIONS.flatMap(g => g.options.map(o => o.ar)).includes(editQuote.shipping_destination || '') ? (editQuote.shipping_destination || '') : (editQuote.shipping_destination ? 'custom' : '')}
+                    onChange={e => {
+                      if (e.target.value === 'custom') return;
+                      setEditQuote({ ...editQuote, shipping_destination: e.target.value });
+                    }}
+                    dir="rtl"
+                    className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm arabic text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">{isAr ? '-- لم تُحدَّد --' : '-- Not specified --'}</option>
+                    {SHIPPING_LOCATIONS.map(group => (
+                      <optgroup key={group.groupAr} label={isAr ? group.groupAr : group.groupEn}>
+                        {group.options.map(opt => (
+                          <option key={opt.ar} value={opt.ar}>{isAr ? opt.ar : opt.en}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                    <option value="custom">{isAr ? 'أخرى' : 'Other'}</option>
+                  </select>
+                  {(editQuote.shipping_destination && !SHIPPING_LOCATIONS.flatMap(g => g.options.map(o => o.ar)).includes(editQuote.shipping_destination)) && (
+                    <Input
+                      value={editQuote.shipping_destination}
+                      onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
+                      dir="rtl"
+                      className="arabic mt-1.5 h-9 text-sm"
+                      placeholder={isAr ? 'اكتب الموقع...' : 'Enter location...'}
+                    />
+                  )}
+                </div>
                 {/* Totals summary */}
                 <div className="rounded-xl border border-border p-4 bg-muted/30 space-y-2 text-sm">
                   <div className="flex justify-between arabic">
