@@ -57,6 +57,7 @@ export interface SiteData {
   titleAr: string;
   titleEn: string;
   logo: { customUrl: string };
+  announcement?: { imageUrl: string; enabled: boolean };
   owner: {
     photo: string;
     bgImage?: string;
@@ -83,6 +84,7 @@ export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
   logo: { customUrl: "" },
+  announcement: { imageUrl: "", enabled: false },
   owner: { photo: "", bgImage: "", extraPhotos: [] },
   highlights: [
     { id: "h1", textAr: "نوفر أجود أنواع النباتات والأشجار المزهرة بأسعار منافسة لتجميل منزلك وحديقتك", textEn: "We provide the finest flowering plants and trees at competitive prices to beautify your home and garden" },

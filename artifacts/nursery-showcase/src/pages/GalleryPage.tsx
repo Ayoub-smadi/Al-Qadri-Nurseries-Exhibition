@@ -765,31 +765,84 @@ export default function GalleryPage() {
 
         {/* ── Top brand bar ── */}
         <div className="flex flex-col items-center pt-10 pb-6 px-8 md:px-16 text-center">
-          {/* Logo */}
-          <div className="flex justify-center mb-4">
-            {siteData.logo.customUrl ? (
-              <div className="relative group/logo inline-block">
-                <img src={siteData.logo.customUrl} alt="logo" className="w-28 h-auto object-contain drop-shadow-md" />
-                {isAdmin && (
-                  <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
-                      <ImagePlus className="w-6 h-6 text-white" />
+          {/* Logo + Announcement row */}
+          <div className="flex items-center justify-center gap-5 mb-4 flex-wrap">
+            {/* Logo */}
+            <div className="flex justify-center">
+              {siteData.logo.customUrl ? (
+                <div className="relative group/logo inline-block">
+                  <img src={siteData.logo.customUrl} alt="logo" className="w-28 h-auto object-contain drop-shadow-md" />
+                  {isAdmin && (
+                    <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
+                        <ImagePlus className="w-6 h-6 text-white" />
+                      </div>
+                    </FileUploadBtn>
+                  )}
+                </div>
+              ) : (
+                <div className="relative group/logo inline-block drop-shadow-md">
+                  <TreeSVG />
+                  {isAdmin && (
+                    <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded">
+                        <ImagePlus className="w-5 h-5 text-white" />
+                      </div>
+                    </FileUploadBtn>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Announcement Banner */}
+            {(() => {
+              const ann = siteData.announcement;
+              const hasImage = ann?.imageUrl;
+              if (!hasImage && !isAdmin) return null;
+              return (
+                <div className="flex flex-col items-center gap-1.5">
+                  {/* Image display */}
+                  {hasImage && ann?.enabled && (
+                    <div className="relative group/ann inline-block announcement-banner overflow-hidden">
+                      <img
+                        src={ann.imageUrl}
+                        alt="إعلان"
+                        className="h-24 md:h-28 w-auto max-w-[200px] object-contain rounded-xl"
+                      />
+                      {/* shimmer overlay */}
+                      <div className="announcement-shimmer-bar absolute inset-0 rounded-xl" />
+                      {isAdmin && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/ann:opacity-100 transition-opacity flex items-center justify-center gap-2 rounded-xl">
+                          <FileUploadBtn onFile={url => updateSiteData({ announcement: { imageUrl: url, enabled: ann?.enabled ?? true } })}>
+                            <div className="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg cursor-pointer">
+                              <ImagePlus className="w-5 h-5 text-white" />
+                            </div>
+                          </FileUploadBtn>
+                        </div>
+                      )}
                     </div>
-                  </FileUploadBtn>
-                )}
-              </div>
-            ) : (
-              <div className="relative group/logo inline-block drop-shadow-md">
-                <TreeSVG />
-                {isAdmin && (
-                  <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded">
-                      <ImagePlus className="w-5 h-5 text-white" />
-                    </div>
-                  </FileUploadBtn>
-                )}
-              </div>
-            )}
+                  )}
+                  {/* Admin-only: no image yet or image disabled */}
+                  {isAdmin && (!hasImage || !ann?.enabled) && (
+                    <FileUploadBtn onFile={url => updateSiteData({ announcement: { imageUrl: url, enabled: true } })}>
+                      <div className="w-32 h-20 border-2 border-dashed border-amber-400/60 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-amber-50/40 dark:hover:bg-amber-900/20 transition-colors">
+                        <ImagePlus className="w-5 h-5 text-amber-500" />
+                        <span className="text-[10px] text-amber-600 arabic font-medium">إضافة إعلان</span>
+                      </div>
+                    </FileUploadBtn>
+                  )}
+                  {/* Admin toggle */}
+                  {isAdmin && hasImage && (
+                    <button
+                      onClick={() => updateSiteData({ announcement: { imageUrl: ann!.imageUrl, enabled: !ann?.enabled } })}
+                      className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold transition-colors arabic ${ann?.enabled ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}`}
+                    >
+                      {ann?.enabled ? '✓ الإعلان مفعّل' : '✗ الإعلان مخفي'}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Company Name */}
