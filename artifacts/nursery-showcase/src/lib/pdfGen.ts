@@ -190,7 +190,7 @@ export async function downloadQuotePDF(
     }
   }
 
-  const subtotal = items.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+  const subtotal = items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const discountAmt = subtotal * (Number(quote.discount) / 100);
   const afterDiscount = subtotal - discountAmt;
   const taxAmt = afterDiscount * (Number(quote.tax) / 100);
@@ -203,15 +203,16 @@ export async function downloadQuotePDF(
   const rowsHtml = items.map((it, i) => {
     const imgSrc = imgMap.get(it.plantId) ?? it.plantImage;
     const total = (it.price || 0) * it.quantity;
-    return `<tr style="border-bottom:1px solid #ddd;">
+    const unavailCell = `<td colspan="2" style="padding:6px 8px;text-align:center;color:#c62828;font-weight:700;background:#fff5f5;">غير متوفر حاليًا</td>`;
+    const priceCell = `<td style="padding:6px 8px;text-align:center;">${fmt(it.price || 0)}</td><td style="padding:6px 8px;text-align:center;font-weight:600;">${fmt(total)}</td>`;
+    return `<tr style="border-bottom:1px solid #ddd;${it.unavailable ? 'opacity:0.6;' : ''}">
       <td style="padding:6px 8px;text-align:center;border-left:1px solid #e0e0e0;">${i + 1}</td>
       <td style="padding:6px 8px;text-align:right;font-weight:600;" class="ar">${it.plantNameAr}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.plantNameEn || ''}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.sectionNameAr}</td>
       <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
       <td style="padding:6px 8px;text-align:center;">${it.size || '-'}</td>
-      <td style="padding:6px 8px;text-align:center;">${fmt(it.price || 0)}</td>
-      <td style="padding:6px 8px;text-align:center;font-weight:600;">${fmt(total)}</td>
+      ${it.unavailable ? unavailCell : priceCell}
       <td style="padding:4px;text-align:center;width:64px;">
         ${imgSrc ? `<img src="${imgSrc}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:56px;height:56px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
       </td>

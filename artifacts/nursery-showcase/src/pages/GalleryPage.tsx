@@ -2872,8 +2872,16 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setEditQuote({ ...editQuote, items });
   };
 
+  const toggleItemUnavailable = (itemIdx: number) => {
+    if (!editQuote) return;
+    const items = editQuote.items.map((it, i) =>
+      i === itemIdx ? { ...it, unavailable: !it.unavailable, price: !it.unavailable ? 0 : it.price } : it
+    );
+    setEditQuote({ ...editQuote, items });
+  };
+
   const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
-  const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+  const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
@@ -2967,8 +2975,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   </div>
                   <div className="divide-y divide-border">
                     {editQuote.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 border border-border">
+                      <div key={idx} className={`flex items-center gap-3 px-4 py-3 transition-colors ${item.unavailable ? 'bg-red-50/60 dark:bg-red-950/20' : ''}`}>
+                        <div className={`w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 border border-border transition-opacity ${item.unavailable ? 'opacity-40' : ''}`}>
                           {item.plantImage ? (
                             <img src={item.plantImage} alt={item.plantNameAr} className="w-full h-full object-cover" />
                           ) : (
@@ -2976,17 +2984,37 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold arabic text-foreground">{isAr ? item.plantNameAr : item.plantNameEn}</p>
+                          <p className={`text-sm font-bold arabic text-foreground ${item.unavailable ? 'line-through opacity-50' : ''}`}>{isAr ? item.plantNameAr : item.plantNameEn}</p>
                           <p className="text-xs text-muted-foreground arabic">{isAr ? item.sectionNameAr : item.sectionNameEn}</p>
                           <p className="text-xs text-primary arabic">{isAr ? 'الكمية:' : 'Qty:'} {item.quantity}{item.size ? ` · ${item.size}` : ''}</p>
+                          {item.unavailable && (
+                            <span className="inline-block mt-0.5 text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold arabic">
+                              {isAr ? 'غير متوفر حاليًا' : 'Currently Unavailable'}
+                            </span>
+                          )}
                         </div>
-                        <div className="shrink-0 w-28">
-                          <Label className="text-[10px] text-muted-foreground arabic block mb-1">{isAr ? 'السعر/قطعة (د.أ)' : 'Price/unit (JD)'}</Label>
-                          <Input type="number" min={0} step={0.01} value={item.price || ''} placeholder="0.00"
-                            onChange={e => updateItemPrice(idx, Number(e.target.value))}
-                            className="h-8 text-center text-sm font-bold" dir="ltr" />
-                          {item.price > 0 && (
-                            <p className="text-[10px] text-green-600 text-center mt-0.5 font-bold arabic">= {(item.price * item.quantity).toFixed(2)} د.أ</p>
+                        <div className="shrink-0 flex flex-col items-center gap-1.5">
+                          <button
+                            onClick={() => toggleItemUnavailable(idx)}
+                            title={isAr ? 'غير متوفر حاليًا' : 'Mark unavailable'}
+                            className={`text-[10px] px-2 py-1 rounded-lg border font-bold arabic transition-colors ${
+                              item.unavailable
+                                ? 'bg-red-100 border-red-300 text-red-600 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400'
+                                : 'border-border text-muted-foreground hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20'
+                            }`}
+                          >
+                            {item.unavailable ? (isAr ? '✕ غير متوفر' : '✕ N/A') : (isAr ? 'غير متوفر؟' : 'Unavail?')}
+                          </button>
+                          {!item.unavailable && (
+                            <div className="w-28">
+                              <Label className="text-[10px] text-muted-foreground arabic block mb-1">{isAr ? 'السعر/قطعة (د.أ)' : 'Price/unit (JD)'}</Label>
+                              <Input type="number" min={0} step={0.01} value={item.price || ''} placeholder="0.00"
+                                onChange={e => updateItemPrice(idx, Number(e.target.value))}
+                                className="h-8 text-center text-sm font-bold" dir="ltr" />
+                              {item.price > 0 && (
+                                <p className="text-[10px] text-green-600 text-center mt-0.5 font-bold arabic">= {(item.price * item.quantity).toFixed(2)} د.أ</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
