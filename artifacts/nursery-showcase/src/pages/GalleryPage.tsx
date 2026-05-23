@@ -2979,14 +2979,18 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     className={`w-full text-start px-4 py-3.5 hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
+                        {q.shipping_destination && (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
+                        )}
+                      </div>
                       <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${q.status === 'priced' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
                         {q.status === 'priced' ? (isAr ? 'مسعّر' : 'Priced') : (isAr ? 'جديد' : 'New')}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                     {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
-                    {q.shipping_destination && <p className="text-xs text-blue-600 dark:text-blue-400 arabic mt-0.5">📍 {q.shipping_destination}</p>}
                   </button>
                 ))}
               </div>
