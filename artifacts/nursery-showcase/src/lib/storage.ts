@@ -404,14 +404,15 @@ export async function submitQuote(data: { customerName: string; phone: string; i
   return null;
 }
 
-export async function fetchQuotes(): Promise<QuoteRequest[]> {
+export async function fetchQuotes(): Promise<QuoteRequest[] | null> {
   const token = getToken();
-  if (!token) return [];
+  if (!token) return null;
   try {
     const res = await fetch('/api/quotes', { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
+    if (res.status === 401) return null;
   } catch { /* ignore */ }
-  return [];
+  return null;
 }
 
 export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number; shippingDestination?: string }): Promise<boolean> {

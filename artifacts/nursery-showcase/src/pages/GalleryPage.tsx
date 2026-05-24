@@ -411,7 +411,7 @@ export default function GalleryPage() {
     if (!isAdmin) { setPendingQuoteCount(0); return; }
     const poll = async () => {
       const qs = await fetchQuotes();
-      setPendingQuoteCount(qs.filter(q => q.status === 'pending').length);
+      if (qs) setPendingQuoteCount(qs.filter(q => q.status !== 'priced').length);
     };
     poll();
     const id = setInterval(poll, 60_000);
@@ -2996,8 +2996,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setQuotes([]);
     const qs = await fetchQuotes();
-    setQuotes(qs);
+    if (qs !== null) setQuotes(qs);
     setLoading(false);
   }, []);
 
