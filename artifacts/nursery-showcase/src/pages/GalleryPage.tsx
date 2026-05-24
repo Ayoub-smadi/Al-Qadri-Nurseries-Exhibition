@@ -2674,22 +2674,6 @@ interface QuoteCartItem {
 }
 
 /* ── Quote Request Modal (customer) ─────────────────────── */
-const SHIPPING_LOCATIONS = [
-  { groupAr: 'محافظات الأردن', groupEn: 'Jordan Governorates', options: [
-    { ar: 'جرش', en: 'Jerash' }, { ar: 'عجلون', en: 'Ajloun' }, { ar: 'عمان', en: 'Amman' },
-    { ar: 'إربد', en: 'Irbid' }, { ar: 'الزرقاء', en: 'Zarqa' }, { ar: 'الكرك', en: 'Karak' },
-    { ar: 'الطفيلة', en: 'Tafilah' }, { ar: 'مادبا', en: 'Madaba' }, { ar: 'الأغوار', en: 'Aghwar' },
-    { ar: 'السلط', en: 'Salt' }, { ar: 'المفرق', en: 'Mafraq' }, { ar: 'العقبة', en: 'Aqaba' },
-  ]},
-  { groupAr: 'دول الخليج', groupEn: 'Gulf Countries', options: [
-    { ar: 'قطر', en: 'Qatar' }, { ar: 'الكويت', en: 'Kuwait' },
-    { ar: 'المملكة العربية السعودية', en: 'Saudi Arabia' },
-    { ar: 'الإمارات العربية المتحدة', en: 'UAE' }, { ar: 'البحرين', en: 'Bahrain' },
-  ]},
-  { groupAr: 'دول أخرى', groupEn: 'Other Countries', options: [
-    { ar: 'سوريا', en: 'Syria' }, { ar: 'مصر', en: 'Egypt' }, { ar: 'العراق', en: 'Iraq' },
-  ]},
-];
 
 function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   open: boolean; onClose: () => void; sections: Section[];
@@ -2702,7 +2686,6 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
   const [custShipping, setCustShipping] = useState('');
-  const [custShippingCustom, setCustShippingCustom] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -2743,13 +2726,12 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     if (!custName.trim() || cart.length === 0) return;
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const finalShipping = custShipping === 'custom' ? custShippingCustom.trim() : custShipping;
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: finalShipping });
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: custShipping.trim() });
     setSubmitting(false);
     if (id) {
       setSuccess(true);
       setCart([]);
-      setCustName(''); setCustPhone(''); setCustNotes(''); setCustShipping(''); setCustShippingCustom('');
+      setCustName(''); setCustPhone(''); setCustNotes(''); setCustShipping('');
       setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
     } else {
       toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
@@ -2910,32 +2892,24 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" />
               </div>
               <div>
-                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'منطقة الشحن' : 'Shipping Destination'}</Label>
-                <select
-                  value={custShipping}
-                  onChange={e => { setCustShipping(e.target.value); if (e.target.value !== 'custom') setCustShippingCustom(''); }}
-                  dir="rtl"
-                  className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm arabic text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  <option value="">{isAr ? '-- اختر المنطقة --' : '-- Select destination --'}</option>
-                  {SHIPPING_LOCATIONS.map(group => (
-                    <optgroup key={group.groupAr} label={isAr ? group.groupAr : group.groupEn}>
-                      {group.options.map(opt => (
-                        <option key={opt.ar} value={opt.ar}>{isAr ? opt.ar : opt.en}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                  <option value="custom">{isAr ? 'أخرى - اكتب الموقع' : 'Other - type location'}</option>
-                </select>
-                {custShipping === 'custom' && (
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'عنوان الشحن أو الاستلام' : 'Shipping Address or Pickup'}</Label>
+                <div className="flex gap-2">
                   <Input
-                    value={custShippingCustom}
-                    onChange={e => setCustShippingCustom(e.target.value)}
+                    value={custShipping === (isAr ? 'استلام' : 'Pickup') ? '' : custShipping}
+                    onChange={e => setCustShipping(e.target.value)}
                     dir="rtl"
-                    className="arabic mt-2"
-                    placeholder={isAr ? 'اكتب موقعك...' : 'Enter your location...'}
+                    className="arabic flex-1"
+                    placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
+                    disabled={custShipping === (isAr ? 'استلام' : 'Pickup')}
                   />
-                )}
+                  <button
+                    type="button"
+                    onClick={() => setCustShipping(v => v === (isAr ? 'استلام' : 'Pickup') ? '' : (isAr ? 'استلام' : 'Pickup'))}
+                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors ${custShipping === (isAr ? 'استلام' : 'Pickup') ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                  >
+                    {isAr ? '🏪 استلام' : '🏪 Pickup'}
+                  </button>
+                </div>
               </div>
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'ملاحظات إضافية' : 'Additional Notes'}</Label>
