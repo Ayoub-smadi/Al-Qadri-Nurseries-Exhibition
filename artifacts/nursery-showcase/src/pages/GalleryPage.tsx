@@ -3080,6 +3080,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   };
 
   const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
+  const isPickup = (v?: string) => v === 'استلام من المشتل' || v === 'استلام' || v === 'Pickup';
   const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const newQuotes = quotes.filter(q => q.status !== 'priced');
   const pricedQuotes = quotes.filter(q => q.status === 'priced');
@@ -3161,7 +3162,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                       {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
                       {q.shipping_destination && (
-                        q.shipping_destination === 'استلام من المشتل'
+                        isPickup(q.shipping_destination)
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 arabic font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
                           : <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
                       )}
@@ -3198,7 +3199,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
                   <p className="text-xs arabic mt-0.5">
                     {editQuote.shipping_destination
-                      ? editQuote.shipping_destination === 'استلام من المشتل'
+                      ? isPickup(editQuote.shipping_destination)
                         ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
                         : <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_destination}</span>
                       : <span className="text-muted-foreground/60">📍 {isAr ? 'لم تُحدَّد طريقة التوصيل' : 'No delivery method set'}</span>
@@ -3281,14 +3282,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => setEditQuote({ ...editQuote, shipping_destination: editQuote.shipping_destination === 'استلام من المشتل' ? '' : 'استلام من المشتل' })}
-                        className={`shrink-0 px-3 h-9 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${editQuote.shipping_destination === 'استلام من المشتل' ? 'bg-green-600 text-white border-green-600' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                        onClick={() => setEditQuote({ ...editQuote, shipping_destination: isPickup(editQuote.shipping_destination) ? '' : 'استلام من المشتل' })}
+                        className={`shrink-0 px-3 h-9 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${isPickup(editQuote.shipping_destination) ? 'bg-green-600 text-white border-green-600' : 'border-border bg-background text-foreground hover:bg-muted'}`}
                       >
                         🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}
                       </button>
-                      {editQuote.shipping_destination === 'استلام من المشتل' ? (
+                      {isPickup(editQuote.shipping_destination) ? (
                         <div className="flex-1 h-9 rounded-lg border border-green-500 bg-green-50 dark:bg-green-950/20 px-3 flex items-center arabic text-sm text-green-700 dark:text-green-400 font-medium">
-                          🏪 {isAr ? 'بدون رسوم شحن' : 'No shipping charge'}
+                          🏪 {isAr ? 'استلام — بدون رسوم شحن' : 'Pickup — No shipping charge'}
                         </div>
                       ) : (
                         <Input
@@ -3296,7 +3297,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
                           dir="rtl"
                           className="arabic flex-1 h-9"
-                          placeholder={isAr ? 'عنوان التوصيل...' : 'Delivery address...'}
+                          placeholder={isAr ? 'اكتب عنوان التوصيل...' : 'Delivery address...'}
                         />
                       )}
                     </div>
@@ -3343,9 +3344,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     </div>
                   )}
                   {editQuote.shipping_destination && (
-                    <div className={`flex justify-between arabic ${editQuote.shipping_destination === 'استلام من المشتل' ? 'text-green-600' : 'text-blue-600'}`}>
+                    <div className={`flex justify-between arabic ${isPickup(editQuote.shipping_destination) ? 'text-green-600' : 'text-blue-600'}`}>
                       <span>
-                        {editQuote.shipping_destination === 'استلام من المشتل'
+                        {isPickup(editQuote.shipping_destination)
                           ? (isAr ? '🏪 استلام من المشتل' : '🏪 In-store Pickup')
                           : `📍 ${editQuote.shipping_destination}`
                         }
