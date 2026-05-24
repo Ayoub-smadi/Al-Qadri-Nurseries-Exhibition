@@ -2685,10 +2685,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
-  const [custShipping, setCustShipping] = useState('');
+  const [shippingMode, setShippingMode] = useState<'pickup' | ''>('');
+  const [shippingAddress, setShippingAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [successData, setSuccessData] = useState<{ name: string; phone: string; shipping: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ name: string; phone: string; shippingMode: string; shippingAddress: string } | null>(null);
 
   // size modal
   const [sizeTarget, setSizeTarget] = useState<{ s: Section; p: Photo } | null>(null);
@@ -2727,14 +2728,15 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     if (!custName.trim() || cart.length === 0) return;
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const shippingVal = custShipping === '__PICKUP__' ? 'استلام من المشتل' : custShipping.trim();
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: shippingVal });
+    const method = shippingMode === 'pickup' ? 'pickup' : (shippingAddress.trim() ? 'delivery' : '');
+    const addr = shippingMode === 'pickup' ? '' : shippingAddress.trim();
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingMethod: method, shippingAddress: addr });
     setSubmitting(false);
     if (id) {
-      setSuccessData({ name: custName, phone: custPhone, shipping: custShipping });
+      setSuccessData({ name: custName, phone: custPhone, shippingMode, shippingAddress: addr });
       setSuccess(true);
       setCart([]);
-      setCustName(''); setCustPhone(''); setCustNotes(''); setCustShipping('');
+      setCustName(''); setCustPhone(''); setCustNotes(''); setShippingMode(''); setShippingAddress('');
       setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
     } else {
       toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
@@ -2782,10 +2784,10 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
                 {successData.name && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{successData.name}</span></div>}
                 {successData.phone && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الهاتف' : 'Phone'}</span><span className="font-medium" dir="ltr">{successData.phone}</span></div>}
-                {successData.shipping === '__PICKUP__' ? (
+                {successData.shippingMode === 'pickup' ? (
                   <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
-                ) : successData.shipping.trim() ? (
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.shipping.trim()}</span></div>
+                ) : successData.shippingAddress ? (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.shippingAddress}</span></div>
                 ) : null}
               </div>
             )}
@@ -2907,12 +2909,12 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               </div>
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'عنوان الشحن أو الاستلام' : 'Shipping Address or Pickup'}</Label>
-                {custShipping === '__PICKUP__' ? (
+                {shippingMode === 'pickup' ? (
                   <div className="flex items-center gap-2 h-10 rounded-lg border border-primary bg-primary/10 px-3">
                     <span className="arabic text-sm text-primary font-medium flex-1">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
                     <button
                       type="button"
-                      onClick={() => setCustShipping('')}
+                      onClick={() => setShippingMode('')}
                       className="text-xs text-primary/70 hover:text-primary underline arabic shrink-0"
                     >
                       {isAr ? 'تغيير' : 'Change'}
@@ -2922,14 +2924,14 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setCustShipping('__PICKUP__')}
+                      onClick={() => setShippingMode('pickup')}
                       className="shrink-0 px-3 h-10 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-sm arabic font-medium transition-colors whitespace-nowrap"
                     >
                       {isAr ? '🏪 استلام' : '🏪 Pickup'}
                     </button>
                     <Input
-                      value={custShipping}
-                      onChange={e => setCustShipping(e.target.value)}
+                      value={shippingAddress}
+                      onChange={e => setShippingAddress(e.target.value)}
                       dir="rtl"
                       className="arabic flex-1"
                       placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
@@ -3051,7 +3053,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     e.stopPropagation();
     const newStatus = q.status === 'priced' ? 'pending' : 'priced';
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee, shippingDestination: q.shipping_destination });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x));
     if (editQuote?.id === q.id) setEditQuote(prev => prev ? { ...prev, status: newStatus } : prev);
@@ -3059,7 +3061,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, shippingDestination: q.shipping_destination });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -3087,7 +3089,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   };
 
   const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
-  const isPickup = (v?: string) => v === 'استلام من المشتل' || v === 'استلام' || v === 'Pickup';
+  const isPickup = (method?: string) => method === 'pickup';
   const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const newQuotes = quotes.filter(q => q.status !== 'priced');
   const pricedQuotes = quotes.filter(q => q.status === 'priced');
@@ -3168,11 +3170,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       </div>
                       <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                       {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
-                      {q.shipping_destination && (
-                        isPickup(q.shipping_destination)
-                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 arabic font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
-                          : <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
-                      )}
+                      {isPickup(q.shipping_method)
+                        ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 arabic font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
+                        : q.shipping_method === 'delivery'
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_address}</span>
+                          : null
+                      }
                     </button>
                     <button
                       onClick={e => handleQuickStatus(q, e)}
@@ -3205,11 +3208,11 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
                   <p className="text-xs arabic mt-0.5">
-                    {editQuote.shipping_destination
-                      ? isPickup(editQuote.shipping_destination)
-                        ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'طريقة التوصيل: استلام' : 'Delivery: Pickup'}</span>
-                        : <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {isAr ? 'طريقة التوصيل: توصيل للعنوان' : 'Delivery: Address'}</span>
-                      : <span className="text-orange-500 font-medium">⚠ {isAr ? 'لم تُحدَّد طريقة التوصيل' : 'No delivery method set'}</span>
+                    {isPickup(editQuote.shipping_method)
+                      ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'طريقة التوصيل: استلام' : 'Delivery: Pickup'}</span>
+                      : editQuote.shipping_method === 'delivery'
+                        ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {isAr ? 'طريقة التوصيل: توصيل للعنوان' : 'Delivery: Address'}</span>
+                        : <span className="text-muted-foreground font-medium">{isAr ? 'لم تُحدَّد طريقة التوصيل' : 'No delivery method set'}</span>
                     }
                   </p>
                 </div>
@@ -3286,30 +3289,29 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'طريقة التوصيل' : 'Delivery Method'}</p>
                   </div>
                   <div className="px-4 py-3">
-                    {editQuote.shipping_destination
-                      ? isPickup(editQuote.shipping_destination)
-                        ? (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                            <span className="text-2xl">🏪</span>
-                            <div>
-                              <p className="text-sm font-bold text-green-700 dark:text-green-400 arabic">{isAr ? 'استلام من المشتل' : 'In-store Pickup'}</p>
-                              <p className="text-xs text-green-600/70 dark:text-green-500/70 arabic">{isAr ? 'الزبون سيستلم الطلب من المشتل مباشرةً — بدون رسوم شحن' : 'Customer will pick up from store — no shipping charge'}</p>
-                            </div>
+                    {isPickup(editQuote.shipping_method)
+                      ? (
+                        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                          <span className="text-2xl">🏪</span>
+                          <div>
+                            <p className="text-sm font-bold text-green-700 dark:text-green-400 arabic">{isAr ? 'استلام من المشتل' : 'In-store Pickup'}</p>
+                            <p className="text-xs text-green-600/70 dark:text-green-500/70 arabic">{isAr ? 'الزبون سيستلم الطلب من المشتل مباشرةً — بدون رسوم شحن' : 'Customer will pick up from store — no shipping charge'}</p>
                           </div>
-                        ) : (
+                        </div>
+                      ) : editQuote.shipping_method === 'delivery'
+                        ? (
                           <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
                             <span className="text-2xl">📍</span>
                             <div className="min-w-0 flex-1">
                               <p className="text-xs text-blue-600/70 dark:text-blue-500/70 arabic mb-0.5">{isAr ? 'عنوان التوصيل' : 'Delivery Address'}</p>
-                              <p className="text-sm font-bold text-blue-700 dark:text-blue-400 arabic break-words">{editQuote.shipping_destination}</p>
+                              <p className="text-sm font-bold text-blue-700 dark:text-blue-400 arabic break-words">{editQuote.shipping_address}</p>
                             </div>
                           </div>
-                        )
-                      : (
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-                          <span className="text-xl">⚠️</span>
-                          <p className="text-sm text-orange-700 dark:text-orange-400 arabic">{isAr ? 'لم يُحدِّد الزبون طريقة التوصيل' : 'Customer did not specify delivery method'}</p>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+                            <span className="text-xl">⚠️</span>
+                            <p className="text-sm text-orange-700 dark:text-orange-400 arabic">{isAr ? 'لم يُحدِّد الزبون طريقة التوصيل' : 'Customer did not specify delivery method'}</p>
+                          </div>
                       )
                     }
                   </div>
@@ -3354,18 +3356,18 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       <span>+ {((subtotal(editQuote) - subtotal(editQuote) * Number(editQuote.discount) / 100) * Number(editQuote.tax) / 100).toFixed(2)} د.أ</span>
                     </div>
                   )}
-                  {editQuote.shipping_destination && (
-                    <div className={`flex justify-between arabic ${isPickup(editQuote.shipping_destination) ? 'text-green-600' : 'text-blue-600'}`}>
+                  {editQuote.shipping_method && (
+                    <div className={`flex justify-between arabic ${isPickup(editQuote.shipping_method) ? 'text-green-600' : 'text-blue-600'}`}>
                       <span>
-                        {isPickup(editQuote.shipping_destination)
+                        {isPickup(editQuote.shipping_method)
                           ? (isAr ? '🏪 استلام من المشتل' : '🏪 In-store Pickup')
-                          : `📍 ${editQuote.shipping_destination}`
+                          : `📍 ${editQuote.shipping_address}`
                         }
                       </span>
                       <span>{Number(editQuote.shipping_fee) > 0 ? `+ ${Number(editQuote.shipping_fee).toFixed(2)} د.أ` : (isAr ? 'بدون رسوم' : 'No charge')}</span>
                     </div>
                   )}
-                  {!editQuote.shipping_destination && Number(editQuote.shipping_fee) > 0 && (
+                  {!editQuote.shipping_method && Number(editQuote.shipping_fee) > 0 && (
                     <div className="flex justify-between arabic text-blue-600">
                       <span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span>
                       <span>+ {Number(editQuote.shipping_fee).toFixed(2)} د.أ</span>

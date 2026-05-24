@@ -44,6 +44,8 @@ pool.query(`
   );
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT '';
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0;
+  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT '';
+  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT '';
 `).catch((e: Error) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -179,8 +181,8 @@ router.put("/site-data", async (req, res) => {
 });
 
 router.post("/quotes", async (req, res) => {
-  const { customerName, phone, items, notes, shippingDestination } = req.body as {
-    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingDestination?: string;
+  const { customerName, phone, items, notes, shippingMethod, shippingAddress } = req.body as {
+    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string;
   };
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" }); return;
@@ -188,9 +190,9 @@ router.post("/quotes", async (req, res) => {
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
-      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_destination)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingDestination ?? '']
+      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod ?? '', shippingAddress ?? '']
     );
     res.json({ id });
   } catch { res.status(500).json({ error: "Failed to save quote" }); }
@@ -207,13 +209,13 @@ router.get("/quotes", async (req, res) => {
 router.put("/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status, notes, shippingFee, shippingDestination } = req.body as {
-    items?: unknown; discount?: number; tax?: number; status?: string; notes?: string; shippingFee?: number; shippingDestination?: string;
+  const { items, discount, tax, status, notes, shippingFee } = req.body as {
+    items?: unknown; discount?: number; tax?: number; status?: string; notes?: string; shippingFee?: number;
   };
   try {
     await pool.query(
-      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes), shipping_fee = $6, shipping_destination = COALESCE($7, shipping_destination) WHERE id = $8`,
-      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? 'priced', notes ?? null, shippingFee ?? 0, shippingDestination ?? null, id]
+      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes), shipping_fee = $6 WHERE id = $7`,
+      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? 'priced', notes ?? null, shippingFee ?? 0, id]
     );
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to update quote" }); }

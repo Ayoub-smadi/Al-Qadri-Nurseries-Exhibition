@@ -296,12 +296,12 @@ export async function downloadQuotePDF(
         </div>
         ${shippingFee > 0 ? `
         <div style="flex:1;border:1px solid #1565c0;border-radius:6px;padding:8px 12px;background:#f0f4ff;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الشحن${quote.shipping_destination && quote.shipping_destination !== 'استلام من المشتل' ? ` — ${quote.shipping_destination}` : ''}</div>
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الشحن${quote.shipping_method === 'delivery' && quote.shipping_address ? ` — ${quote.shipping_address}` : ''}</div>
           <div style="font-size:13px;font-weight:700;color:#1565c0;">${fmt(shippingFee)} د.أ</div>
-        </div>` : (quote.shipping_destination ? `
-        <div style="flex:1;border:1px solid:${quote.shipping_destination === 'استلام من المشتل' ? '#2e7d32' : '#ddd'};border-radius:6px;padding:8px 12px;${quote.shipping_destination === 'استلام من المشتل' ? 'background:#f1f8f1;' : ''}">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">${quote.shipping_destination === 'استلام من المشتل' ? 'طريقة التوصيل' : 'عنوان الشحن'}</div>
-          <div style="font-size:13px;font-weight:700;${quote.shipping_destination === 'استلام من المشتل' ? 'color:#2e7d32;' : ''}">${quote.shipping_destination === 'استلام من المشتل' ? '🏪 استلام من المشتل' : quote.shipping_destination}</div>
+        </div>` : (quote.shipping_method ? `
+        <div style="flex:1;border:1px solid ${quote.shipping_method === 'pickup' ? '#2e7d32' : '#ddd'};border-radius:6px;padding:8px 12px;${quote.shipping_method === 'pickup' ? 'background:#f1f8f1;' : ''}">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">${quote.shipping_method === 'pickup' ? 'طريقة التوصيل' : 'عنوان الشحن'}</div>
+          <div style="font-size:13px;font-weight:700;${quote.shipping_method === 'pickup' ? 'color:#2e7d32;' : ''}">${quote.shipping_method === 'pickup' ? '🏪 استلام من المشتل' : (quote.shipping_address ?? '')}</div>
         </div>` : '')}
         <div style="flex:2;border:2px solid #2e7d32;border-radius:6px;padding:8px 12px;background:#f1f8f1;">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>

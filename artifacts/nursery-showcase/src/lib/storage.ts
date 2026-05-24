@@ -390,9 +390,11 @@ export interface QuoteRequest {
   created_at: string;
   shipping_destination?: string;
   shipping_fee?: number;
+  shipping_method?: string;
+  shipping_address?: string;
 }
 
-export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingDestination?: string }): Promise<string | null> {
+export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingMethod?: string; shippingAddress?: string }): Promise<string | null> {
   try {
     const res = await fetch('/api/quotes', {
       method: 'POST',
@@ -415,7 +417,7 @@ export async function fetchQuotes(): Promise<QuoteRequest[] | null> {
   return null;
 }
 
-export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number; shippingDestination?: string }): Promise<boolean> {
+export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number }): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
