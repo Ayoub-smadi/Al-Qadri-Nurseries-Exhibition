@@ -2726,7 +2726,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     if (!custName.trim() || cart.length === 0) return;
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: custShipping.trim() });
+    const shippingVal = custShipping === '__PICKUP__' ? 'استلام من المشتل' : custShipping.trim();
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: shippingVal });
     setSubmitting(false);
     if (id) {
       setSuccess(true);
@@ -2771,10 +2772,19 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
         </div>
 
         {success ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-16 px-6">
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-10 px-6">
             <CheckCircle2 className="w-16 h-16 text-green-500" />
             <p className="text-xl font-bold arabic text-foreground text-center">{isAr ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent!'}</p>
             <p className="text-sm text-muted-foreground arabic text-center">{isAr ? 'سنتواصل معك قريباً بعرض السعر' : 'We will contact you soon with the quote'}</p>
+            <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
+              {custName && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{custName}</span></div>}
+              {custPhone && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الهاتف' : 'Phone'}</span><span className="font-medium" dir="ltr">{custPhone}</span></div>}
+              {(custShipping === '__PICKUP__') ? (
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
+              ) : custShipping.trim() ? (
+                <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {custShipping.trim()}</span></div>
+              ) : null}
+            </div>
           </div>
         ) : step === 'pick' ? (
           /* Plant picker */
@@ -2896,14 +2906,14 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setCustShipping(v => v === (isAr ? 'استلام' : 'Pickup') ? '' : (isAr ? 'استلام' : 'Pickup'))}
-                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${custShipping === (isAr ? 'استلام' : 'Pickup') ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                    onClick={() => setCustShipping(v => v === '__PICKUP__' ? '' : '__PICKUP__')}
+                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${custShipping === '__PICKUP__' ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
                   >
                     {isAr ? '🏪 استلام' : '🏪 Pickup'}
                   </button>
-                  {custShipping === (isAr ? 'استلام' : 'Pickup') ? (
+                  {custShipping === '__PICKUP__' ? (
                     <div className="flex-1 h-10 rounded-lg border border-primary bg-primary/10 px-3 flex items-center arabic text-sm text-primary font-medium">
-                      {isAr ? '🏪 استلام (بدون شحن)' : '🏪 Pickup (no shipping)'}
+                      {isAr ? '🏪 استلام من المشتل (بدون شحن)' : '🏪 In-store Pickup (no shipping)'}
                     </div>
                   ) : (
                     <Input
@@ -3143,7 +3153,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
                       {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
                       {q.shipping_destination && (
-                        <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
+                        q.shipping_destination === 'استلام من المشتل'
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 arabic font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
+                          : <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
                       )}
                     </button>
                     <button
@@ -3178,8 +3190,10 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
                   <p className="text-xs arabic mt-0.5">
                     {editQuote.shipping_destination
-                      ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_destination}</span>
-                      : <span className="text-muted-foreground/60">📍 {isAr ? 'لم تُحدَّد منطقة الشحن' : 'No shipping region'}</span>
+                      ? editQuote.shipping_destination === 'استلام من المشتل'
+                        ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
+                        : <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_destination}</span>
+                      : <span className="text-muted-foreground/60">📍 {isAr ? 'لم تُحدَّد طريقة التوصيل' : 'No delivery method set'}</span>
                     }
                   </p>
                 </div>
@@ -3289,9 +3303,20 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       <span>+ {((subtotal(editQuote) - subtotal(editQuote) * Number(editQuote.discount) / 100) * Number(editQuote.tax) / 100).toFixed(2)} د.أ</span>
                     </div>
                   )}
-                  {Number(editQuote.shipping_fee) > 0 && (
+                  {editQuote.shipping_destination && (
+                    <div className={`flex justify-between arabic ${editQuote.shipping_destination === 'استلام من المشتل' ? 'text-green-600' : 'text-blue-600'}`}>
+                      <span>
+                        {editQuote.shipping_destination === 'استلام من المشتل'
+                          ? (isAr ? '🏪 استلام من المشتل' : '🏪 In-store Pickup')
+                          : `📍 ${editQuote.shipping_destination}`
+                        }
+                      </span>
+                      <span>{Number(editQuote.shipping_fee) > 0 ? `+ ${Number(editQuote.shipping_fee).toFixed(2)} د.أ` : (isAr ? 'بدون رسوم' : 'No charge')}</span>
+                    </div>
+                  )}
+                  {!editQuote.shipping_destination && Number(editQuote.shipping_fee) > 0 && (
                     <div className="flex justify-between arabic text-blue-600">
-                      <span>{isAr ? 'رسوم الشحن' : 'Shipping'}{editQuote.shipping_destination ? ` (${editQuote.shipping_destination})` : ''}</span>
+                      <span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span>
                       <span>+ {Number(editQuote.shipping_fee).toFixed(2)} د.أ</span>
                     </div>
                   )}
