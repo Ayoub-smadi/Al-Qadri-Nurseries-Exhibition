@@ -8,7 +8,7 @@ import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
-  Search, Receipt, ShoppingCart, CheckCircle2, Minus, Inbox,
+  Search, Receipt, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -3042,6 +3042,16 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     if (editQuote?.id === id) setEditQuote(null);
   };
 
+  const handleQuickStatus = async (q: QuoteRequest, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newStatus = q.status === 'priced' ? 'pending' : 'priced';
+    setSavingId(q.id);
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee, shippingDestination: q.shipping_destination });
+    setSavingId(null);
+    setQuotes(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x));
+    if (editQuote?.id === q.id) setEditQuote(prev => prev ? { ...prev, status: newStatus } : prev);
+  };
+
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
     await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, shippingDestination: q.shipping_destination });
@@ -3143,21 +3153,34 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             ) : (
               <div className="divide-y divide-border">
                 {visibleQuotes.map(q => (
-                  <button key={q.id} onClick={() => setEditQuote(q)}
-                    className={`w-full text-start px-4 py-3.5 hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
+                  <div key={q.id}
+                    className={`relative flex items-stretch hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
-                      <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold ${q.status === 'priced' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
-                        {q.status === 'priced' ? (isAr ? 'مسعّر' : 'Priced') : (isAr ? 'جديد' : 'New')}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
-                    {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
-                    {q.shipping_destination && (
-                      <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
-                    )}
-                  </button>
+                    <button onClick={() => setEditQuote(q)} className="flex-1 text-start px-4 py-3.5 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-bold arabic text-foreground truncate">{q.customer_name}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {dateStr(q.created_at)}</p>
+                      {q.phone && <p className="text-xs text-muted-foreground mt-0.5 font-mono" dir="ltr">{q.phone}</p>}
+                      {q.shipping_destination && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_destination}</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={e => handleQuickStatus(q, e)}
+                      disabled={savingId === q.id}
+                      title={q.status === 'priced' ? (isAr ? 'إعادة لجديد' : 'Mark as new') : (isAr ? 'تحديد كمسعّر' : 'Mark as priced')}
+                      className={`shrink-0 w-12 flex flex-col items-center justify-center gap-1 border-s border-border transition-colors ${q.status === 'priced' ? 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20' : 'text-muted-foreground hover:bg-muted hover:text-primary'}`}
+                    >
+                      {savingId === q.id
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : q.status === 'priced'
+                          ? <CheckCircle2 className="w-4 h-4" />
+                          : <Circle className="w-4 h-4" />
+                      }
+                      <span className="text-[9px] arabic leading-none">{q.status === 'priced' ? (isAr ? 'مسعّر' : 'Priced') : (isAr ? 'جديد' : 'New')}</span>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
