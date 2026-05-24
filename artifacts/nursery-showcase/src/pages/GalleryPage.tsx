@@ -2907,19 +2907,26 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               </div>
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'عنوان الشحن أو الاستلام' : 'Shipping Address or Pickup'}</Label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCustShipping(v => v === '__PICKUP__' ? '' : '__PICKUP__')}
-                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${custShipping === '__PICKUP__' ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
-                  >
-                    {isAr ? '🏪 استلام' : '🏪 Pickup'}
-                  </button>
-                  {custShipping === '__PICKUP__' ? (
-                    <div className="flex-1 h-10 rounded-lg border border-primary bg-primary/10 px-3 flex items-center arabic text-sm text-primary font-medium">
-                      {isAr ? '🏪 استلام من المشتل (بدون شحن)' : '🏪 In-store Pickup (no shipping)'}
-                    </div>
-                  ) : (
+                {custShipping === '__PICKUP__' ? (
+                  <div className="flex items-center gap-2 h-10 rounded-lg border border-primary bg-primary/10 px-3">
+                    <span className="arabic text-sm text-primary font-medium flex-1">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
+                    <button
+                      type="button"
+                      onClick={() => setCustShipping('')}
+                      className="text-xs text-primary/70 hover:text-primary underline arabic shrink-0"
+                    >
+                      {isAr ? 'تغيير' : 'Change'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCustShipping('__PICKUP__')}
+                      className="shrink-0 px-3 h-10 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-sm arabic font-medium transition-colors whitespace-nowrap"
+                    >
+                      {isAr ? '🏪 استلام' : '🏪 Pickup'}
+                    </button>
                     <Input
                       value={custShipping}
                       onChange={e => setCustShipping(e.target.value)}
@@ -2927,8 +2934,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                       className="arabic flex-1"
                       placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'ملاحظات إضافية' : 'Additional Notes'}</Label>
