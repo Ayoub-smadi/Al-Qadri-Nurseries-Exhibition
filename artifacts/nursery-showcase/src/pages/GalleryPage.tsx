@@ -2688,6 +2688,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custShipping, setCustShipping] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successData, setSuccessData] = useState<{ name: string; phone: string; shipping: string } | null>(null);
 
   // size modal
   const [sizeTarget, setSizeTarget] = useState<{ s: Section; p: Photo } | null>(null);
@@ -2730,6 +2731,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingDestination: shippingVal });
     setSubmitting(false);
     if (id) {
+      setSuccessData({ name: custName, phone: custPhone, shipping: custShipping });
       setSuccess(true);
       setCart([]);
       setCustName(''); setCustPhone(''); setCustNotes(''); setCustShipping('');
@@ -2776,15 +2778,17 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
             <CheckCircle2 className="w-16 h-16 text-green-500" />
             <p className="text-xl font-bold arabic text-foreground text-center">{isAr ? 'تم إرسال طلبك بنجاح!' : 'Your request was sent!'}</p>
             <p className="text-sm text-muted-foreground arabic text-center">{isAr ? 'سنتواصل معك قريباً بعرض السعر' : 'We will contact you soon with the quote'}</p>
-            <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
-              {custName && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{custName}</span></div>}
-              {custPhone && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الهاتف' : 'Phone'}</span><span className="font-medium" dir="ltr">{custPhone}</span></div>}
-              {(custShipping === '__PICKUP__') ? (
-                <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
-              ) : custShipping.trim() ? (
-                <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {custShipping.trim()}</span></div>
-              ) : null}
-            </div>
+            {successData && (
+              <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
+                {successData.name && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{successData.name}</span></div>}
+                {successData.phone && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الهاتف' : 'Phone'}</span><span className="font-medium" dir="ltr">{successData.phone}</span></div>}
+                {successData.shipping === '__PICKUP__' ? (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
+                ) : successData.shipping.trim() ? (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.shipping.trim()}</span></div>
+                ) : null}
+              </div>
+            )}
           </div>
         ) : step === 'pick' ? (
           /* Plant picker */
