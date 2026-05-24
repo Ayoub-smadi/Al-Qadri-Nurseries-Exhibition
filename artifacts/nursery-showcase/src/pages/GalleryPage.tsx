@@ -2972,7 +2972,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 </div>
               </div>
               <div>
-                <Label className="arabic text-xs mb-1 block">{isAr ? 'الحجم (اختياري)' : 'Size (optional)'}</Label>
+                <Label className="arabic text-xs mb-1 block">
+                  {isAr ? 'الحجم' : 'Size'}
+                  <span className="text-red-500 ms-1">*</span>
+                  {!tempSize && <span className="text-red-400 ms-2 text-[10px]">({isAr ? 'إلزامي' : 'required'})</span>}
+                </Label>
                 <div className="flex gap-1.5 flex-wrap">
                   {['صغير', 'وسط', 'كبير'].map(sz => (
                     <button key={sz} type="button" onClick={() => setTempSize(sz === tempSize ? '' : sz)}
@@ -2989,7 +2993,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
             </div>
             <div className="flex gap-2 mt-4">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setSizeTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
-              <Button type="button" className="flex-1" onClick={confirmAdd}>
+              <Button type="button" className="flex-1" onClick={confirmAdd} disabled={!tempSize.trim()}>
                 <ShoppingCart className="w-3.5 h-3.5 me-1.5" />{isAr ? 'إضافة' : 'Add'}
               </Button>
             </div>
@@ -3265,6 +3269,37 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Delivery method */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                    <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'طريقة التوصيل' : 'Delivery Method'}</p>
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_destination: editQuote.shipping_destination === 'استلام من المشتل' ? '' : 'استلام من المشتل' })}
+                        className={`shrink-0 px-3 h-9 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${editQuote.shipping_destination === 'استلام من المشتل' ? 'bg-green-600 text-white border-green-600' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                      >
+                        🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}
+                      </button>
+                      {editQuote.shipping_destination === 'استلام من المشتل' ? (
+                        <div className="flex-1 h-9 rounded-lg border border-green-500 bg-green-50 dark:bg-green-950/20 px-3 flex items-center arabic text-sm text-green-700 dark:text-green-400 font-medium">
+                          🏪 {isAr ? 'بدون رسوم شحن' : 'No shipping charge'}
+                        </div>
+                      ) : (
+                        <Input
+                          value={editQuote.shipping_destination || ''}
+                          onChange={e => setEditQuote({ ...editQuote, shipping_destination: e.target.value })}
+                          dir="rtl"
+                          className="arabic flex-1 h-9"
+                          placeholder={isAr ? 'عنوان التوصيل...' : 'Delivery address...'}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 
