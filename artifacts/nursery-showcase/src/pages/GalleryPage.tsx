@@ -2894,21 +2894,26 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'عنوان الشحن أو الاستلام' : 'Shipping Address or Pickup'}</Label>
                 <div className="flex gap-2">
-                  <Input
-                    value={custShipping === (isAr ? 'استلام' : 'Pickup') ? '' : custShipping}
-                    onChange={e => setCustShipping(e.target.value)}
-                    dir="rtl"
-                    className="arabic flex-1"
-                    placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
-                    disabled={custShipping === (isAr ? 'استلام' : 'Pickup')}
-                  />
                   <button
                     type="button"
                     onClick={() => setCustShipping(v => v === (isAr ? 'استلام' : 'Pickup') ? '' : (isAr ? 'استلام' : 'Pickup'))}
-                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors ${custShipping === (isAr ? 'استلام' : 'Pickup') ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                    className={`shrink-0 px-3 h-10 rounded-lg border text-sm arabic font-medium transition-colors whitespace-nowrap ${custShipping === (isAr ? 'استلام' : 'Pickup') ? 'bg-primary text-primary-foreground border-primary' : 'border-border bg-background text-foreground hover:bg-muted'}`}
                   >
                     {isAr ? '🏪 استلام' : '🏪 Pickup'}
                   </button>
+                  {custShipping === (isAr ? 'استلام' : 'Pickup') ? (
+                    <div className="flex-1 h-10 rounded-lg border border-primary bg-primary/10 px-3 flex items-center arabic text-sm text-primary font-medium">
+                      {isAr ? '🏪 استلام (بدون شحن)' : '🏪 Pickup (no shipping)'}
+                    </div>
+                  ) : (
+                    <Input
+                      value={custShipping}
+                      onChange={e => setCustShipping(e.target.value)}
+                      dir="rtl"
+                      className="arabic flex-1"
+                      placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
+                    />
+                  )}
                 </div>
               </div>
               <div>
