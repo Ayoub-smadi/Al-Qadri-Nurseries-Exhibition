@@ -3029,6 +3029,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => { load(); }, 15000);
+    return () => clearInterval(id);
+  }, [open, load]);
+
   const handleDelete = async (id: string) => {
     if (!confirm(isAr ? 'تأكيد الحذف؟' : 'Delete this quote?')) return;
     await deleteQuote(id);
@@ -3167,9 +3173,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold arabic text-foreground">{editQuote.customer_name}</p>
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
-                  {editQuote.shipping_destination && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 arabic font-medium mt-0.5">📍 {editQuote.shipping_destination}</p>
-                  )}
+                  <p className="text-xs arabic mt-0.5">
+                    {editQuote.shipping_destination
+                      ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_destination}</span>
+                      : <span className="text-muted-foreground/60">📍 {isAr ? 'لم تُحدَّد منطقة الشحن' : 'No shipping region'}</span>
+                    }
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
