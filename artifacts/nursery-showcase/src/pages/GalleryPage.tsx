@@ -3018,6 +3018,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [editQuote, setEditQuote] = useState<QuoteRequest | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'new' | 'priced'>('new');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -3066,6 +3067,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
   const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
+  const newQuotes = quotes.filter(q => q.status !== 'priced');
+  const pricedQuotes = quotes.filter(q => q.status === 'priced');
+  const visibleQuotes = tab === 'new' ? newQuotes : pricedQuotes;
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
@@ -3081,10 +3085,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
             <Inbox className="w-5 h-5 text-primary" />
-            <div>
-              <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلبات عروض الأسعار' : 'Price Quote Requests'}</h2>
-              <p className="text-xs text-muted-foreground arabic">{quotes.length} {isAr ? 'طلب' : 'requests'}</p>
-            </div>
+            <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلبات عروض الأسعار' : 'Price Quote Requests'}</h2>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={load} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" title={isAr ? 'تحديث القائمة' : 'Refresh list'}>
@@ -3095,6 +3096,27 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             </button>
           </div>
         </div>
+        {/* Tabs */}
+        <div className="flex border-b border-border shrink-0 bg-muted/20">
+          <button
+            onClick={() => { setTab('new'); setEditQuote(null); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm arabic font-medium transition-colors ${tab === 'new' ? 'border-b-2 border-primary text-primary bg-background' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {isAr ? 'جديدة' : 'New'}
+            {newQuotes.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'new' ? 'bg-primary text-primary-foreground' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{newQuotes.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => { setTab('priced'); setEditQuote(null); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm arabic font-medium transition-colors ${tab === 'priced' ? 'border-b-2 border-primary text-primary bg-background' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {isAr ? 'مسعّرة' : 'Priced'}
+            {pricedQuotes.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'priced' ? 'bg-primary text-primary-foreground' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>{pricedQuotes.length}</span>
+            )}
+          </button>
+        </div>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Quotes list */}
@@ -3103,14 +3125,18 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
-            ) : quotes.length === 0 ? (
+            ) : visibleQuotes.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
                 <Inbox className="w-10 h-10 opacity-30" />
-                <p className="text-sm arabic">{isAr ? 'لا توجد طلبات بعد' : 'No requests yet'}</p>
+                <p className="text-sm arabic">
+                  {tab === 'new'
+                    ? (isAr ? 'لا توجد طلبات جديدة' : 'No new requests')
+                    : (isAr ? 'لا توجد طلبات مسعّرة بعد' : 'No priced quotes yet')}
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {quotes.map(q => (
+                {visibleQuotes.map(q => (
                   <button key={q.id} onClick={() => setEditQuote(q)}
                     className={`w-full text-start px-4 py-3.5 hover:bg-muted/50 transition-colors ${editQuote?.id === q.id ? 'bg-primary/5 border-e-2 border-e-primary' : ''}`}
                   >
