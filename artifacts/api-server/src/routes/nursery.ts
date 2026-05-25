@@ -187,6 +187,9 @@ router.post("/quotes", async (req, res) => {
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" }); return;
   }
+  if (shippingMethod !== 'pickup' && shippingMethod !== 'delivery') {
+    res.status(400).json({ error: "Invalid shipping method. Must be 'pickup' or 'delivery'." }); return;
+  }
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(

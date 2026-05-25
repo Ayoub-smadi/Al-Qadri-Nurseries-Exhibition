@@ -2958,7 +2958,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
               </div>
             </div>
-            <Button type="submit" className="w-full h-11 text-base arabic font-bold" disabled={submitting || !custName.trim() || cart.length === 0}>
+            <Button type="submit" className="w-full h-11 text-base arabic font-bold" disabled={submitting || !custName.trim() || cart.length === 0 || !shippingMode}>
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Receipt className="w-4 h-4 me-2" />{isAr ? 'إرسال طلب العرض' : 'Send Quote Request'}</>}
             </Button>
           </form>
