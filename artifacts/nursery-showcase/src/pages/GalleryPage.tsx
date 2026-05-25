@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShippingZone, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -378,6 +378,13 @@ export default function GalleryPage() {
   const [branchImageUrl, setBranchImageUrl] = useState('');
   const [branchImgUploading, setBranchImgUploading] = useState(false);
 
+  /* shipping zones */
+  const [zonesModalOpen, setZonesModalOpen] = useState(false);
+  const [zoneNameAr, setZoneNameAr] = useState('');
+  const [zoneNameEn, setZoneNameEn] = useState('');
+  const [zoneFee, setZoneFee] = useState('');
+  const [editingZone, setEditingZone] = useState<ShippingZone | null>(null);
+
   /* social links */
   const [socialModalOpen, setSocialModalOpen] = useState(false);
   const [editingSocial, setEditingSocial] = useState<SocialLink | null>(null);
@@ -709,6 +716,38 @@ export default function GalleryPage() {
   const handleDeleteBranch = (id: string) => {
     if (!confirm(isAr ? 'حذف الفرع؟' : 'Delete this branch?')) return;
     updateSiteData({ branches: (siteData.branches ?? []).filter(b => b.id !== id) });
+  };
+
+  const openAddZone = () => {
+    setEditingZone(null);
+    setZoneNameAr(''); setZoneNameEn(''); setZoneFee('');
+    setZonesModalOpen(true);
+  };
+
+  const openEditZone = (zone: ShippingZone) => {
+    setEditingZone(zone);
+    setZoneNameAr(zone.nameAr); setZoneNameEn(zone.nameEn); setZoneFee(String(zone.fee));
+    setZonesModalOpen(true);
+  };
+
+  const handleSaveZone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!zoneNameAr.trim()) return;
+    const zones = siteData.shippingZones ?? [];
+    if (editingZone) {
+      updateSiteData({ shippingZones: zones.map(z => z.id === editingZone.id ? { ...z, nameAr: zoneNameAr.trim(), nameEn: zoneNameEn.trim(), fee: Number(zoneFee) || 0 } : z) });
+      toast.success(isAr ? 'تم تعديل المنطقة' : 'Zone updated');
+    } else {
+      const newZone: ShippingZone = { id: uid(), nameAr: zoneNameAr.trim(), nameEn: zoneNameEn.trim(), fee: Number(zoneFee) || 0 };
+      updateSiteData({ shippingZones: [...zones, newZone] });
+      toast.success(isAr ? 'تمت إضافة المنطقة' : 'Zone added');
+    }
+    setZonesModalOpen(false);
+  };
+
+  const handleDeleteZone = (id: string) => {
+    if (!confirm(isAr ? 'حذف منطقة الشحن؟' : 'Delete this shipping zone?')) return;
+    updateSiteData({ shippingZones: (siteData.shippingZones ?? []).filter(z => z.id !== id) });
   };
 
   const openAddSocial = () => {
@@ -1422,6 +1461,7 @@ export default function GalleryPage() {
             <span className="text-xs font-bold text-primary pe-2 border-e border-border arabic shrink-0">{isAr ? 'تحرير' : 'Edit'}</span>
             <ToolBtn icon={<FolderPlus className="w-3.5 h-3.5" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
             <ToolBtn icon={<MapPin className="w-3.5 h-3.5" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
+            <ToolBtn icon={<Package className="w-3.5 h-3.5" />} label={isAr ? 'مناطق الشحن' : 'Shipping Zones'} onClick={openAddZone} />
             <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
@@ -1870,6 +1910,59 @@ export default function GalleryPage() {
               </Button>
               <Button type="submit" className="bg-primary text-primary-foreground" disabled={!socialUrl.trim()}>
                 {isAr ? 'حفظ' : 'Save'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shipping Zones Modal */}
+      <Dialog open={zonesModalOpen} onOpenChange={o => { setZonesModalOpen(o); if (!o) { setEditingZone(null); setZoneNameAr(''); setZoneNameEn(''); setZoneFee(''); } }}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="arabic flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              {editingZone ? (isAr ? 'تعديل منطقة شحن' : 'Edit Shipping Zone') : (isAr ? 'إضافة منطقة شحن' : 'Add Shipping Zone')}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveZone} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="arabic text-sm">{isAr ? 'اسم المنطقة (عربي) *' : 'Zone Name (Arabic) *'}</Label>
+              <Input value={zoneNameAr} onChange={e => setZoneNameAr(e.target.value)} dir="rtl" className="arabic" placeholder={isAr ? 'مثال: عمّان' : 'e.g., Amman'} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="arabic text-sm">{isAr ? 'اسم المنطقة (إنجليزي)' : 'Zone Name (English)'}</Label>
+              <Input value={zoneNameEn} onChange={e => setZoneNameEn(e.target.value)} dir="ltr" placeholder="e.g., Amman" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="arabic text-sm">{isAr ? 'رسوم الشحن (د.أ)' : 'Shipping Fee (JD)'}</Label>
+              <Input value={zoneFee} onChange={e => setZoneFee(e.target.value)} type="number" min={0} step={0.5} dir="ltr" placeholder="0" />
+              <p className="text-xs text-muted-foreground arabic">{isAr ? 'أدخل 0 للتوصيل المجاني' : 'Enter 0 for free delivery'}</p>
+            </div>
+            {/* Existing zones list */}
+            {(siteData.shippingZones ?? []).length > 0 && (
+              <div className="rounded-xl border border-border overflow-hidden">
+                <p className="text-xs font-bold arabic text-foreground/70 px-3 py-2 bg-muted/50 border-b border-border">{isAr ? 'المناطق الحالية' : 'Current Zones'}</p>
+                <div className="divide-y divide-border max-h-40 overflow-y-auto">
+                  {(siteData.shippingZones ?? []).map(z => (
+                    <div key={z.id} className="flex items-center gap-2 px-3 py-2">
+                      <span className="text-sm arabic flex-1 text-foreground">{z.nameAr}</span>
+                      <span className="text-xs text-muted-foreground font-mono">{z.fee > 0 ? `${z.fee} د.أ` : (isAr ? 'مجاني' : 'Free')}</span>
+                      <button type="button" onClick={() => openEditZone(z)} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors">
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteZone(z.id)} className="w-6 h-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setZonesModalOpen(false)}>{isAr ? 'إغلاق' : 'Close'}</Button>
+              <Button type="submit" className="arabic" disabled={!zoneNameAr.trim()}>
+                {editingZone ? (isAr ? 'حفظ التعديل' : 'Save') : (isAr ? 'إضافة' : 'Add')}
               </Button>
             </div>
           </form>
@@ -2685,12 +2778,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
-  const [shippingMode, setShippingMode] = useState<'pickup' | ''>('');
-  const [shippingAddress, setShippingAddress] = useState('');
+  const [selectedZoneId, setSelectedZoneId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [shippingError, setShippingError] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [successData, setSuccessData] = useState<{ name: string; phone: string; shippingMode: string; shippingAddress: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ name: string; phone: string; zoneId: string; zoneName: string; zoneFee: number } | null>(null);
 
   // size modal
   const [sizeTarget, setSizeTarget] = useState<{ s: Section; p: Photo } | null>(null);
@@ -2727,19 +2819,23 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim() || cart.length === 0) return;
-    const method = shippingMode === 'pickup' ? 'pickup' : (shippingAddress.trim() ? 'delivery' : '');
-    if (!method) { setShippingError(true); return; }
+    if (!selectedZoneId) { setShippingError(true); return; }
     setShippingError(false);
+    const zones = siteData.shippingZones ?? [];
+    const isPickupSel = selectedZoneId === 'pickup';
+    const zone = isPickupSel ? null : zones.find(z => z.id === selectedZoneId);
+    const method = isPickupSel ? 'pickup' : (zone ? 'delivery' : '');
+    const addr = isPickupSel ? '' : (zone ? zone.nameAr : '');
+    const fee = isPickupSel ? 0 : (zone ? zone.fee : 0);
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const addr = shippingMode === 'pickup' ? '' : shippingAddress.trim();
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingMethod: method, shippingAddress: addr });
+    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingMethod: method, shippingAddress: addr, shippingFee: fee });
     setSubmitting(false);
     if (id) {
-      setSuccessData({ name: custName, phone: custPhone, shippingMode, shippingAddress: addr });
+      setSuccessData({ name: custName, phone: custPhone, zoneId: selectedZoneId, zoneName: isPickupSel ? '' : (zone?.nameAr ?? ''), zoneFee: fee });
       setSuccess(true);
       setCart([]);
-      setCustName(''); setCustPhone(''); setCustNotes(''); setShippingMode(''); setShippingAddress('');
+      setCustName(''); setCustPhone(''); setCustNotes(''); setSelectedZoneId('');
       setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
     } else {
       toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
@@ -2787,10 +2883,10 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
                 {successData.name && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{successData.name}</span></div>}
                 {successData.phone && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الهاتف' : 'Phone'}</span><span className="font-medium" dir="ltr">{successData.phone}</span></div>}
-                {successData.shippingMode === 'pickup' ? (
+                {successData.zoneId === 'pickup' ? (
                   <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
-                ) : successData.shippingAddress ? (
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.shippingAddress}</span></div>
+                ) : successData.zoneName ? (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'المنطقة' : 'Zone'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.zoneName}{successData.zoneFee > 0 ? ` · ${successData.zoneFee} د.أ` : ''}</span></div>
                 ) : null}
               </div>
             )}
@@ -2914,42 +3010,49 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Label className={`arabic text-sm mb-1.5 block ${shippingError ? 'text-red-600 dark:text-red-400' : ''}`}>
                   {isAr ? 'طريقة التوصيل *' : 'Delivery Method *'}
                 </Label>
-                {shippingMode === 'pickup' ? (
-                  <div className="flex items-center gap-2 h-10 rounded-lg border border-primary bg-primary/10 px-3">
-                    <span className="arabic text-sm text-primary font-medium flex-1">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
-                    <button
-                      type="button"
-                      onClick={() => { setShippingMode(''); setShippingError(false); }}
-                      className="text-xs text-primary/70 hover:text-primary underline arabic shrink-0"
-                    >
-                      {isAr ? 'تغيير' : 'Change'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => { setShippingMode('pickup'); setShippingError(false); }}
-                        className="shrink-0 px-3 h-10 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-sm arabic font-medium transition-colors whitespace-nowrap"
-                      >
-                        {isAr ? '🏪 استلام' : '🏪 Pickup'}
-                      </button>
-                      <Input
-                        value={shippingAddress}
-                        onChange={e => { setShippingAddress(e.target.value); if (e.target.value.trim()) setShippingError(false); }}
-                        dir="rtl"
-                        className={`arabic flex-1 ${shippingError ? 'border-red-500 focus-visible:ring-red-400' : ''}`}
-                        placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
-                      />
+                <div className="space-y-2">
+                  {/* Pickup option */}
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedZoneId('pickup'); setShippingError(false); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-start ${selectedZoneId === 'pickup' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
+                  >
+                    <span className="text-xl shrink-0">🏪</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold arabic text-foreground">{isAr ? 'استلام من المشتل' : 'In-store Pickup'}</p>
+                      <p className="text-xs text-muted-foreground arabic">{isAr ? 'بدون رسوم شحن' : 'No shipping fee'}</p>
                     </div>
-                    {shippingError && (
-                      <p className="text-xs text-red-600 dark:text-red-400 arabic">
-                        {isAr ? '⚠️ يرجى اختيار الاستلام من المشتل أو كتابة عنوان الشحن' : '⚠️ Please select pickup or enter a shipping address'}
-                      </p>
-                    )}
-                  </div>
-                )}
+                    {selectedZoneId === 'pickup' && <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />}
+                  </button>
+                  {/* Delivery zones */}
+                  {(siteData.shippingZones ?? []).map(zone => (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => { setSelectedZoneId(zone.id); setShippingError(false); }}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-start ${selectedZoneId === zone.id ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
+                    >
+                      <span className="text-xl shrink-0">📍</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold arabic text-foreground">{isAr ? zone.nameAr : (zone.nameEn || zone.nameAr)}</p>
+                      </div>
+                      <span className={`text-sm font-bold shrink-0 ${selectedZoneId === zone.id ? 'text-primary' : 'text-blue-600 dark:text-blue-400'}`}>
+                        {zone.fee > 0 ? `${zone.fee} د.أ` : (isAr ? 'بدون رسوم' : 'Free')}
+                      </span>
+                      {selectedZoneId === zone.id && <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                  {(siteData.shippingZones ?? []).length === 0 && (
+                    <p className="text-xs text-muted-foreground arabic text-center py-2">
+                      {isAr ? 'لا توجد مناطق شحن — يرجى الاستلام من المشتل' : 'No shipping zones — please select in-store pickup'}
+                    </p>
+                  )}
+                  {shippingError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 arabic">
+                      {isAr ? '⚠️ يرجى اختيار طريقة التوصيل' : '⚠️ Please select a delivery method'}
+                    </p>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="arabic text-sm mb-1.5 block">{isAr ? 'ملاحظات إضافية' : 'Additional Notes'}</Label>

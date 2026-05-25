@@ -53,6 +53,13 @@ export interface FeaturedImage {
   titleEn: string;
 }
 
+export interface ShippingZone {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  fee: number;
+}
+
 export interface SiteData {
   titleAr: string;
   titleEn: string;
@@ -72,6 +79,7 @@ export interface SiteData {
   sections: Section[];
   branches: Branch[];
   socialLinks: SocialLink[];
+  shippingZones?: ShippingZone[];
   footer: {
     email: string;
     phone: string;
@@ -394,7 +402,7 @@ export interface QuoteRequest {
   shipping_address?: string;
 }
 
-export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingMethod?: string; shippingAddress?: string }): Promise<string | null> {
+export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number }): Promise<string | null> {
   try {
     const res = await fetch('/api/quotes', {
       method: 'POST',

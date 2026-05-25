@@ -181,8 +181,8 @@ router.put("/site-data", async (req, res) => {
 });
 
 router.post("/quotes", async (req, res) => {
-  const { customerName, phone, items, notes, shippingMethod, shippingAddress } = req.body as {
-    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string;
+  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body as {
+    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number;
   };
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" }); return;
@@ -190,9 +190,9 @@ router.post("/quotes", async (req, res) => {
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
-      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod ?? '', shippingAddress ?? '']
+      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod ?? '', shippingAddress ?? '', shippingFee ?? 0]
     );
     res.json({ id });
   } catch { res.status(500).json({ error: "Failed to save quote" }); }
