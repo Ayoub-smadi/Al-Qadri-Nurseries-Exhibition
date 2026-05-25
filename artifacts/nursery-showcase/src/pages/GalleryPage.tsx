@@ -2688,6 +2688,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [shippingMode, setShippingMode] = useState<'pickup' | ''>('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [shippingError, setShippingError] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<{ name: string; phone: string; shippingMode: string; shippingAddress: string } | null>(null);
 
@@ -2726,9 +2727,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim() || cart.length === 0) return;
+    const method = shippingMode === 'pickup' ? 'pickup' : (shippingAddress.trim() ? 'delivery' : '');
+    if (!method) { setShippingError(true); return; }
+    setShippingError(false);
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const method = shippingMode === 'pickup' ? 'pickup' : (shippingAddress.trim() ? 'delivery' : '');
     const addr = shippingMode === 'pickup' ? '' : shippingAddress.trim();
     const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingMethod: method, shippingAddress: addr });
     setSubmitting(false);
@@ -2908,34 +2911,43 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" />
               </div>
               <div>
-                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'عنوان الشحن أو الاستلام' : 'Shipping Address or Pickup'}</Label>
+                <Label className={`arabic text-sm mb-1.5 block ${shippingError ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  {isAr ? 'طريقة التوصيل *' : 'Delivery Method *'}
+                </Label>
                 {shippingMode === 'pickup' ? (
                   <div className="flex items-center gap-2 h-10 rounded-lg border border-primary bg-primary/10 px-3">
                     <span className="arabic text-sm text-primary font-medium flex-1">🏪 {isAr ? 'استلام من المشتل (بدون شحن)' : 'In-store Pickup (no shipping)'}</span>
                     <button
                       type="button"
-                      onClick={() => setShippingMode('')}
+                      onClick={() => { setShippingMode(''); setShippingError(false); }}
                       className="text-xs text-primary/70 hover:text-primary underline arabic shrink-0"
                     >
                       {isAr ? 'تغيير' : 'Change'}
                     </button>
                   </div>
                 ) : (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShippingMode('pickup')}
-                      className="shrink-0 px-3 h-10 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-sm arabic font-medium transition-colors whitespace-nowrap"
-                    >
-                      {isAr ? '🏪 استلام' : '🏪 Pickup'}
-                    </button>
-                    <Input
-                      value={shippingAddress}
-                      onChange={e => setShippingAddress(e.target.value)}
-                      dir="rtl"
-                      className="arabic flex-1"
-                      placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
-                    />
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setShippingMode('pickup'); setShippingError(false); }}
+                        className="shrink-0 px-3 h-10 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-sm arabic font-medium transition-colors whitespace-nowrap"
+                      >
+                        {isAr ? '🏪 استلام' : '🏪 Pickup'}
+                      </button>
+                      <Input
+                        value={shippingAddress}
+                        onChange={e => { setShippingAddress(e.target.value); if (e.target.value.trim()) setShippingError(false); }}
+                        dir="rtl"
+                        className={`arabic flex-1 ${shippingError ? 'border-red-500 focus-visible:ring-red-400' : ''}`}
+                        placeholder={isAr ? 'اكتب عنوان الشحن...' : 'Enter shipping address...'}
+                      />
+                    </div>
+                    {shippingError && (
+                      <p className="text-xs text-red-600 dark:text-red-400 arabic">
+                        {isAr ? '⚠️ يرجى اختيار الاستلام من المشتل أو كتابة عنوان الشحن' : '⚠️ Please select pickup or enter a shipping address'}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
