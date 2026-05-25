@@ -425,7 +425,7 @@ export async function fetchQuotes(): Promise<QuoteRequest[] | null> {
   return null;
 }
 
-export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number }): Promise<boolean> {
+export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number; shippingMethod?: string; shippingAddress?: string }): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {

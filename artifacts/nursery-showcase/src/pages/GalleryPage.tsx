@@ -3063,7 +3063,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     e.stopPropagation();
     const newStatus = q.status === 'priced' ? 'pending' : 'priced';
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x));
     if (editQuote?.id === q.id) setEditQuote(prev => prev ? { ...prev, status: newStatus } : prev);
@@ -3071,7 +3071,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -3295,11 +3295,27 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
                 {/* Delivery method */}
                 <div className="rounded-xl border border-border overflow-hidden">
-                  <div className="bg-muted/50 px-4 py-2 border-b border-border">
+                  <div className="bg-muted/50 px-4 py-2 border-b border-border flex items-center justify-between">
                     <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'طريقة التوصيل' : 'Delivery Method'}</p>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_method: 'pickup', shipping_address: '' })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'pickup' ? 'bg-green-100 border-green-400 text-green-700 dark:bg-green-900/40 dark:border-green-600 dark:text-green-300' : 'border-border text-muted-foreground hover:border-green-400 hover:text-green-600'}`}
+                      >
+                        🏪 {isAr ? 'استلام' : 'Pickup'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_method: 'delivery' })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'delivery' ? 'bg-blue-100 border-blue-400 text-blue-700 dark:bg-blue-900/40 dark:border-blue-600 dark:text-blue-300' : 'border-border text-muted-foreground hover:border-blue-400 hover:text-blue-600'}`}
+                      >
+                        📍 {isAr ? 'توصيل' : 'Delivery'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="px-4 py-3">
-                    {isPickup(editQuote.shipping_method)
+                  <div className="px-4 py-3 space-y-2">
+                    {editQuote.shipping_method === 'pickup'
                       ? (
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
                           <span className="text-2xl">🏪</span>
@@ -3310,19 +3326,31 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         </div>
                       ) : editQuote.shipping_method === 'delivery'
                         ? (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
-                            <span className="text-2xl">📍</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs text-blue-600/70 dark:text-blue-500/70 arabic mb-0.5">{isAr ? 'عنوان التوصيل' : 'Delivery Address'}</p>
-                              <p className="text-sm font-bold text-blue-700 dark:text-blue-400 arabic break-words">{editQuote.shipping_address}</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                              <span className="text-2xl">📍</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs text-blue-600/70 dark:text-blue-500/70 arabic mb-0.5">{isAr ? 'عنوان التوصيل' : 'Delivery Address'}</p>
+                                {editQuote.shipping_address
+                                  ? <p className="text-sm font-bold text-blue-700 dark:text-blue-400 arabic break-words">{editQuote.shipping_address}</p>
+                                  : <p className="text-xs text-orange-600 arabic">{isAr ? 'لم يُدخَل عنوان — يرجى تحديثه أدناه' : 'No address entered — update below'}</p>
+                                }
+                              </div>
                             </div>
+                            <input
+                              value={editQuote.shipping_address ?? ''}
+                              onChange={e => setEditQuote({ ...editQuote, shipping_address: e.target.value })}
+                              dir="rtl"
+                              placeholder={isAr ? 'اكتب عنوان التوصيل...' : 'Enter delivery address...'}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
                           </div>
                         ) : (
                           <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
                             <span className="text-xl">⚠️</span>
-                            <p className="text-sm text-orange-700 dark:text-orange-400 arabic">{isAr ? 'لم يُحدِّد الزبون طريقة التوصيل' : 'Customer did not specify delivery method'}</p>
+                            <p className="text-sm text-orange-700 dark:text-orange-400 arabic">{isAr ? 'لم يُحدِّد الزبون طريقة التوصيل — اختر من الأزرار أعلاه' : 'No delivery method — choose from buttons above'}</p>
                           </div>
-                      )
+                        )
                     }
                   </div>
                 </div>
