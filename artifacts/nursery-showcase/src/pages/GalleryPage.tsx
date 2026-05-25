@@ -2773,6 +2773,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   lang: string; cart: QuoteCartItem[]; setCart: React.Dispatch<React.SetStateAction<QuoteCartItem[]>>;
 }) {
   const isAr = lang === 'ar';
+  const { siteData } = useApp();
   const [step, setStep] = useState<'pick' | 'info'>('pick');
   const [search, setSearch] = useState('');
   const [custName, setCustName] = useState('');
