@@ -403,15 +403,19 @@ export interface QuoteRequest {
 }
 
 export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
+  // Strip large base64 images from items before sending — keeps body small and reliable
+  const itemsForApi = data.items.map(item => ({ ...item, plantImage: '' }));
+  const payload = { ...data, items: itemsForApi };
+  console.log('[submitQuote] sending →', { shippingMethod: payload.shippingMethod, shippingAddress: payload.shippingAddress, customerName: payload.customerName, itemsCount: itemsForApi.length });
   try {
     const res = await fetch('/api/quotes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     if (res.ok) { const j = await res.json() as { id?: string }; return j.id ?? null; }
-    // Log error details to help debug
-    console.error('[submitQuote] server error', res.status, await res.text().catch(() => ''));
+    const errText = await res.text().catch(() => '');
+    console.error('[submitQuote] server error', res.status, errText);
   } catch (err) {
     console.error('[submitQuote] fetch error', err);
   }
