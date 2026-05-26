@@ -2962,59 +2962,64 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
       </div>
 
       {/* Size/Qty popup */}
-      {sizeTarget && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center p-6" onClick={() => setSizeTarget(null)}>
-          <div className="bg-card border border-border rounded-2xl p-5 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-4">
-              {sizeTarget.p.image && <img src={sizeTarget.p.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-border" />}
-              <div>
-                <p className="text-sm font-bold arabic text-foreground">{isAr ? sizeTarget.p.nameAr : sizeTarget.p.nameEn}</p>
-                <p className="text-xs text-muted-foreground arabic">{isAr ? sizeTarget.s.nameAr : sizeTarget.s.nameEn}</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <Label className="arabic text-xs mb-1 block">{isAr ? 'الكمية' : 'Quantity'}</Label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setTempQty(q => Math.max(1, q - 1))} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
-                    <Minus className="w-3.5 h-3.5" />
-                  </button>
-                  <input type="number" min={1} value={tempQty} onChange={e => setTempQty(Math.max(1, Number(e.target.value)))}
-                    className="flex-1 text-center h-8 rounded-lg border border-border bg-background text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  <button type="button" onClick={() => setTempQty(q => q + 1)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+      {sizeTarget && (() => {
+        const noSizeNeeded = sizeTarget.s.nameAr.includes('مستلزمات');
+        return (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-6" onClick={() => setSizeTarget(null)}>
+            <div className="bg-card border border-border rounded-2xl p-5 w-full max-w-xs shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                {sizeTarget.p.image && <img src={sizeTarget.p.image} alt="" className="w-12 h-12 rounded-lg object-cover border border-border" />}
+                <div>
+                  <p className="text-sm font-bold arabic text-foreground">{isAr ? sizeTarget.p.nameAr : sizeTarget.p.nameEn}</p>
+                  <p className="text-xs text-muted-foreground arabic">{isAr ? sizeTarget.s.nameAr : sizeTarget.s.nameEn}</p>
                 </div>
               </div>
-              <div>
-                <Label className="arabic text-xs mb-1 block">
-                  {isAr ? 'الحجم' : 'Size'}
-                  <span className="text-red-500 ms-1">*</span>
-                  {!tempSize && <span className="text-red-400 ms-2 text-[10px]">({isAr ? 'إلزامي' : 'required'})</span>}
-                </Label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {['صغير', 'وسط', 'كبير'].map(sz => (
-                    <button key={sz} type="button" onClick={() => setTempSize(sz === tempSize ? '' : sz)}
-                      className={`px-3 py-1 rounded-full text-xs arabic border transition-colors ${tempSize === sz ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border bg-background hover:border-primary/40'}`}>
-                      {sz}
+              <div className="space-y-3">
+                <div>
+                  <Label className="arabic text-xs mb-1 block">{isAr ? 'الكمية' : 'Quantity'}</Label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setTempQty(q => Math.max(1, q - 1))} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
-                  ))}
-                  <input value={['صغير','وسط','كبير'].includes(tempSize) ? '' : tempSize}
-                    onChange={e => setTempSize(e.target.value)}
-                    placeholder={isAr ? 'آخر...' : 'other...'}
-                    className="px-3 py-1 rounded-full text-xs border border-dashed border-border bg-background focus:outline-none focus:border-primary w-20 text-center arabic" />
+                    <input type="number" min={1} value={tempQty} onChange={e => setTempQty(Math.max(1, Number(e.target.value)))}
+                      className="flex-1 text-center h-8 rounded-lg border border-border bg-background text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                    <button type="button" onClick={() => setTempQty(q => q + 1)} className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/70">
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+                {!noSizeNeeded && (
+                  <div>
+                    <Label className="arabic text-xs mb-1 block">
+                      {isAr ? 'الحجم' : 'Size'}
+                      <span className="text-red-500 ms-1">*</span>
+                      {!tempSize && <span className="text-red-400 ms-2 text-[10px]">({isAr ? 'إلزامي' : 'required'})</span>}
+                    </Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['صغير', 'وسط', 'كبير'].map(sz => (
+                        <button key={sz} type="button" onClick={() => setTempSize(sz === tempSize ? '' : sz)}
+                          className={`px-3 py-1 rounded-full text-xs arabic border transition-colors ${tempSize === sz ? 'border-primary bg-primary/10 text-primary font-bold' : 'border-border bg-background hover:border-primary/40'}`}>
+                          {sz}
+                        </button>
+                      ))}
+                      <input value={['صغير','وسط','كبير'].includes(tempSize) ? '' : tempSize}
+                        onChange={e => setTempSize(e.target.value)}
+                        placeholder={isAr ? 'آخر...' : 'other...'}
+                        className="px-3 py-1 rounded-full text-xs border border-dashed border-border bg-background focus:outline-none focus:border-primary w-20 text-center arabic" />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setSizeTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
-              <Button type="button" className="flex-1" onClick={confirmAdd} disabled={!tempSize.trim()}>
-                <ShoppingCart className="w-3.5 h-3.5 me-1.5" />{isAr ? 'إضافة' : 'Add'}
-              </Button>
+              <div className="flex gap-2 mt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setSizeTarget(null)}>{isAr ? 'إلغاء' : 'Cancel'}</Button>
+                <Button type="button" className="flex-1" onClick={confirmAdd} disabled={!noSizeNeeded && !tempSize.trim()}>
+                  <ShoppingCart className="w-3.5 h-3.5 me-1.5" />{isAr ? 'إضافة' : 'Add'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
