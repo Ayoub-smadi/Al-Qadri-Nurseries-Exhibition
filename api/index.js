@@ -33,7 +33,11 @@ pool.query(`
     discount NUMERIC NOT NULL DEFAULT 0,
     tax NUMERIC NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    shipping_destination TEXT NOT NULL DEFAULT '',
+    shipping_fee NUMERIC NOT NULL DEFAULT 0,
+    shipping_method TEXT NOT NULL DEFAULT '',
+    shipping_address TEXT NOT NULL DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS images (
     id TEXT PRIMARY KEY,
@@ -41,7 +45,14 @@ pool.query(`
     mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   );
-`).catch((e) => console.error("DB init error:", e.message));
+`).then(() => {
+  return pool.query(`
+    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT '';
+    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0;
+    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT '';
+    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT '';
+  `);
+}).catch((e) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const TOKEN_SECRET = crypto
@@ -192,20 +203,25 @@ app.put("/api/site-data", async (req, res) => {
 });
 
 app.post("/api/quotes", async (req, res) => {
-  const { customerName, phone, items, notes } = req.body ?? {};
+  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body ?? {};
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+  if (shippingMethod !== "pickup" && shippingMethod !== "delivery") {
+    res.status(400).json({ error: "يجب اختيار طريقة التوصيل: استلام من المشتل أو توصيل" });
     return;
   }
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
-      `INSERT INTO quote_requests (id, customer_name, phone, items, notes)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, customerName, phone ?? "", JSON.stringify(items), notes ?? ""]
+      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, customerName, phone ?? "", JSON.stringify(items), notes ?? "", shippingMethod, shippingAddress ?? "", shippingFee ?? 0]
     );
     res.json({ id });
-  } catch {
+  } catch (e) {
+    console.error("Failed to save quote:", e.message);
     res.status(500).json({ error: "Failed to save quote" });
   }
 });
@@ -223,14 +239,18 @@ app.get("/api/quotes", async (req, res) => {
 app.put("/api/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status, notes } = req.body ?? {};
+  const { items, discount, tax, status, notes, shippingFee, shippingMethod, shippingAddress } = req.body ?? {};
   try {
     await pool.query(
-      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes) WHERE id = $6`,
-      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? "priced", notes ?? null, id]
+      `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes),
+       shipping_fee = $6, shipping_method = COALESCE($7, shipping_method), shipping_address = COALESCE($8, shipping_address)
+       WHERE id = $9`,
+      [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? "priced", notes ?? null,
+       shippingFee ?? 0, shippingMethod ?? null, shippingAddress ?? null, id]
     );
     res.json({ ok: true });
-  } catch {
+  } catch (e) {
+    console.error("Failed to update quote:", e.message);
     res.status(500).json({ error: "Failed to update quote" });
   }
 });
@@ -245,8 +265,6 @@ app.delete("/api/quotes/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete quote" });
   }
 });
-
-// ── Image upload & retrieval ──────────────────────────────────────────────────
 
 app.post("/api/images", async (req, res) => {
   if (!requireSession(req, res)) return;
