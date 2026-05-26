@@ -1959,11 +1959,6 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
           <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">
             {isAr ? section.nameEn : section.nameAr}
           </p>
-          {section.photos.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-1 arabic">
-              {isAr ? `${section.photos.length} نبتة` : `${section.photos.length} plants`}
-            </p>
-          )}
         </div>
         <div className="flex-1 h-px bg-border" />
         {isAdmin && (
@@ -1989,11 +1984,6 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
         </div>
       ) : (
         <>
-          {isAdmin && (
-            <p className="text-[11px] text-muted-foreground arabic text-center mb-3 select-none">
-              {isAr ? '✦ اسحب البطاقات لإعادة ترتيب النباتات' : '✦ Drag cards to reorder plants'}
-            </p>
-          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {visiblePhotos.map((photo, idx) => {
               const realIdx = section.photos.indexOf(photo);
