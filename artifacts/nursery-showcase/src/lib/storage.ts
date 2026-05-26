@@ -402,7 +402,7 @@ export interface QuoteRequest {
   shipping_address?: string;
 }
 
-export async function submitQuote(data: { customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number }): Promise<string | null> {
+export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
   try {
     const res = await fetch('/api/quotes', {
       method: 'POST',
@@ -410,7 +410,11 @@ export async function submitQuote(data: { customerName: string; phone: string; i
       body: JSON.stringify(data),
     });
     if (res.ok) { const j = await res.json() as { id?: string }; return j.id ?? null; }
-  } catch { /* ignore */ }
+    // Log error details to help debug
+    console.error('[submitQuote] server error', res.status, await res.text().catch(() => ''));
+  } catch (err) {
+    console.error('[submitQuote] fetch error', err);
+  }
   return null;
 }
 

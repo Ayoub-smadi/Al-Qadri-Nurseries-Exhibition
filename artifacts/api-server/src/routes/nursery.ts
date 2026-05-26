@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import pg from "pg";
 import crypto from "crypto";
+import { logger } from "../lib/logger";
 
 const { Pool } = pg;
 
@@ -184,21 +185,28 @@ router.post("/quotes", async (req, res) => {
   const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body as {
     customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number;
   };
+  logger.info({ customerName, shippingMethod, shippingAddress: shippingAddress ?? '' }, '[NEW QUOTE] received');
   if (!customerName || !Array.isArray(items) || items.length === 0) {
+    logger.warn({ customerName, itemsType: typeof items }, '[NEW QUOTE] rejected — missing fields');
     res.status(400).json({ error: "Missing required fields" }); return;
   }
   if (shippingMethod !== 'pickup' && shippingMethod !== 'delivery') {
-    res.status(400).json({ error: "Invalid shipping method. Must be 'pickup' or 'delivery'." }); return;
+    logger.warn({ shippingMethod }, '[NEW QUOTE] rejected — invalid shipping method');
+    res.status(400).json({ error: "يجب اختيار طريقة التوصيل: استلام من المشتل أو توصيل" }); return;
   }
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
       `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod ?? '', shippingAddress ?? '', shippingFee ?? 0]
+      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod, shippingAddress ?? '', shippingFee ?? 0]
     );
+    logger.info({ id, shippingMethod }, '[NEW QUOTE] saved successfully');
     res.json({ id });
-  } catch { res.status(500).json({ error: "Failed to save quote" }); }
+  } catch (err) {
+    logger.error({ err }, '[NEW QUOTE] DB error');
+    res.status(500).json({ error: "Failed to save quote" });
+  }
 });
 
 router.get("/quotes", async (req, res) => {

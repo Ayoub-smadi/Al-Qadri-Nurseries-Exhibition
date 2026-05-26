@@ -2729,19 +2729,25 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     if (!custName.trim() || cart.length === 0) return;
     if (!shippingMode) { setShippingError(true); return; }
     if (shippingMode === 'delivery' && !shippingAddress.trim()) { setShippingError(true); return; }
+    // Snapshot ALL state values NOW before any async op — prevents stale closure issues
+    const snapShipping = shippingMode as 'pickup' | 'delivery';
+    const snapAddress  = shippingMode === 'delivery' ? shippingAddress.trim() : '';
+    const snapName     = custName.trim();
+    const snapPhone    = custPhone.trim();
+    const snapNotes    = custNotes.trim();
     setShippingError(false);
     setSubmitting(true);
     const items: QuoteItem[] = cart.map(c => ({ ...c, price: 0 }));
-    const id = await submitQuote({ customerName: custName, phone: custPhone, items, notes: custNotes, shippingMethod: shippingMode, shippingAddress: shippingMode === 'delivery' ? shippingAddress.trim() : '', shippingFee: 0 });
+    const id = await submitQuote({ shippingMethod: snapShipping, shippingAddress: snapAddress, customerName: snapName, phone: snapPhone, items, notes: snapNotes, shippingFee: 0 });
     setSubmitting(false);
     if (id) {
-      setSuccessData({ name: custName, mode: shippingMode, address: shippingAddress.trim() });
+      setSuccessData({ name: snapName, mode: snapShipping, address: snapAddress });
       setSuccess(true);
       setCart([]);
       setCustName(''); setCustPhone(''); setCustNotes(''); setShippingMode(''); setShippingAddress('');
       setTimeout(() => { setSuccess(false); setStep('pick'); onClose(); }, 2500);
     } else {
-      toast.error(isAr ? 'حدث خطأ، حاول مرة أخرى' : 'Error, please try again');
+      toast.error(isAr ? 'حدث خطأ في الإرسال — تأكد من اختيار طريقة التوصيل وحاول مرة أخرى' : 'Submission error — ensure delivery method is selected and try again');
     }
   };
 
@@ -3219,10 +3225,10 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <p className="text-xs text-muted-foreground arabic">{editQuote.phone} · {dateStr(editQuote.created_at)}</p>
                   <p className="text-xs arabic mt-0.5">
                     {isPickup(editQuote.shipping_method)
-                      ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'طريقة التوصيل: استلام' : 'Delivery: Pickup'}</span>
+                      ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
                       : editQuote.shipping_method === 'delivery'
-                        ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {isAr ? 'طريقة التوصيل: توصيل للعنوان' : 'Delivery: Address'}</span>
-                        : <span className="text-muted-foreground font-medium">{isAr ? 'لم تُحدَّد طريقة التوصيل' : 'No delivery method set'}</span>
+                        ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_address ? editQuote.shipping_address : (isAr ? 'توصيل — لم يُحدَّد العنوان' : 'Delivery — no address')}</span>
+                        : <span className="text-orange-500 font-medium">⚠️ {isAr ? 'لم يُحدَّد — اختر من الأسفل واحفظ' : 'Not set — choose below & save'}</span>
                     }
                   </p>
                 </div>
