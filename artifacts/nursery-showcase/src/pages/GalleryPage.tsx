@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, PDFSectionInput } from '@/lib/pdfGen';
@@ -3032,9 +3032,19 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
 /* ── Admin Quotes Modal ─────────────────────────────────── */
 function AdminQuotesModal({ open, onClose, lang, siteData }: {
   open: boolean; onClose: () => void; lang: string;
-  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string } };
+  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections: import('@/lib/storage').Section[] };
 }) {
   const isAr = lang === 'ar';
+
+  const plantImageMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of siteData.sections) {
+      for (const p of s.photos) {
+        if (p.image) m.set(p.id, p.image);
+      }
+    }
+    return m;
+  }, [siteData.sections]);
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [editQuote, setEditQuote] = useState<QuoteRequest | null>(null);
@@ -3086,7 +3096,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDownloadPDF = async (q: QuoteRequest) => {
     setPdfingId(q.id);
-    await downloadQuotePDF(q, siteData);
+    await downloadQuotePDF(q, { ...siteData, sections: siteData.sections });
     setPdfingId(null);
   };
 
@@ -3254,8 +3264,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     {editQuote.items.map((item, idx) => (
                       <div key={idx} className={`flex items-center gap-3 px-4 py-3 transition-colors ${item.unavailable ? 'bg-red-50/60 dark:bg-red-950/20' : ''}`}>
                         <div className={`w-14 h-14 rounded-lg overflow-hidden bg-muted shrink-0 border border-border transition-opacity ${item.unavailable ? 'opacity-40' : ''}`}>
-                          {item.plantImage ? (
-                            <img src={item.plantImage} alt={item.plantNameAr} className="w-full h-full object-cover" />
+                          {(item.plantImage || plantImageMap.get(item.plantId)) ? (
+                            <img src={item.plantImage || plantImageMap.get(item.plantId)} alt={item.plantNameAr} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center"><Flower2 className="w-5 h-5 opacity-30" /></div>
                           )}

@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Section, Photo, QuoteItem, QuoteRequest } from '@/lib/storage';
+import { Section, Photo, QuoteItem, QuoteRequest, SiteData } from '@/lib/storage';
 
 export interface PDFSectionInput {
   section: Section;
@@ -177,16 +177,25 @@ export async function downloadCatalogPDF(
 /* ── Quote PDF ─────────────────────────────────────────── */
 export async function downloadQuotePDF(
   quote: QuoteRequest,
-  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string } }
+  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections?: SiteData['sections'] }
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
   const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
 
-  // Pre-load plant images
+  // Build a lookup of plantId → image from current siteData sections (fallback for stripped images)
+  const sectionImgLookup = new Map<string, string>();
+  for (const sec of (siteData.sections ?? [])) {
+    for (const p of sec.photos) {
+      if (p.image) sectionImgLookup.set(p.id, p.image);
+    }
+  }
+
+  // Pre-load plant images — prefer stored plantImage, fall back to current siteData image
   const imgMap = new Map<string, string>();
   for (const item of items) {
-    if (item.plantImage && !imgMap.has(item.plantId)) {
-      imgMap.set(item.plantId, await toDataUrl(item.plantImage));
+    const src = item.plantImage || sectionImgLookup.get(item.plantId) || '';
+    if (src && !imgMap.has(item.plantId)) {
+      imgMap.set(item.plantId, await toDataUrl(src));
     }
   }
 
