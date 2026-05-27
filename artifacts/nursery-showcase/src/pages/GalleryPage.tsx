@@ -20,6 +20,25 @@ import { Checkbox } from '@/components/ui/checkbox';
 /* ── utils ─────────────────────────────────────────────── */
 function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
+function playNotificationSound() {
+  try {
+    const ctx = new AudioContext();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    [880, 1100, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.connect(gain);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.12 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.28);
+      osc.start(ctx.currentTime + i * 0.12);
+      osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+    });
+  } catch { /* ignore */ }
+}
+
 /* ── Social platform config ─────────────────────────────── */
 const SOCIAL_PLATFORMS: { value: SocialPlatform; labelAr: string; labelEn: string; color: string }[] = [
   { value: 'facebook',  labelAr: 'فيسبوك',       labelEn: 'Facebook',   color: '#1877F2' },
@@ -407,14 +426,31 @@ export default function GalleryPage() {
   const [xlsxLoading, setXlsxLoading] = useState(false);
 
   /* ── poll pending quotes count when admin is logged in ── */
+  const prevPendingRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!isAdmin) { setPendingQuoteCount(0); return; }
+    if (!isAdmin) { setPendingQuoteCount(0); prevPendingRef.current = null; return; }
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     const poll = async () => {
       const qs = await fetchQuotes();
-      if (qs) setPendingQuoteCount(qs.filter(q => q.status !== 'priced').length);
+      if (qs) {
+        const newPending = qs.filter(q => q.status !== 'priced').length;
+        const prev = prevPendingRef.current;
+        if (prev !== null && newPending > prev) {
+          playNotificationSound();
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('مشاتل القادري — طلب جديد 🌿', {
+              body: `وصلك ${newPending - prev} طلب عرض سعر جديد`,
+            });
+          }
+        }
+        prevPendingRef.current = newPending;
+        setPendingQuoteCount(newPending);
+      }
     };
     poll();
-    const id = setInterval(poll, 60_000);
+    const id = setInterval(poll, 30_000);
     return () => clearInterval(id);
   }, [isAdmin]);
 
@@ -3048,6 +3084,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [tab, setTab] = useState<'new' | 'priced'>('new');
   const todayMonth = new Date().toISOString().slice(0, 7);
   const [selectedMonth, setSelectedMonth] = useState<string>(todayMonth);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -3133,7 +3170,24 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   }, [quotes, todayMonth]);
 
   const monthQuotes = quotes.filter(q => q.created_at.slice(0, 7) === selectedMonth);
-  const visibleQuotes = monthQuotes.filter(q => tab === 'new' ? q.status !== 'priced' : q.status === 'priced');
+  const trimmedSearch = searchQuery.trim();
+  const visibleQuotes = trimmedSearch
+    ? quotes.filter(q => q.customer_name.toLowerCase().includes(trimmedSearch.toLowerCase()))
+    : monthQuotes.filter(q => tab === 'new' ? q.status !== 'priced' : q.status === 'priced');
+
+  const handleWhatsApp = (q: QuoteRequest) => {
+    const rawPhone = (q.phone || '').replace(/[\s\-\(\)]/g, '');
+    const phone = rawPhone.startsWith('0') ? '962' + rawPhone.slice(1) : rawPhone;
+    const sub = subtotal(q);
+    const after = sub - sub * (Number(q.discount) / 100);
+    const total = after + after * (Number(q.tax) / 100) + (Number(q.shipping_fee) || 0);
+    const lines = (q.items as import('@/lib/storage').QuoteItem[])
+      .filter(it => !it.unavailable)
+      .map(it => `• ${it.plantNameAr}${it.size ? ` (${it.size})` : ''} × ${it.quantity}${it.price ? ' — ' + (it.price * it.quantity).toFixed(2) + ' د.أ' : ''}`)
+      .join('\n');
+    const msg = `السلام عليكم ${q.customer_name} 🌿\n\nعرض الأسعار الخاص بطلبكم:\n\n${lines}\n\nالإجمالي: ${total.toFixed(2)} د.أ\n\nمشاتل القادري الزراعية`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
@@ -3211,6 +3265,25 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
           </button>
         </div>
 
+        {/* Search bar */}
+        <div className="px-3 py-2 border-b border-border shrink-0">
+          <div className="relative">
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setEditQuote(null); }}
+              placeholder={isAr ? 'ابحث باسم الزبون...' : 'Search by name...'}
+              className="w-full ps-8 pe-8 py-1.5 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+            />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setEditQuote(null); }} className="absolute end-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-1 overflow-hidden">
           {/* Quotes list */}
           <div className={`${editQuote ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-72 border-e border-border overflow-y-auto shrink-0`}>
@@ -3222,7 +3295,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
               <div className="flex-1 flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
                 <Inbox className="w-10 h-10 opacity-30" />
                 <p className="text-sm arabic">
-                  {tab === 'new'
+                  {trimmedSearch
+                    ? (isAr ? 'لا نتائج للبحث' : 'No results found')
+                    : tab === 'new'
                     ? (isAr ? 'لا توجد طلبات جديدة' : 'No new requests')
                     : (isAr ? 'لا توجد طلبات مسعّرة بعد' : 'No priced quotes yet')}
                 </p>
@@ -3289,6 +3364,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
                   </Button>
+                  {editQuote.phone && (
+                    <Button size="sm" variant="outline" onClick={() => handleWhatsApp(editQuote)} className="text-xs bg-[#25D366]/10 border-[#25D366]/40 text-[#128C7E] hover:bg-[#25D366]/20 dark:text-[#25D366]">
+                      <svg className="w-3.5 h-3.5 me-1" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      {isAr ? 'واتساب' : 'WhatsApp'}
+                    </Button>
+                  )}
                   <Button size="sm" onClick={() => handleSave(editQuote)} disabled={savingId === editQuote.id} className="arabic text-xs">
                     {savingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (isAr ? 'حفظ' : 'Save')}
                   </Button>
