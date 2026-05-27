@@ -364,5 +364,7 @@ export async function downloadQuotePDF(
   const pageH = canvas.height / PX_PER_MM;
   const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
-  pdf.save(`quote-${quoteNum}.pdf`);
+  const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
+  pdf.save(`${safeName}_${dateTag}.pdf`);
 }
