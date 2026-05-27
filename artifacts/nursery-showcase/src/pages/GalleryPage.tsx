@@ -3046,6 +3046,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced'>('new');
+  const todayMonth = new Date().toISOString().slice(0, 7);
+  const [selectedMonth, setSelectedMonth] = useState<string>(todayMonth);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -3112,9 +3114,26 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const dateStr = (s: string) => new Date(s).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB');
   const isPickup = (method?: string) => method === 'pickup';
   const subtotal = (q: QuoteRequest) => q.items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
-  const newQuotes = quotes.filter(q => q.status !== 'priced');
-  const pricedQuotes = quotes.filter(q => q.status === 'priced');
-  const visibleQuotes = tab === 'new' ? newQuotes : pricedQuotes;
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split('-');
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    return isAr
+      ? d.toLocaleDateString('ar-JO', { month: 'long', year: 'numeric' })
+      : d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  };
+
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    months.add(todayMonth);
+    for (const q of quotes) {
+      months.add(q.created_at.slice(0, 7));
+    }
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [quotes, todayMonth]);
+
+  const monthQuotes = quotes.filter(q => q.created_at.slice(0, 7) === selectedMonth);
+  const visibleQuotes = monthQuotes.filter(q => tab === 'new' ? q.status !== 'priced' : q.status === 'priced');
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
@@ -3141,6 +3160,35 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             </button>
           </div>
         </div>
+        {/* Month navigator */}
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-border shrink-0 bg-muted/10">
+          <button
+            onClick={() => { const i = availableMonths.indexOf(selectedMonth); if (i < availableMonths.length - 1) { setSelectedMonth(availableMonths[i + 1]); setEditQuote(null); } }}
+            disabled={availableMonths.indexOf(selectedMonth) >= availableMonths.length - 1}
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronDown className="w-4 h-4 rotate-90" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <select
+              value={selectedMonth}
+              onChange={e => { setSelectedMonth(e.target.value); setEditQuote(null); }}
+              className="w-full text-center text-sm font-bold arabic bg-transparent border-none outline-none cursor-pointer text-foreground"
+            >
+              {availableMonths.map(ym => (
+                <option key={ym} value={ym}>{monthLabel(ym)}{ym === todayMonth ? (isAr ? ' (الحالي)' : ' (current)') : ''}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => { const i = availableMonths.indexOf(selectedMonth); if (i > 0) { setSelectedMonth(availableMonths[i - 1]); setEditQuote(null); } }}
+            disabled={availableMonths.indexOf(selectedMonth) <= 0}
+            className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors shrink-0"
+          >
+            <ChevronDown className="w-4 h-4 -rotate-90" />
+          </button>
+        </div>
+
         {/* Tabs */}
         <div className="flex border-b border-border shrink-0 bg-muted/20">
           <button
@@ -3148,8 +3196,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm arabic font-medium transition-colors ${tab === 'new' ? 'border-b-2 border-primary text-primary bg-background' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {isAr ? 'جديدة' : 'New'}
-            {newQuotes.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'new' ? 'bg-primary text-primary-foreground' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{newQuotes.length}</span>
+            {monthQuotes.filter(q => q.status !== 'priced').length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'new' ? 'bg-primary text-primary-foreground' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>{monthQuotes.filter(q => q.status !== 'priced').length}</span>
             )}
           </button>
           <button
@@ -3157,8 +3205,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm arabic font-medium transition-colors ${tab === 'priced' ? 'border-b-2 border-primary text-primary bg-background' : 'text-muted-foreground hover:text-foreground'}`}
           >
             {isAr ? 'مسعّرة' : 'Priced'}
-            {pricedQuotes.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'priced' ? 'bg-primary text-primary-foreground' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>{pricedQuotes.length}</span>
+            {monthQuotes.filter(q => q.status === 'priced').length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'priced' ? 'bg-primary text-primary-foreground' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>{monthQuotes.filter(q => q.status === 'priced').length}</span>
             )}
           </button>
         </div>
