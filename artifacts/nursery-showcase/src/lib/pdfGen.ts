@@ -181,6 +181,7 @@ export async function downloadQuotePDF(
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
   const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
+  const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
 
   // Build a lookup of plantId → image from current siteData sections (fallback for stripped images)
   const sectionImgLookup = new Map<string, string>();
@@ -334,6 +335,7 @@ export async function downloadQuotePDF(
           <div style="font-size:12px;color:#555;">المدير العام/ ثامر احمد القادري</div>
           <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ccc;width:160px;margin-left:auto;margin-right:auto;">
             <span style="font-size:10px;color:#aaa;">واقبلوا فائق الاحترام....</span>
+            ${stampDataUrl ? `<div style="margin-top:6px;"><img src="${stampDataUrl}" style="width:120px;height:auto;object-fit:contain;display:inline-block;" /></div>` : ''}
           </div>
         </div>
         <div></div>
