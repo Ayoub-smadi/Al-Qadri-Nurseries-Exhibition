@@ -174,11 +174,10 @@ export async function downloadCatalogPDF(
   pdf.save(filename);
 }
 
-/* ── Quote PDF ─────────────────────────────────────────── */
-export async function downloadQuotePDF(
-  quote: QuoteRequest,
-  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections?: SiteData['sections'] }
-): Promise<void> {
+/* ── Quote PDF shared builder ───────────────────────────── */
+type QuoteSiteData = { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections?: SiteData['sections'] };
+
+async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<{ pdf: jsPDF; fileName: string }> {
   const items = quote.items as QuoteItem[];
   const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
@@ -360,13 +359,35 @@ export async function downloadQuotePDF(
   const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
   document.body.removeChild(div);
 
-  // Single-page PDF sized to content — no row splitting
   const PX_PER_MM = 3.7795275591;
   const pageW = canvas.width / PX_PER_MM;
   const pageH = canvas.height / PX_PER_MM;
   const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
   const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA'); // YYYY-MM-DD
-  pdf.save(`${safeName}_${dateTag}.pdf`);
+  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
+  const fileName = `${safeName}_${dateTag}.pdf`;
+  return { pdf, fileName };
+}
+
+export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
+  const { pdf, fileName } = await buildQuotePDF(quote, siteData);
+  pdf.save(fileName);
+}
+
+export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
+  const { pdf, fileName } = await buildQuotePDF(quote, siteData);
+  const blob = pdf.output('blob');
+  const file = new File([blob], fileName, { type: 'application/pdf' });
+
+  const rawPhone = (quote.phone || '').replace(/[\s\-\(\)]/g, '');
+  const phone = rawPhone.startsWith('0') ? '962' + rawPhone.slice(1) : rawPhone;
+  const textMsg = `السلام عليكم ${quote.customer_name} 🌿\nتجدون مرفقاً عرض الأسعار الخاص بطلبكم.\nمشاتل القادري الزراعية`;
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: fileName, text: textMsg });
+  } else {
+    pdf.save(fileName);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(textMsg)}`, '_blank');
+  }
 }
