@@ -40,7 +40,7 @@ const dbReady: Promise<void> = (async () => {
   }
 })();
 
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TOKEN_SECRET = crypto.createHash("sha256").update(DB_URL).digest();
 
 function hashPassword(password: string): string {
