@@ -1,13 +1,11 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import compression from "compression";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-app.use(compression({ level: 6, threshold: 1024 }));
 app.use(
   pinoHttp({
     logger,
@@ -30,8 +28,6 @@ app.use(
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-
-app.disable("x-powered-by");
 
 app.use("/api", router);
 
