@@ -1957,6 +1957,7 @@ export default function GalleryPage() {
           onClose={() => setAdminInvoicesOpen(false)}
           lang={lang}
           siteData={siteData}
+          onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); openLoginModal(); }}
         />
       )}
 
@@ -3700,9 +3701,10 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 }
 
 /* ── Admin Invoices Modal ───────────────────────────────── */
-function AdminInvoicesModal({ open, onClose, lang, siteData }: {
+function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }: {
   open: boolean; onClose: () => void; lang: string;
   siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string } };
+  onSessionExpired?: () => void;
 }) {
   const isAr = lang === 'ar';
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -3737,18 +3739,21 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
     if (draft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
     setCreating(true);
     const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes, status: draft.status });
-    if (result && result !== 'unauthorized') {
-      toast.success(isAr ? `تم إنشاء الفاتورة رقم ${(result as {id:string;number:string}).number}` : `Invoice No. ${(result as {id:string;number:string}).number} created`);
+    const successResult = (result !== null && result !== undefined && typeof result === 'object' && 'id' in result) ? result as {id:string;number:string} : null;
+    const errorResult  = (result !== null && result !== undefined && typeof result === 'object' && 'error' in result) ? result as {error:string} : null;
+    if (successResult) {
+      toast.success(isAr ? `تم إنشاء الفاتورة رقم ${successResult.number}` : `Invoice No. ${successResult.number} created`);
       resetDraft();
       setView('list');
       await load();
+    } else if (errorResult) {
+      toast.error(`فشل: ${errorResult.error}`, { duration: 8000 });
     } else {
       const stillValid = await validateToken();
       if (!stillValid) {
         setSessionToken(null);
-        setIsAdmin(false);
+        onSessionExpired?.();
         toast.error(isAr ? 'انتهت جلسة الدخول — سجّل الدخول مجدداً' : 'Session expired — please log in again', { duration: 5000 });
-        openLoginModal();
       } else {
         toast.error(isAr ? 'فشل إنشاء الفاتورة — حاول مرة أخرى' : 'Failed to create invoice — please try again');
       }

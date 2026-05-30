@@ -144,6 +144,9 @@ const ADMIN_TOKEN_KEY = 'gallery_admin_token';
 
 let _sessionToken: string | null = null;
 
+/** Returns the API base path — always '/api', proxied by the Vite dev server. */
+const getApiBase = () => '/api';
+
 export function setSessionToken(token: string | null) {
   _sessionToken = token;
   try {
@@ -171,7 +174,7 @@ function getToken(): string | null {
 
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   try {
-    const res = await fetch("/api/admin/login", {
+    const res = await fetch(`${getApiBase()}/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -186,7 +189,7 @@ export async function adminLogin(username: string, password: string): Promise<st
 
 export async function checkNeedsSetup(): Promise<boolean> {
   try {
-    const res = await fetch("/api/admin/needs-setup");
+    const res = await fetch(`${getApiBase()}/admin/needs-setup`);
     if (res.ok) {
       const json = await res.json() as { needsSetup?: boolean };
       return json.needsSetup === true;
@@ -197,7 +200,7 @@ export async function checkNeedsSetup(): Promise<boolean> {
 
 export async function adminSetup(username: string, password: string): Promise<boolean> {
   try {
-    const res = await fetch("/api/admin/setup", {
+    const res = await fetch(`${getApiBase()}/admin/setup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -215,7 +218,7 @@ export async function adminSetup(username: string, password: string): Promise<bo
  */
 export async function fetchSiteData(): Promise<SiteData | null> {
   try {
-    const res = await fetch("/api/site-data");
+    const res = await fetch(`${getApiBase()}/site-data`);
     if (res.ok) {
       const json = await res.json();
       if (json.data) {
@@ -258,7 +261,7 @@ export async function validateToken(): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch("/api/admin/verify", {
+    const res = await fetch(`${getApiBase()}/admin/verify`, {
       headers: { "Authorization": `Bearer ${token}` },
     });
     return res.ok;
@@ -281,7 +284,7 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
     return { ok: false, unauthorized: false, tooBig: true };
   }
   try {
-    const res = await fetch("/api/site-data", {
+    const res = await fetch(`${getApiBase()}/site-data`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -301,7 +304,7 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
 export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
   const token = getToken();
   if (!token) throw new Error("Not authenticated");
-  const res = await fetch("/api/images/from-url", {
+  const res = await fetch(`${getApiBase()}/images/from-url`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -349,7 +352,7 @@ export async function uploadImage(file: File): Promise<string> {
       const mimeType = isPng ? "image/png" : "image/jpeg";
       const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.75);
       try {
-        const res = await fetch("/api/images", {
+        const res = await fetch(`${getApiBase()}/images`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -426,7 +429,7 @@ export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery';
   const payload = { ...data, items: itemsForApi };
   console.log('[submitQuote] sending →', { shippingMethod: payload.shippingMethod, shippingAddress: payload.shippingAddress, customerName: payload.customerName, itemsCount: itemsForApi.length });
   try {
-    const res = await fetch('/api/quotes', {
+    const res = await fetch(`${getApiBase()}/quotes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -444,7 +447,7 @@ export async function fetchQuotes(opts?: { trash?: boolean }): Promise<QuoteRequ
   const token = getToken();
   if (!token) return null;
   try {
-    const url = opts?.trash ? '/api/quotes?trash=1' : '/api/quotes';
+    const url = opts?.trash ? `${getApiBase()}/quotes?trash=1` : `${getApiBase()}/quotes`;
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
     if (res.status === 401) return null;
@@ -456,7 +459,7 @@ export async function updateQuote(id: string, data: { items: QuoteItem[]; discou
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/quotes/${id}`, {
+    const res = await fetch(`${getApiBase()}/quotes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data),
@@ -470,7 +473,7 @@ export async function deleteQuote(id: string): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${getApiBase()}/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;
@@ -480,7 +483,7 @@ export async function restoreQuote(id: string): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/quotes/${id}/restore`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${getApiBase()}/quotes/${id}/restore`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;
@@ -490,7 +493,7 @@ export async function permanentDeleteQuote(id: string): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/quotes/${id}/permanent`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${getApiBase()}/quotes/${id}/permanent`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;
@@ -500,18 +503,18 @@ export async function fetchInvoices(): Promise<Invoice[] | null> {
   const token = getToken();
   if (!token) return null;
   try {
-    const res = await fetch('/api/invoices', { headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${getApiBase()}/invoices`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { invoices?: Invoice[] }; return j.invoices ?? []; }
   } catch { /* ignore */ }
   return null;
 }
 
-export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null | 'unauthorized'> {
+export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null | 'unauthorized' | { error: string }> {
   const token = getToken();
   if (!token) return 'unauthorized';
-  const tryOnce = async (): Promise<{ ok: true; value: { id: string; number: string } | null | 'unauthorized' } | { ok: false }> => {
+  const tryOnce = async (): Promise<{ ok: true; value: { id: string; number: string } | null | 'unauthorized' | { error: string } } | { ok: false; reason: string }> => {
     try {
-      const res = await fetch('/api/invoices', {
+      const res = await fetch(`${getApiBase()}/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -520,10 +523,11 @@ export async function createInvoice(data: { customerName: string; date: string; 
       if (res.status === 403 || res.status === 401) return { ok: true, value: 'unauthorized' };
       const errText = await res.text().catch(() => '');
       console.error('[createInvoice] server error', res.status, errText);
-      return { ok: true, value: null };
+      return { ok: true, value: { error: `HTTP ${res.status}: ${errText.slice(0, 80)}` } };
     } catch (err) {
-      console.warn('[createInvoice] network error, will retry in 2s:', err);
-      return { ok: false };
+      const reason = err instanceof Error ? err.message : String(err);
+      console.warn('[createInvoice] network error, will retry in 2s:', reason);
+      return { ok: false, reason };
     }
   };
   const first = await tryOnce();
@@ -531,15 +535,16 @@ export async function createInvoice(data: { customerName: string; date: string; 
   await new Promise(r => setTimeout(r, 2000));
   const second = await tryOnce();
   if (second.ok) return second.value;
-  console.error('[createInvoice] failed after retry');
-  return null;
+  const lastReason = (second as { ok: false; reason: string }).reason;
+  console.error('[createInvoice] failed after retry:', lastReason);
+  return { error: `network: ${lastReason.slice(0, 100)}` };
 }
 
 export async function updateInvoiceStatus(id: string, status: 'paid' | 'receivable'): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/invoices/${id}/status`, {
+    const res = await fetch(`${getApiBase()}/invoices/${id}/status`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ status }),
@@ -552,7 +557,7 @@ export async function deleteInvoice(id: string): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
-    const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    const res = await fetch(`${getApiBase()}/invoices/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;
