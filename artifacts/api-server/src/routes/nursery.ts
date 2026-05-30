@@ -1,7 +1,8 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import pg from "pg";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { MemCache, RateLimiter } from "../lib/cache";
 
 const { Pool } = pg;
 
@@ -13,7 +14,19 @@ if (!DB_URL) {
 
 const pool = new Pool({
   connectionString: DB_URL,
+  max: 20,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 3_000,
+  allowExitOnIdle: false,
 });
+
+pool.on("error", (err) => logger.error({ err }, "Unexpected PG pool error"));
+
+const siteCache = new MemCache<unknown>();
+const SITE_CACHE_KEY = "site-data";
+const SITE_CACHE_TTL = 60_000;
+
+const authLimiter = new RateLimiter(10, 60_000);
 
 const dbReady: Promise<void> = (async () => {
   try {
@@ -82,6 +95,11 @@ function requireSession(req: Request, res: Response): boolean {
 const router: IRouter = Router();
 
 router.post("/admin/login", async (req, res) => {
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? "unknown";
+  if (!authLimiter.isAllowed(ip)) {
+    res.status(429).json({ error: "Too many login attempts — try again later" });
+    return;
+  }
   const { username, password } = req.body as { username?: string; password?: string };
   if (!username || !password) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -144,10 +162,20 @@ router.get("/admin/verify", (req, res) => {
 });
 
 router.get("/site-data", async (_req, res) => {
+  const cached = siteCache.get(SITE_CACHE_KEY);
+  if (cached !== undefined) {
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.setHeader("X-Cache", "HIT");
+    res.json({ data: cached });
+    return;
+  }
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
-    if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    res.json({ data: rows.rows[0].data });
+    const data = rows.rows.length === 0 ? null : rows.rows[0].data;
+    siteCache.set(SITE_CACHE_KEY, data, SITE_CACHE_TTL);
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.setHeader("X-Cache", "MISS");
+    res.json({ data });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
@@ -166,6 +194,7 @@ router.put("/site-data", async (req, res) => {
        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()`,
       [JSON.stringify(data)]
     );
+    siteCache.set(SITE_CACHE_KEY, data, SITE_CACHE_TTL);
     res.json({ data });
   } catch {
     res.status(500).json({ error: "Failed to save site data" });
