@@ -509,17 +509,29 @@ export async function fetchInvoices(): Promise<Invoice[] | null> {
 export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null | 'unauthorized'> {
   const token = getToken();
   if (!token) return 'unauthorized';
-  try {
-    const res = await fetch('/api/invoices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(data),
-    });
-    if (res.ok) { return await res.json() as { id: string; number: string }; }
-    if (res.status === 403 || res.status === 401) return 'unauthorized';
-    const errText = await res.text().catch(() => '');
-    console.error('[createInvoice] server error', res.status, errText);
-  } catch (err) { console.error('[createInvoice] fetch error', err); }
+  const tryOnce = async (): Promise<{ ok: true; value: { id: string; number: string } | null | 'unauthorized' } | { ok: false }> => {
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) return { ok: true, value: await res.json() as { id: string; number: string } };
+      if (res.status === 403 || res.status === 401) return { ok: true, value: 'unauthorized' };
+      const errText = await res.text().catch(() => '');
+      console.error('[createInvoice] server error', res.status, errText);
+      return { ok: true, value: null };
+    } catch (err) {
+      console.warn('[createInvoice] network error, will retry in 2s:', err);
+      return { ok: false };
+    }
+  };
+  const first = await tryOnce();
+  if (first.ok) return first.value;
+  await new Promise(r => setTimeout(r, 2000));
+  const second = await tryOnce();
+  if (second.ok) return second.value;
+  console.error('[createInvoice] failed after retry');
   return null;
 }
 
