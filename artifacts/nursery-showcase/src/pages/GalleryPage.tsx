@@ -3737,13 +3737,15 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
     if (draft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
     setCreating(true);
     const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes, status: draft.status });
-    if (result) {
+    if (result === 'unauthorized') {
+      toast.error(isAr ? 'انتهت جلسة الدخول — يرجى تسجيل الدخول مجدداً' : 'Session expired — please log in again');
+    } else if (result) {
       toast.success(isAr ? `تم إنشاء الفاتورة رقم ${result.number}` : `Invoice No. ${result.number} created`);
       resetDraft();
       setView('list');
       await load();
     } else {
-      toast.error(isAr ? 'فشل إنشاء الفاتورة' : 'Failed to create invoice');
+      toast.error(isAr ? 'فشل إنشاء الفاتورة — تحقق من الاتصال بالإنترنت' : 'Failed to create invoice — check your connection');
     }
     setCreating(false);
   };

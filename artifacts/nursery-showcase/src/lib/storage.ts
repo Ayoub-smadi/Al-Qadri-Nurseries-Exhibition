@@ -506,9 +506,9 @@ export async function fetchInvoices(): Promise<Invoice[] | null> {
   return null;
 }
 
-export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null> {
+export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null | 'unauthorized'> {
   const token = getToken();
-  if (!token) return null;
+  if (!token) return 'unauthorized';
   try {
     const res = await fetch('/api/invoices', {
       method: 'POST',
@@ -516,6 +516,7 @@ export async function createInvoice(data: { customerName: string; date: string; 
       body: JSON.stringify(data),
     });
     if (res.ok) { return await res.json() as { id: string; number: string }; }
+    if (res.status === 403 || res.status === 401) return 'unauthorized';
     const errText = await res.text().catch(() => '');
     console.error('[createInvoice] server error', res.status, errText);
   } catch (err) { console.error('[createInvoice] fetch error', err); }
