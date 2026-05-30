@@ -396,10 +396,27 @@ export interface QuoteRequest {
   tax: number;
   status: string;
   created_at: string;
+  deleted_at?: string | null;
   shipping_destination?: string;
   shipping_fee?: number;
   shipping_method?: string;
   shipping_address?: string;
+}
+
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  customer_name: string;
+  date: string;
+  items: InvoiceItem[];
+  notes: string;
+  created_at: string;
 }
 
 export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
@@ -422,11 +439,12 @@ export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery';
   return null;
 }
 
-export async function fetchQuotes(): Promise<QuoteRequest[] | null> {
+export async function fetchQuotes(opts?: { trash?: boolean }): Promise<QuoteRequest[] | null> {
   const token = getToken();
   if (!token) return null;
   try {
-    const res = await fetch('/api/quotes', { headers: { 'Authorization': `Bearer ${token}` } });
+    const url = opts?.trash ? '/api/quotes?trash=1' : '/api/quotes';
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
     if (res.status === 401) return null;
   } catch { /* ignore */ }
@@ -452,6 +470,60 @@ export async function deleteQuote(id: string): Promise<boolean> {
   if (!token) return false;
   try {
     const res = await fetch(`/api/quotes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
+export async function restoreQuote(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/quotes/${id}/restore`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
+export async function permanentDeleteQuote(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/quotes/${id}/permanent`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    return res.ok;
+  } catch { /* ignore */ }
+  return false;
+}
+
+export async function fetchInvoices(): Promise<Invoice[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch('/api/invoices', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) { const j = await res.json() as { invoices?: Invoice[] }; return j.invoices ?? []; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string }): Promise<{ id: string; number: string } | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) { return await res.json() as { id: string; number: string }; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function deleteInvoice(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     return res.ok;
   } catch { /* ignore */ }
   return false;

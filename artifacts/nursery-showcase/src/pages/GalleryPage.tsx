@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, submitQuote, fetchQuotes, updateQuote, deleteQuote } from '@/lib/storage';
-import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, PDFSectionInput } from '@/lib/pdfGen';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, deleteInvoice } from '@/lib/storage';
+import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -10,6 +10,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
+  FileText, Trash, ArchiveRestore,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -413,6 +414,8 @@ export default function GalleryPage() {
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
   const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
+  /* admin invoices */
+  const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
 
   /* backup / restore */
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -1461,6 +1464,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<Share2 className="w-3.5 h-3.5" />} label={isAr ? 'روابطنا' : 'Links'} onClick={openAddSocial} />
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
+            <ToolBtn icon={<FileText className="w-3.5 h-3.5" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <div className="w-px h-5 bg-border shrink-0" />
             <ToolBtn icon={<FileSpreadsheet className="w-3.5 h-3.5" />} label={isAr ? 'Excel' : 'Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
@@ -1941,6 +1945,16 @@ export default function GalleryPage() {
         <AdminQuotesModal
           open={adminQuotesOpen}
           onClose={() => setAdminQuotesOpen(false)}
+          lang={lang}
+          siteData={siteData}
+        />
+      )}
+
+      {/* Admin Invoices Modal */}
+      {isAdmin && (
+        <AdminInvoicesModal
+          open={adminInvoicesOpen}
+          onClose={() => setAdminInvoicesOpen(false)}
           lang={lang}
           siteData={siteData}
         />
@@ -3077,12 +3091,15 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     return m;
   }, [siteData.sections]);
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
+  const [trashQuotes, setTrashQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [trashLoading, setTrashLoading] = useState(false);
   const [editQuote, setEditQuote] = useState<QuoteRequest | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'new' | 'priced'>('new');
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
   const todayMonth = new Date().toISOString().slice(0, 7);
   const [selectedMonth, setSelectedMonth] = useState<string>(todayMonth);
   const [searchQuery, setSearchQuery] = useState('');
@@ -3095,19 +3112,53 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setLoading(false);
   }, []);
 
-  useEffect(() => { if (open) load(); }, [open, load]);
+  const loadTrash = useCallback(async () => {
+    setTrashLoading(true);
+    setTrashQuotes([]);
+    const qs = await fetchQuotes({ trash: true });
+    if (qs !== null) setTrashQuotes(qs);
+    setTrashLoading(false);
+  }, []);
+
+  useEffect(() => { if (open) { load(); } }, [open, load]);
+  useEffect(() => { if (open && tab === 'trash') loadTrash(); }, [open, tab, loadTrash]);
 
   useEffect(() => {
     if (!open) return;
-    const id = setInterval(() => { load(); }, 15000);
+    const id = setInterval(() => { if (tab !== 'trash') load(); }, 15000);
     return () => clearInterval(id);
-  }, [open, load]);
+  }, [open, load, tab]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm(isAr ? 'تأكيد الحذف؟' : 'Delete this quote?')) return;
+    if (!confirm(isAr ? 'نقل للمحذوفات؟' : 'Move to trash?')) return;
     await deleteQuote(id);
     setQuotes(prev => prev.filter(q => q.id !== id));
     if (editQuote?.id === id) setEditQuote(null);
+    toast.success(isAr ? 'تم النقل للمحذوفات' : 'Moved to trash');
+  };
+
+  const handleRestore = async (id: string) => {
+    setRestoringId(id);
+    await restoreQuote(id);
+    setTrashQuotes(prev => prev.filter(q => q.id !== id));
+    setRestoringId(null);
+    toast.success(isAr ? 'تمت الاستعادة' : 'Restored');
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    if (!confirm(isAr ? 'حذف نهائي؟ لا يمكن التراجع!' : 'Permanently delete? Cannot be undone!')) return;
+    await permanentDeleteQuote(id);
+    setTrashQuotes(prev => prev.filter(q => q.id !== id));
+    toast.success(isAr ? 'تم الحذف النهائي' : 'Permanently deleted');
+  };
+
+  const handleEmptyTrash = async () => {
+    if (!confirm(isAr ? 'حذف جميع المحذوفات نهائياً؟ لا يمكن التراجع!' : 'Delete all trash permanently? Cannot be undone!')) return;
+    for (const q of trashQuotes) {
+      await permanentDeleteQuote(q.id);
+    }
+    setTrashQuotes([]);
+    toast.success(isAr ? 'تم تفريغ سلة المحذوفات' : 'Trash emptied');
   };
 
   const handleQuickStatus = async (q: QuoteRequest, e: React.MouseEvent) => {
@@ -3259,27 +3310,93 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'priced' ? 'bg-primary text-primary-foreground' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>{monthQuotes.filter(q => q.status === 'priced').length}</span>
             )}
           </button>
-        </div>
-
-        {/* Search bar */}
-        <div className="px-3 py-2 border-b border-border shrink-0">
-          <div className="relative">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setEditQuote(null); }}
-              placeholder={isAr ? 'ابحث باسم الزبون...' : 'Search by name...'}
-              className="w-full ps-8 pe-8 py-1.5 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-            />
-            {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setEditQuote(null); }} className="absolute end-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground">
-                <X className="w-3 h-3" />
-              </button>
+          <button
+            onClick={() => { setTab('trash'); setEditQuote(null); setSearchQuery(''); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm arabic font-medium transition-colors ${tab === 'trash' ? 'border-b-2 border-destructive text-destructive bg-background' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            <Trash className="w-3.5 h-3.5" />
+            {isAr ? 'المحذوفات' : 'Trash'}
+            {trashQuotes.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'trash' ? 'bg-destructive text-destructive-foreground' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>{trashQuotes.length}</span>
             )}
-          </div>
+          </button>
         </div>
 
+        {/* Search bar — hidden in trash tab */}
+        {tab !== 'trash' && (
+          <div className="px-3 py-2 border-b border-border shrink-0">
+            <div className="relative">
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setEditQuote(null); }}
+                placeholder={isAr ? 'ابحث باسم الزبون...' : 'Search by name...'}
+                className="w-full ps-8 pe-8 py-1.5 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setEditQuote(null); }} className="absolute end-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Trash tab content */}
+        {tab === 'trash' && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {trashQuotes.length > 0 && (
+              <div className="px-3 py-2 border-b border-border shrink-0 flex items-center justify-between bg-red-50/50 dark:bg-red-950/20">
+                <p className="text-xs arabic text-muted-foreground">{isAr ? `${trashQuotes.length} طلب محذوف` : `${trashQuotes.length} deleted requests`}</p>
+                <button onClick={handleEmptyTrash} className="text-xs arabic text-destructive hover:underline font-medium">
+                  {isAr ? 'تفريغ السلة' : 'Empty trash'}
+                </button>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto">
+              {trashLoading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+              ) : trashQuotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                  <Trash className="w-10 h-10 opacity-30" />
+                  <p className="text-sm arabic">{isAr ? 'سلة المحذوفات فارغة' : 'Trash is empty'}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {trashQuotes.map(q => (
+                    <div key={q.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold arabic text-foreground/70 truncate line-through">{q.customer_name}</p>
+                        <p className="text-xs text-muted-foreground arabic mt-0.5">{q.items.length} {isAr ? 'نبات' : 'plants'} · {new Date(q.created_at).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB')}</p>
+                        {q.phone && <p className="text-xs text-muted-foreground font-mono" dir="ltr">{q.phone}</p>}
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          onClick={() => handleRestore(q.id)}
+                          disabled={restoringId === q.id}
+                          title={isAr ? 'استعادة' : 'Restore'}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                        >
+                          {restoringId === q.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          onClick={() => handlePermanentDelete(q.id)}
+                          title={isAr ? 'حذف نهائي' : 'Delete permanently'}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab !== 'trash' && (
         <div className="flex flex-1 overflow-hidden">
           {/* Quotes list */}
           <div className={`${editQuote ? 'hidden sm:flex' : 'flex'} flex-col w-full sm:w-72 border-e border-border overflow-y-auto shrink-0`}>
@@ -3576,6 +3693,269 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             </div>
           )}
         </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Admin Invoices Modal ───────────────────────────────── */
+function AdminInvoicesModal({ open, onClose, lang, siteData }: {
+  open: boolean; onClose: () => void; lang: string;
+  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string } };
+}) {
+  const isAr = lang === 'ar';
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'create'>('list');
+
+  const emptyItem = (): InvoiceItem => ({ description: '', quantity: 1, unitPrice: 0 });
+  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string }>({
+    customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '',
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const inv = await fetchInvoices();
+    if (inv !== null) setInvoices(inv);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const resetDraft = () => setDraft({ customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '' });
+
+  const total = draft.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+
+  const handleCreate = async () => {
+    if (!draft.customerName.trim()) { toast.error(isAr ? 'أدخل اسم المطلوب منه' : 'Enter customer name'); return; }
+    if (draft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
+    setCreating(true);
+    const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes });
+    if (result) {
+      toast.success(isAr ? `تم إنشاء الفاتورة رقم ${result.number}` : `Invoice No. ${result.number} created`);
+      resetDraft();
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل إنشاء الفاتورة' : 'Failed to create invoice');
+    }
+    setCreating(false);
+  };
+
+  const handleDownloadPDF = async (inv: Invoice) => {
+    setPdfingId(inv.id);
+    await downloadInvoicePDF(inv, siteData);
+    setPdfingId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(isAr ? 'حذف الفاتورة؟' : 'Delete this invoice?')) return;
+    setDeletingId(id);
+    await deleteInvoice(id);
+    setInvoices(prev => prev.filter(i => i.id !== id));
+    setDeletingId(null);
+    toast.success(isAr ? 'تم الحذف' : 'Deleted');
+  };
+
+  const updateItem = (idx: number, field: keyof InvoiceItem, value: string | number) => {
+    const items = draft.items.map((it, i) => i === idx ? { ...it, [field]: value } : it);
+    setDraft({ ...draft, items });
+  };
+
+  const addItem = () => setDraft({ ...draft, items: [...draft.items, emptyItem()] });
+  const removeItem = (idx: number) => {
+    if (draft.items.length === 1) return;
+    setDraft({ ...draft, items: draft.items.filter((_, i) => i !== idx) });
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'الفواتير' : 'Invoices'}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {view === 'list' && (
+              <Button size="sm" onClick={() => { resetDraft(); setView('create'); }} className="arabic text-xs">
+                <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'فاتورة جديدة' : 'New Invoice'}
+              </Button>
+            )}
+            {view === 'create' && (
+              <button onClick={() => setView('list')} className="text-xs arabic text-muted-foreground hover:text-foreground transition-colors">
+                {isAr ? '← العودة' : '← Back'}
+              </button>
+            )}
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Create form */}
+        {view === 'create' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 sm:col-span-1">
+                <Label className="arabic text-xs mb-1.5 block">{isAr ? 'المطلوب منه' : 'Customer Name'} *</Label>
+                <Input
+                  value={draft.customerName}
+                  onChange={e => setDraft({ ...draft, customerName: e.target.value })}
+                  placeholder={isAr ? 'اسم المطلوب منه...' : 'Customer name...'}
+                  dir="rtl" className="arabic"
+                />
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-1.5 block">{isAr ? 'التاريخ' : 'Date'}</Label>
+                <Input
+                  type="date"
+                  value={draft.date}
+                  onChange={e => setDraft({ ...draft, date: e.target.value })}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
+            {/* Items table */}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/50 px-4 py-2 border-b border-border flex items-center justify-between">
+                <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'الأصناف' : 'Items'}</p>
+                <button onClick={addItem} className="flex items-center gap-1 text-xs text-primary hover:underline arabic font-medium">
+                  <Plus className="w-3 h-3" />{isAr ? 'إضافة صنف' : 'Add item'}
+                </button>
+              </div>
+              {/* Table header */}
+              <div className="grid grid-cols-12 gap-2 px-3 py-1.5 bg-muted/30 border-b border-border text-[10px] font-bold text-muted-foreground arabic">
+                <div className="col-span-5 text-right">{isAr ? 'البيان' : 'Description'}</div>
+                <div className="col-span-2 text-center">{isAr ? 'الوحدة' : 'Qty'}</div>
+                <div className="col-span-3 text-center">{isAr ? 'السعر الافرادي (د.أ)' : 'Unit Price (JD)'}</div>
+                <div className="col-span-2 text-center">{isAr ? 'الإجمالي' : 'Total'}</div>
+              </div>
+              <div className="divide-y divide-border">
+                {draft.items.map((it, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
+                    <div className="col-span-5">
+                      <Input
+                        value={it.description}
+                        onChange={e => updateItem(idx, 'description', e.target.value)}
+                        placeholder={isAr ? 'اسم الصنف...' : 'Item description...'}
+                        dir="rtl" className="arabic h-8 text-sm"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number" min={1} step={1}
+                        value={it.quantity}
+                        onChange={e => updateItem(idx, 'quantity', Number(e.target.value))}
+                        className="h-8 text-center text-sm" dir="ltr"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <Input
+                        type="number" min={0} step={0.001}
+                        value={it.unitPrice || ''}
+                        placeholder="0.000"
+                        onChange={e => updateItem(idx, 'unitPrice', Number(e.target.value))}
+                        className="h-8 text-center text-sm" dir="ltr"
+                      />
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between gap-1">
+                      <span className="text-xs font-bold text-green-600 arabic">{(it.quantity * it.unitPrice).toFixed(3)}</span>
+                      <button onClick={() => removeItem(idx)} disabled={draft.items.length === 1} className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 transition-colors shrink-0">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Total row */}
+              <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-t border-border">
+                <span className="text-sm font-bold arabic text-foreground">{isAr ? 'الاجمالي' : 'Total'}</span>
+                <span className="text-base font-extrabold text-primary arabic">{total.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <Label className="arabic text-xs mb-1.5 block">{isAr ? 'ملاحظات' : 'Notes'}</Label>
+              <textarea
+                value={draft.notes}
+                onChange={e => setDraft({ ...draft, notes: e.target.value })}
+                rows={2}
+                dir="rtl"
+                placeholder={isAr ? 'ملاحظات اختيارية...' : 'Optional notes...'}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            <Button onClick={handleCreate} disabled={creating} className="w-full arabic">
+              {creating ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : <FileText className="w-4 h-4 me-2" />}
+              {isAr ? 'حفظ الفاتورة' : 'Save Invoice'}
+            </Button>
+          </div>
+        )}
+
+        {/* Invoices list */}
+        {view === 'list' && (
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+            ) : invoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                <FileText className="w-10 h-10 opacity-30" />
+                <p className="text-sm arabic">{isAr ? 'لا توجد فواتير بعد' : 'No invoices yet'}</p>
+                <Button size="sm" variant="outline" onClick={() => { resetDraft(); setView('create'); }} className="arabic text-xs">
+                  <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'إنشاء أول فاتورة' : 'Create first invoice'}
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {invoices.map(inv => {
+                  const invTotal = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                  return (
+                    <div key={inv.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-primary">No. {inv.number}</span>
+                          <span className="text-sm font-bold arabic text-foreground truncate">{inv.customer_name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground arabic mt-0.5">
+                          {inv.date ? new Date(inv.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
+                          {' · '}{inv.items.length} {isAr ? 'صنف' : 'items'}
+                          {' · '}<span className="font-bold text-green-600">{invTotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(inv)} disabled={pdfingId === inv.id} className="arabic text-xs">
+                          {pdfingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}
+                        </Button>
+                        <button
+                          onClick={() => handleDelete(inv.id)}
+                          disabled={deletingId === inv.id}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          {deletingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

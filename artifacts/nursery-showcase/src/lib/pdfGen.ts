@@ -391,3 +391,153 @@ export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: Quo
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(textMsg)}`, '_blank');
   }
 }
+
+/* ── Invoice PDF ────────────────────────────────────────── */
+import type { Invoice, InvoiceItem } from '@/lib/storage';
+
+export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteData): Promise<void> {
+  const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
+  const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
+
+  const items = invoice.items as InvoiceItem[];
+  const total = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+
+  const toDinarsFilsHtml = (amount: number) => {
+    const dinars = Math.floor(amount);
+    const fils = Math.round((amount - dinars) * 1000);
+    return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #1a3a8a;">${dinars}</td><td style="padding:5px 8px;text-align:center;">${fils > 0 ? fils : '-'}</td>`;
+  };
+
+  const rowsHtml = items.map((it, i) => {
+    const rowTotal = it.quantity * it.unitPrice;
+    return `<tr style="border-bottom:1px solid #c8d4f0;${i % 2 === 1 ? 'background:#f7f9ff;' : ''}">
+      ${toDinarsHtml(rowTotal)}
+      <td style="padding:5px 8px;text-align:right;font-weight:600;">${it.description}</td>
+      <td style="padding:5px 8px;text-align:center;">${it.quantity}</td>
+      ${toDinarsHtml(it.unitPrice)}
+    </tr>`;
+  }).join('');
+
+  function toDinarsHtml(amount: number) {
+    const dinars = Math.floor(amount);
+    const fils = Math.round((amount - dinars) * 1000);
+    return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${dinars}</td><td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${fils > 0 ? fils : '-'}</td>`;
+  }
+
+  const totalDinars = Math.floor(total);
+  const totalFils = Math.round((total - totalDinars) * 1000);
+  const totalText = totalFils > 0 ? `${totalDinars} دينار و ${totalFils} فلس` : `${totalDinars} دينار`;
+
+  const dateDisplay = invoice.date
+    ? new Date(invoice.date).toLocaleDateString('ar-JO')
+    : new Date().toLocaleDateString('ar-JO');
+
+  const html = `
+    <div style="font-family:'Cairo',sans-serif;background:#fff;padding:28px 24px;width:720px;direction:rtl;color:#111;font-size:13px;">
+
+      <!-- HEADER -->
+      <div style="text-align:center;border-bottom:3px double #1a3a8a;padding-bottom:14px;margin-bottom:14px;">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;margin-bottom:6px;display:inline-block;" />` : ''}
+        <div style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:1px;">مؤسسة القـادري الزراعيـة</div>
+        <div style="font-size:11px;color:#555;margin-top:3px;">لصاحبها - ثامر أحمد عبد الرحمن القادري</div>
+        <div style="font-size:11px;color:#333;margin-top:4px;border:1px solid #1a3a8a;display:inline-block;padding:2px 16px;border-radius:3px;">
+          الأردن - جرش &nbsp;·&nbsp; 0778111155 &nbsp;·&nbsp; 0777772211
+        </div>
+      </div>
+
+      <!-- INVOICE NUMBER + DATE -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:12px;direction:ltr;text-align:left;">
+          <span style="font-weight:700;font-size:13px;">No. ${invoice.number}</span>
+        </div>
+        <div style="font-size:16px;font-weight:900;color:#1a3a8a;text-decoration:underline;text-underline-offset:4px;">فـاتـورة</div>
+        <div style="font-size:12px;">
+          التاريخ: <span style="font-weight:700;">${dateDisplay}</span>
+        </div>
+      </div>
+
+      <!-- CUSTOMER -->
+      <div style="margin-bottom:12px;padding:7px 12px;border:1px solid #1a3a8a;border-radius:4px;font-size:13px;">
+        المطلوب من: <span style="font-weight:700;margin-right:6px;">${invoice.customer_name}</span>
+      </div>
+      <div style="margin-bottom:12px;font-size:12px;color:#555;">المواد المبينة أدناه:</div>
+
+      <!-- TABLE -->
+      <table style="width:100%;border-collapse:collapse;border:2px solid #1a3a8a;font-size:12px;">
+        <thead>
+          <tr style="background:#1a3a8a;color:#fff;text-align:center;">
+            <th colspan="2" style="padding:7px 6px;border-left:2px solid #fff;">السعر الاجمالي<br/><span style="font-size:10px;font-weight:400;">دينار &nbsp;|&nbsp; فلس</span></th>
+            <th style="padding:7px 6px;border-left:2px solid #fff;">البيـان</th>
+            <th style="padding:7px 6px;border-left:2px solid #fff;">الوحدة</th>
+            <th colspan="2" style="padding:7px 6px;">السعر الافرادي<br/><span style="font-size:10px;font-weight:400;">دينار &nbsp;|&nbsp; فلس</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+          ${Array.from({ length: Math.max(0, 10 - items.length) }).map((_, i) =>
+            `<tr style="border-bottom:1px solid #c8d4f0;${(items.length + i) % 2 === 1 ? 'background:#f7f9ff;' : ''}">
+              <td style="padding:14px 8px;border-left:1px solid #c8d4f0;"></td>
+              <td style="border-left:1px solid #c8d4f0;"></td>
+              <td style="border-left:1px solid #c8d4f0;"></td>
+              <td style="border-left:1px solid #c8d4f0;"></td>
+              <td style="border-left:1px solid #c8d4f0;"></td>
+              <td></td>
+            </tr>`
+          ).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="background:#eef2ff;border-top:2px solid #1a3a8a;font-weight:800;">
+            <td colspan="2" style="padding:8px 12px;text-align:center;font-size:13px;border-left:1px solid #1a3a8a;">
+              ${totalDinars} &nbsp;|&nbsp; ${totalFils > 0 ? totalFils : '-'}
+            </td>
+            <td colspan="4" style="padding:8px 12px;text-align:right;font-size:13px;">
+              الاجمالي: &nbsp;<span style="color:#1a3a8a;">${totalText}</span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      ${invoice.notes ? `<div style="margin-top:10px;padding:7px 12px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#555;">${invoice.notes}</div>` : ''}
+
+      <!-- FOOTER NOTES -->
+      <div style="margin-top:14px;font-size:10px;color:#555;border-top:1px solid #ddd;padding-top:8px;">
+        <p style="margin:0 0 4px;">البضاعة المباعة لا ترد ولا تستبدل</p>
+        <p style="margin:0;">استلمت المواد المبينة أعلاه تماماً وبحالة جيدة وبعد المعاينة والقبول حساب، كما أنني أتعهد بتسديد القيمة المبينة أعلاه وقدرها.</p>
+      </div>
+
+      <!-- SIGNATURES -->
+      <div style="display:flex;justify-content:space-between;margin-top:20px;gap:16px;">
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:11px;color:#555;margin-bottom:30px;">توقيع المستلم</div>
+          <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">.............................</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:80px;height:auto;object-fit:contain;display:inline-block;opacity:0.8;" />` : ''}
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:11px;color:#555;margin-bottom:4px;">حين الطلب وبتاريخ:</div>
+          <div style="border-bottom:1px solid #999;min-width:120px;height:24px;display:inline-block;"></div>
+        </div>
+      </div>
+
+    </div>`;
+
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+  await document.fonts.ready;
+
+  const inner = div.firstElementChild as HTMLElement;
+  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  document.body.removeChild(div);
+
+  const PX_PER_MM = 3.7795275591;
+  const pageW = canvas.width / PX_PER_MM;
+  const pageH = canvas.height / PX_PER_MM;
+  const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
+
+  const safeName = invoice.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
+}

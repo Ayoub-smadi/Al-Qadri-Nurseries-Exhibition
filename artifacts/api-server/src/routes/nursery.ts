@@ -43,10 +43,20 @@ pool.query(`
     mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    number TEXT NOT NULL,
+    customer_name TEXT NOT NULL DEFAULT '',
+    date TEXT NOT NULL DEFAULT '',
+    items JSONB NOT NULL DEFAULT '[]',
+    notes TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+  );
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT '';
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0;
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT '';
   ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT '';
+  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 `).catch((e: Error) => console.error("DB init error:", e.message));
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -211,8 +221,13 @@ router.post("/quotes", async (req, res) => {
 
 router.get("/quotes", async (req, res) => {
   if (!requireSession(req, res)) return;
+  const trash = req.query.trash === '1';
   try {
-    const result = await pool.query(`SELECT * FROM quote_requests ORDER BY created_at DESC`);
+    const result = await pool.query(
+      trash
+        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL ORDER BY created_at DESC`
+    );
     res.json({ quotes: result.rows });
   } catch { res.status(500).json({ error: "Failed to load quotes" }); }
 });
@@ -234,13 +249,73 @@ router.put("/quotes/:id", async (req, res) => {
   } catch { res.status(500).json({ error: "Failed to update quote" }); }
 });
 
+/* Soft-delete a quote (move to trash) */
 router.delete("/quotes/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`UPDATE quote_requests SET deleted_at = NOW() WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete quote" }); }
+});
+
+/* Restore a quote from trash */
+router.post("/quotes/:id/restore", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`UPDATE quote_requests SET deleted_at = NULL WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to restore quote" }); }
+});
+
+/* Permanently delete a quote */
+router.delete("/quotes/:id/permanent", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
   try {
     await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
     res.json({ ok: true });
-  } catch { res.status(500).json({ error: "Failed to delete quote" }); }
+  } catch { res.status(500).json({ error: "Failed to permanently delete quote" }); }
+});
+
+/* ── Invoices ──────────────────────────────────────────── */
+
+router.get("/invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    const result = await pool.query(`SELECT * FROM invoices ORDER BY created_at DESC`);
+    res.json({ invoices: result.rows });
+  } catch { res.status(500).json({ error: "Failed to load invoices" }); }
+});
+
+router.post("/invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { customerName, date, items, notes } = req.body as {
+    customerName?: string; date?: string; items?: unknown[]; notes?: string;
+  };
+  if (!customerName || !Array.isArray(items)) {
+    res.status(400).json({ error: "Missing required fields" }); return;
+  }
+  try {
+    const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)), 0) + 1 AS next FROM invoices`);
+    const nextNum = String(countRow.rows[0].next).padStart(6, '0');
+    const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    await pool.query(
+      `INSERT INTO invoices (id, number, customer_name, date, items, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, nextNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? '']
+    );
+    res.json({ id, number: nextNum });
+  } catch { res.status(500).json({ error: "Failed to save invoice" }); }
+});
+
+router.delete("/invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM invoices WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete invoice" }); }
 });
 
 router.post("/images/from-url", async (req, res) => {
@@ -250,7 +325,6 @@ router.post("/images/from-url", async (req, res) => {
     res.status(400).json({ error: "رابط غير صالح — يجب أن يبدأ بـ http" });
     return;
   }
-  // Reject known non-direct-image hosts
   const knownBadHosts = ["drive.google.com", "docs.google.com", "dropbox.com", "icloud.com", "onedrive.live.com"];
   try {
     const urlHost = new URL(url).hostname;
@@ -267,9 +341,9 @@ router.post("/images/from-url", async (req, res) => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
-    let response: Response;
+    let fetchResponse: Awaited<ReturnType<typeof fetch>>;
     try {
-      response = await fetch(url, {
+      fetchResponse = await fetch(url, {
         signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -279,18 +353,18 @@ router.post("/images/from-url", async (req, res) => {
     } finally {
       clearTimeout(timeout);
     }
-    if (!response.ok) {
-      res.status(400).json({ error: `تعذّر تنزيل الصورة (خطأ ${response.status}) — تأكد أن الرابط عام وليس محمياً` });
+    if (!fetchResponse.ok) {
+      res.status(400).json({ error: `تعذّر تنزيل الصورة (خطأ ${fetchResponse.status}) — تأكد أن الرابط عام وليس محمياً` });
       return;
     }
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = fetchResponse.headers.get("content-type") || "";
     if (!contentType.startsWith("image/")) {
       res.status(400).json({
         error: "الرابط لا يشير إلى صورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png",
       });
       return;
     }
-    const buffer = await response.arrayBuffer();
+    const buffer = await fetchResponse.arrayBuffer();
     if (buffer.byteLength > 20 * 1024 * 1024) {
       res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 20MB)" });
       return;
