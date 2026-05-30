@@ -319,7 +319,7 @@ router.post("/invoices", async (req, res) => {
   try {
     await dbReady;
     const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 0) AS next FROM invoices`);
-    const nextNum = String(countRow.rows[0].next).padStart(4, '0');
+    const nextNum = String(countRow.rows[0].next).padStart(6, '0');
     const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const invoiceStatus = status === 'paid' ? 'paid' : 'receivable';
     await pool.query(
