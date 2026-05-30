@@ -438,10 +438,10 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
       <!-- HEADER -->
       <div style="text-align:center;border-bottom:3px double #1a3a8a;padding-bottom:14px;margin-bottom:14px;">
         ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;margin-bottom:6px;display:inline-block;" />` : ''}
-        <div style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:1px;">مؤسسة القـادري الزراعيـة</div>
-        <div style="font-size:11px;color:#555;margin-top:3px;">لصاحبها - ثامر أحمد عبد الرحمن القادري</div>
+        <div style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:1px;">مؤسسة القادري الزراعية</div>
+        <div style="font-size:11px;color:#555;margin-top:3px;">لصاحبها ثامر احمد عبدالرحمن القادري</div>
         <div style="font-size:11px;color:#333;margin-top:4px;border:1px solid #1a3a8a;display:inline-block;padding:2px 16px;border-radius:3px;">
-          الأردن - جرش &nbsp;·&nbsp; 0778111155 &nbsp;·&nbsp; 0777772211
+          الاردن - جرش - 0777772211 - 0778111155
         </div>
       </div>
 
@@ -517,6 +517,23 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
         <div style="flex:1;text-align:center;">
           <div style="font-size:11px;color:#555;margin-bottom:4px;">حين الطلب وبتاريخ:</div>
           <div style="border-bottom:1px solid #999;min-width:120px;height:24px;display:inline-block;"></div>
+        </div>
+      </div>
+
+      <!-- PAYMENT STATUS -->
+      <div style="margin-top:18px;border-top:2px solid #1a3a8a;padding-top:12px;display:flex;gap:16px;justify-content:center;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border:2px solid #16a34a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;background:${invoice.status === 'paid' ? '#16a34a' : '#fff'};color:${invoice.status === 'paid' ? '#fff' : '#16a34a'};">
+            ${invoice.status === 'paid' ? '✓' : ''}
+          </div>
+          <span style="font-size:13px;font-weight:700;color:#16a34a;">مدفوع</span>
+        </div>
+        <div style="width:1px;height:28px;background:#ddd;"></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border:2px solid #d97706;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;background:${invoice.status === 'receivable' || !invoice.status ? '#d97706' : '#fff'};color:${invoice.status === 'receivable' || !invoice.status ? '#fff' : '#d97706'};">
+            ${invoice.status === 'receivable' || !invoice.status ? '✓' : ''}
+          </div>
+          <span style="font-size:13px;font-weight:700;color:#d97706;">ذمم</span>
         </div>
       </div>
 

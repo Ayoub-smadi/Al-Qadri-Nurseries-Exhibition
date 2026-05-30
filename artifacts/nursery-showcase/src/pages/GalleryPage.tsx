@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, deleteInvoice } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -3710,11 +3710,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
   const [creating, setCreating] = useState(false);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'create'>('list');
+  const [tab, setTab] = useState<'receivable' | 'paid'>('receivable');
 
   const emptyItem = (): InvoiceItem => ({ description: '', quantity: 1, unitPrice: 0 });
-  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string }>({
-    customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '',
+  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable' }>({
+    customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable',
   });
 
   const load = useCallback(async () => {
@@ -3726,7 +3728,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
-  const resetDraft = () => setDraft({ customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '' });
+  const resetDraft = () => setDraft({ customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable' });
 
   const total = draft.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
 
@@ -3734,7 +3736,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
     if (!draft.customerName.trim()) { toast.error(isAr ? 'أدخل اسم المطلوب منه' : 'Enter customer name'); return; }
     if (draft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
     setCreating(true);
-    const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes });
+    const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes, status: draft.status });
     if (result) {
       toast.success(isAr ? `تم إنشاء الفاتورة رقم ${result.number}` : `Invoice No. ${result.number} created`);
       resetDraft();
@@ -3750,6 +3752,17 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
     setPdfingId(inv.id);
     await downloadInvoicePDF(inv, siteData);
     setPdfingId(null);
+  };
+
+  const handleToggleStatus = async (inv: Invoice) => {
+    setTogglingId(inv.id);
+    const newStatus: 'paid' | 'receivable' = inv.status === 'paid' ? 'receivable' : 'paid';
+    const ok = await updateInvoiceStatus(inv.id, newStatus);
+    if (ok) {
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
+      toast.success(isAr ? (newStatus === 'paid' ? 'تم تحديد الفاتورة كمدفوعة' : 'تم تحديد الفاتورة كذمم') : (newStatus === 'paid' ? 'Marked as paid' : 'Marked as receivable'));
+    }
+    setTogglingId(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -3771,6 +3784,8 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
     if (draft.items.length === 1) return;
     setDraft({ ...draft, items: draft.items.filter((_, i) => i !== idx) });
   };
+
+  const filteredInvoices = invoices.filter(inv => (inv.status ?? 'receivable') === tab);
 
   if (!open) return null;
 
@@ -3825,6 +3840,27 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
               </div>
             </div>
 
+            {/* Status selector */}
+            <div>
+              <Label className="arabic text-xs mb-2 block">{isAr ? 'نوع الفاتورة' : 'Invoice Type'}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDraft({ ...draft, status: 'receivable' })}
+                  className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${draft.status === 'receivable' ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' : 'border-border text-muted-foreground hover:border-amber-300'}`}
+                >
+                  {isAr ? '⏳ ذمم' : '⏳ Receivable'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft({ ...draft, status: 'paid' })}
+                  className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${draft.status === 'paid' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400' : 'border-border text-muted-foreground hover:border-green-300'}`}
+                >
+                  {isAr ? '✅ مدفوع' : '✅ Paid'}
+                </button>
+              </div>
+            </div>
+
             {/* Items table */}
             <div className="rounded-xl border border-border overflow-hidden">
               <div className="bg-muted/50 px-4 py-2 border-b border-border flex items-center justify-between">
@@ -3833,7 +3869,6 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
                   <Plus className="w-3 h-3" />{isAr ? 'إضافة صنف' : 'Add item'}
                 </button>
               </div>
-              {/* Table header */}
               <div className="grid grid-cols-12 gap-2 px-3 py-1.5 bg-muted/30 border-b border-border text-[10px] font-bold text-muted-foreground arabic">
                 <div className="col-span-5 text-right">{isAr ? 'البيان' : 'Description'}</div>
                 <div className="col-span-2 text-center">{isAr ? 'الوحدة' : 'Qty'}</div>
@@ -3844,29 +3879,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
                 {draft.items.map((it, idx) => (
                   <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
                     <div className="col-span-5">
-                      <Input
-                        value={it.description}
-                        onChange={e => updateItem(idx, 'description', e.target.value)}
-                        placeholder={isAr ? 'اسم الصنف...' : 'Item description...'}
-                        dir="rtl" className="arabic h-8 text-sm"
-                      />
+                      <Input value={it.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder={isAr ? 'اسم الصنف...' : 'Item description...'} dir="rtl" className="arabic h-8 text-sm" />
                     </div>
                     <div className="col-span-2">
-                      <Input
-                        type="number" min={1} step={1}
-                        value={it.quantity}
-                        onChange={e => updateItem(idx, 'quantity', Number(e.target.value))}
-                        className="h-8 text-center text-sm" dir="ltr"
-                      />
+                      <Input type="number" min={1} step={1} value={it.quantity} onChange={e => updateItem(idx, 'quantity', Number(e.target.value))} className="h-8 text-center text-sm" dir="ltr" />
                     </div>
                     <div className="col-span-3">
-                      <Input
-                        type="number" min={0} step={0.001}
-                        value={it.unitPrice || ''}
-                        placeholder="0.000"
-                        onChange={e => updateItem(idx, 'unitPrice', Number(e.target.value))}
-                        className="h-8 text-center text-sm" dir="ltr"
-                      />
+                      <Input type="number" min={0} step={0.001} value={it.unitPrice || ''} placeholder="0.000" onChange={e => updateItem(idx, 'unitPrice', Number(e.target.value))} className="h-8 text-center text-sm" dir="ltr" />
                     </div>
                     <div className="col-span-2 flex items-center justify-between gap-1">
                       <span className="text-xs font-bold text-green-600 arabic">{(it.quantity * it.unitPrice).toFixed(3)}</span>
@@ -3877,7 +3896,6 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
                   </div>
                 ))}
               </div>
-              {/* Total row */}
               <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-t border-border">
                 <span className="text-sm font-bold arabic text-foreground">{isAr ? 'الاجمالي' : 'Total'}</span>
                 <span className="text-base font-extrabold text-primary arabic">{total.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
@@ -3887,14 +3905,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
             {/* Notes */}
             <div>
               <Label className="arabic text-xs mb-1.5 block">{isAr ? 'ملاحظات' : 'Notes'}</Label>
-              <textarea
-                value={draft.notes}
-                onChange={e => setDraft({ ...draft, notes: e.target.value })}
-                rows={2}
-                dir="rtl"
-                placeholder={isAr ? 'ملاحظات اختيارية...' : 'Optional notes...'}
-                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
+              <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} rows={2} dir="rtl" placeholder={isAr ? 'ملاحظات اختيارية...' : 'Optional notes...'} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
 
             <Button onClick={handleCreate} disabled={creating} className="w-full arabic">
@@ -3906,54 +3917,88 @@ function AdminInvoicesModal({ open, onClose, lang, siteData }: {
 
         {/* Invoices list */}
         {view === 'list' && (
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-            ) : invoices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-                <FileText className="w-10 h-10 opacity-30" />
-                <p className="text-sm arabic">{isAr ? 'لا توجد فواتير بعد' : 'No invoices yet'}</p>
-                <Button size="sm" variant="outline" onClick={() => { resetDraft(); setView('create'); }} className="arabic text-xs">
-                  <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'إنشاء أول فاتورة' : 'Create first invoice'}
-                </Button>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {invoices.map(inv => {
-                  const invTotal = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-                  return (
-                    <div key={inv.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-mono font-bold text-primary">No. {inv.number}</span>
-                          <span className="text-sm font-bold arabic text-foreground truncate">{inv.customer_name}</span>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Tabs */}
+            <div className="flex border-b border-border shrink-0">
+              <button
+                onClick={() => setTab('receivable')}
+                className={`flex-1 py-3 text-sm font-bold arabic transition-colors ${tab === 'receivable' ? 'text-amber-600 border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                ⏳ {isAr ? 'الذمم' : 'Receivable'}
+                {invoices.filter(i => (i.status ?? 'receivable') === 'receivable').length > 0 && (
+                  <span className="ms-1.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 rounded-full px-1.5 py-0.5">
+                    {invoices.filter(i => (i.status ?? 'receivable') === 'receivable').length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setTab('paid')}
+                className={`flex-1 py-3 text-sm font-bold arabic transition-colors ${tab === 'paid' ? 'text-green-600 border-b-2 border-green-500' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                ✅ {isAr ? 'المدفوعة' : 'Paid'}
+                {invoices.filter(i => i.status === 'paid').length > 0 && (
+                  <span className="ms-1.5 text-[10px] bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400 rounded-full px-1.5 py-0.5">
+                    {invoices.filter(i => i.status === 'paid').length}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+              ) : filteredInvoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                  <FileText className="w-10 h-10 opacity-30" />
+                  <p className="text-sm arabic">{isAr ? (tab === 'receivable' ? 'لا توجد ذمم' : 'لا توجد فواتير مدفوعة') : (tab === 'receivable' ? 'No receivables' : 'No paid invoices')}</p>
+                  {tab === 'receivable' && (
+                    <Button size="sm" variant="outline" onClick={() => { resetDraft(); setView('create'); }} className="arabic text-xs">
+                      <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'إنشاء فاتورة' : 'Create invoice'}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {filteredInvoices.map(inv => {
+                    const invTotal = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                    const isPaid = inv.status === 'paid';
+                    return (
+                      <div key={inv.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPaid ? 'bg-green-100 dark:bg-green-950/30' : 'bg-amber-100 dark:bg-amber-950/30'}`}>
+                          <FileText className={`w-4.5 h-4.5 ${isPaid ? 'text-green-600' : 'text-amber-600'}`} />
                         </div>
-                        <p className="text-xs text-muted-foreground arabic mt-0.5">
-                          {inv.date ? new Date(inv.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
-                          {' · '}{inv.items.length} {isAr ? 'صنف' : 'items'}
-                          {' · '}<span className="font-bold text-green-600">{invTotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold text-primary">#{inv.number}</span>
+                            <span className="text-sm font-bold arabic text-foreground truncate">{inv.customer_name}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground arabic mt-0.5">
+                            {inv.date ? new Date(inv.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
+                            {' · '}{inv.items.length} {isAr ? 'صنف' : 'items'}
+                            {' · '}<span className="font-bold text-green-600">{invTotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0 items-center">
+                          <button
+                            onClick={() => handleToggleStatus(inv)}
+                            disabled={togglingId === inv.id}
+                            title={isAr ? (isPaid ? 'تحويل إلى ذمم' : 'تحديد كمدفوع') : (isPaid ? 'Mark as receivable' : 'Mark as paid')}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold arabic transition-all border ${isPaid ? 'border-green-300 text-green-700 bg-green-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 dark:bg-green-950/20 dark:text-green-400' : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:bg-amber-950/20 dark:text-amber-400'}`}
+                          >
+                            {togglingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : (isPaid ? (isAr ? 'مدفوع' : 'Paid') : (isAr ? 'ذمم' : 'Due'))}
+                          </button>
+                          <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(inv)} disabled={pdfingId === inv.id} className="arabic text-xs h-7 px-2">
+                            {pdfingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}
+                          </Button>
+                          <button onClick={() => handleDelete(inv.id)} disabled={deletingId === inv.id} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            {deletingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(inv)} disabled={pdfingId === inv.id} className="arabic text-xs">
-                          {pdfingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}
-                        </Button>
-                        <button
-                          onClick={() => handleDelete(inv.id)}
-                          disabled={deletingId === inv.id}
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          {deletingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

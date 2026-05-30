@@ -416,6 +416,7 @@ export interface Invoice {
   date: string;
   items: InvoiceItem[];
   notes: string;
+  status: 'paid' | 'receivable';
   created_at: string;
 }
 
@@ -505,7 +506,7 @@ export async function fetchInvoices(): Promise<Invoice[] | null> {
   return null;
 }
 
-export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string }): Promise<{ id: string; number: string } | null> {
+export async function createInvoice(data: { customerName: string; date: string; items: InvoiceItem[]; notes: string; status?: string }): Promise<{ id: string; number: string } | null> {
   const token = getToken();
   if (!token) return null;
   try {
@@ -515,8 +516,23 @@ export async function createInvoice(data: { customerName: string; date: string; 
       body: JSON.stringify(data),
     });
     if (res.ok) { return await res.json() as { id: string; number: string }; }
-  } catch { /* ignore */ }
+    const errText = await res.text().catch(() => '');
+    console.error('[createInvoice] server error', res.status, errText);
+  } catch (err) { console.error('[createInvoice] fetch error', err); }
   return null;
+}
+
+export async function updateInvoiceStatus(id: string, status: 'paid' | 'receivable'): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`/api/invoices/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ status }),
+    });
+    return res.ok;
+  } catch { return false; }
 }
 
 export async function deleteInvoice(id: string): Promise<boolean> {

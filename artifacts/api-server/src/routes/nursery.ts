@@ -15,49 +15,67 @@ const pool = new Pool({
   connectionString: DB_URL,
 });
 
-pool.query(`
-  CREATE TABLE IF NOT EXISTS site_config (
-    id TEXT PRIMARY KEY DEFAULT 'main',
-    data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS admins (
-    username TEXT PRIMARY KEY,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS quote_requests (
-    id TEXT PRIMARY KEY,
-    customer_name TEXT NOT NULL,
-    phone TEXT NOT NULL DEFAULT '',
-    items JSONB NOT NULL DEFAULT '[]',
-    notes TEXT NOT NULL DEFAULT '',
-    discount NUMERIC NOT NULL DEFAULT 0,
-    tax NUMERIC NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS images (
-    id TEXT PRIMARY KEY,
-    data TEXT NOT NULL,
-    mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS invoices (
-    id TEXT PRIMARY KEY,
-    number TEXT NOT NULL,
-    customer_name TEXT NOT NULL DEFAULT '',
-    date TEXT NOT NULL DEFAULT '',
-    items JSONB NOT NULL DEFAULT '[]',
-    notes TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT '';
-  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0;
-  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT '';
-  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT '';
-  ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
-`).catch((e: Error) => console.error("DB init error:", e.message));
+const dbReady: Promise<void> = (async () => {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS site_config (
+        id TEXT PRIMARY KEY DEFAULT 'main',
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admins (
+        username TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS quote_requests (
+        id TEXT PRIMARY KEY,
+        customer_name TEXT NOT NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]',
+        notes TEXT NOT NULL DEFAULT '',
+        discount NUMERIC NOT NULL DEFAULT 0,
+        tax NUMERIC NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS images (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY,
+        number TEXT NOT NULL,
+        customer_name TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
+  } catch (e) {
+    console.error("DB init error:", (e as Error).message);
+  } finally {
+    client.release();
+  }
+})();
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const TOKEN_SECRET = crypto.createHash("sha256").update(DB_URL).digest();
@@ -284,35 +302,53 @@ router.delete("/quotes/:id/permanent", async (req, res) => {
 router.get("/invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
   try {
+    await dbReady;
     const result = await pool.query(`SELECT * FROM invoices ORDER BY created_at DESC`);
     res.json({ invoices: result.rows });
-  } catch { res.status(500).json({ error: "Failed to load invoices" }); }
+  } catch (e) { res.status(500).json({ error: "Failed to load invoices", detail: (e as Error).message }); }
 });
 
 router.post("/invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { customerName, date, items, notes } = req.body as {
-    customerName?: string; date?: string; items?: unknown[]; notes?: string;
+  const { customerName, date, items, notes, status } = req.body as {
+    customerName?: string; date?: string; items?: unknown[]; notes?: string; status?: string;
   };
   if (!customerName || !Array.isArray(items)) {
     res.status(400).json({ error: "Missing required fields" }); return;
   }
   try {
-    const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)), 0) + 1 AS next FROM invoices`);
-    const nextNum = String(countRow.rows[0].next).padStart(6, '0');
+    await dbReady;
+    const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 0) AS next FROM invoices`);
+    const nextNum = String(countRow.rows[0].next).padStart(4, '0');
     const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const invoiceStatus = status === 'paid' ? 'paid' : 'receivable';
     await pool.query(
-      `INSERT INTO invoices (id, number, customer_name, date, items, notes) VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, nextNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? '']
+      `INSERT INTO invoices (id, number, customer_name, date, items, notes, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, nextNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? '', invoiceStatus]
     );
     res.json({ id, number: nextNum });
-  } catch { res.status(500).json({ error: "Failed to save invoice" }); }
+  } catch (e) { res.status(500).json({ error: "Failed to save invoice", detail: (e as Error).message }); }
+});
+
+router.put("/invoices/:id/status", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  const { status } = req.body as { status?: string };
+  if (status !== 'paid' && status !== 'receivable') {
+    res.status(400).json({ error: "Invalid status" }); return;
+  }
+  try {
+    await dbReady;
+    await pool.query(`UPDATE invoices SET status = $1 WHERE id = $2`, [status, id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to update status", detail: (e as Error).message }); }
 });
 
 router.delete("/invoices/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
   try {
+    await dbReady;
     await pool.query(`DELETE FROM invoices WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete invoice" }); }
