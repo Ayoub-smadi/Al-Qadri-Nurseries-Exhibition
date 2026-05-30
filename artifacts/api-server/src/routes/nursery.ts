@@ -26,7 +26,7 @@ const siteCache = new MemCache<unknown>();
 const SITE_CACHE_KEY = "site-data";
 const SITE_CACHE_TTL = 60_000;
 
-const authLimiter = new RateLimiter(10, 60_000);
+const authLimiter = new RateLimiter(20, 60_000);
 
 const dbReady: Promise<void> = (async () => {
   try {
