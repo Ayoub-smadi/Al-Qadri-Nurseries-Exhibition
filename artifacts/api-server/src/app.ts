@@ -25,7 +25,16 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+// Allow all origins and explicitly permit the Authorization header so that
+// cross-origin requests from the Replit canvas iframe work correctly.
+app.use(cors({
+  origin: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  credentials: false,
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

@@ -144,8 +144,19 @@ const ADMIN_TOKEN_KEY = 'gallery_admin_token';
 
 let _sessionToken: string | null = null;
 
-/** Returns the API base path — always '/api', proxied by the Vite dev server. */
-const getApiBase = () => '/api';
+// __REPLIT_DEV_DOMAIN__ is injected at build time by vite.config.ts `define`.
+// When running inside the Replit canvas iframe (which may be served from a
+// different origin), we bypass the Vite proxy entirely by calling the API
+// through the known-working public URL for the main webview port (5000).
+declare const __REPLIT_DEV_DOMAIN__: string;
+
+const getApiBase = (): string => {
+  try {
+    const domain = __REPLIT_DEV_DOMAIN__;
+    if (domain) return `https://${domain}/api`;
+  } catch { /* not defined in production build */ }
+  return '/api';
+};
 
 export function setSessionToken(token: string | null) {
   _sessionToken = token;

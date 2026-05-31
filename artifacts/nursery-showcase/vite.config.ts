@@ -14,8 +14,16 @@ const port = rawPort ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH ?? "/";
 
+// Inject the Replit external domain so every Vite instance (port 5000 or
+// port 19665 canvas) calls the API through the known-working public URL
+// instead of relying on the Vite proxy.
+const replitDevDomain = process.env.REPLIT_DEV_DOMAIN ?? "";
+
 export default defineConfig({
   base: basePath,
+  define: {
+    __REPLIT_DEV_DOMAIN__: JSON.stringify(replitDevDomain),
+  },
   plugins: [
     react(),
     tailwindcss(),
