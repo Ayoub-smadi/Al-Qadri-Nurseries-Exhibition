@@ -421,7 +421,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   function toDinarsHtml(amount: number) {
     const dinars = Math.floor(amount);
     const fils = Math.round((amount - dinars) * 1000);
-    return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${dinars}</td><td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${fils > 0 ? fils : '-'}</td>`;
+    return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${fils > 0 ? fils : '-'}</td><td style="padding:5px 8px;text-align:center;border-left:1px solid #c8d4f0;">${dinars}</td>`;
   }
 
   const totalDinars = Math.floor(total);
@@ -438,7 +438,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
       <!-- HEADER -->
       <div style="text-align:center;border-bottom:3px double #1a3a8a;padding-bottom:14px;margin-bottom:14px;">
         ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;margin-bottom:6px;display:inline-block;" />` : ''}
-        <div style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:1px;">مؤسسة القادري الزراعية</div>
+        <div style="font-size:22px;font-weight:900;color:#1a3a8a;">مؤسسة القادري الزراعية</div>
         <div style="font-size:11px;color:#555;margin-top:3px;">لصاحبها ثامر احمد عبدالرحمن القادري</div>
         <div style="font-size:11px;color:#333;margin-top:4px;border:1px solid #1a3a8a;display:inline-block;padding:2px 16px;border-radius:3px;">
           الاردن - جرش - 0777772211 - 0778111155
@@ -466,10 +466,10 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
       <table style="width:100%;border-collapse:collapse;border:2px solid #1a3a8a;font-size:12px;">
         <thead>
           <tr style="background:#1a3a8a;color:#fff;text-align:center;">
-            <th colspan="2" style="padding:7px 6px;border-left:2px solid #fff;">السعر الاجمالي<br/><span style="font-size:10px;font-weight:400;">دينار &nbsp;|&nbsp; فلس</span></th>
+            <th colspan="2" style="padding:7px 6px;border-left:2px solid #fff;">السعر الاجمالي<br/><span style="font-size:10px;font-weight:400;">فلس &nbsp;|&nbsp; دينار</span></th>
             <th style="padding:7px 6px;border-left:2px solid #fff;">البيـان</th>
             <th style="padding:7px 6px;border-left:2px solid #fff;">الوحدة</th>
-            <th colspan="2" style="padding:7px 6px;">السعر الافرادي<br/><span style="font-size:10px;font-weight:400;">دينار &nbsp;|&nbsp; فلس</span></th>
+            <th colspan="2" style="padding:7px 6px;">السعر الافرادي<br/><span style="font-size:10px;font-weight:400;">فلس &nbsp;|&nbsp; دينار</span></th>
           </tr>
         </thead>
         <tbody>
@@ -488,7 +488,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
         <tfoot>
           <tr style="background:#eef2ff;border-top:2px solid #1a3a8a;font-weight:800;">
             <td colspan="2" style="padding:8px 12px;text-align:center;font-size:13px;border-left:1px solid #1a3a8a;">
-              ${totalDinars} &nbsp;|&nbsp; ${totalFils > 0 ? totalFils : '-'}
+              ${totalFils > 0 ? totalFils : '-'} &nbsp;|&nbsp; ${totalDinars}
             </td>
             <td colspan="4" style="padding:8px 12px;text-align:right;font-size:13px;">
               الاجمالي: &nbsp;<span style="color:#1a3a8a;">${totalText}</span>
