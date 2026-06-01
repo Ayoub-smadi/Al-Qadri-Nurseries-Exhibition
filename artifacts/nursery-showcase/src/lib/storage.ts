@@ -183,9 +183,15 @@ function getToken(): string | null {
   return saved;
 }
 
+function fetchWithTimeout(input: RequestInfo, init?: RequestInit, ms = 15000): Promise<Response> {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
+
 export async function adminLogin(username: string, password: string): Promise<string | null> {
   try {
-    const res = await fetch(`${getApiBase()}/admin/login`, {
+    const res = await fetchWithTimeout(`${getApiBase()}/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -200,7 +206,7 @@ export async function adminLogin(username: string, password: string): Promise<st
 
 export async function checkNeedsSetup(): Promise<boolean> {
   try {
-    const res = await fetch(`${getApiBase()}/admin/needs-setup`);
+    const res = await fetchWithTimeout(`${getApiBase()}/admin/needs-setup`, undefined, 10000);
     if (res.ok) {
       const json = await res.json() as { needsSetup?: boolean };
       return json.needsSetup === true;
@@ -211,7 +217,7 @@ export async function checkNeedsSetup(): Promise<boolean> {
 
 export async function adminSetup(username: string, password: string): Promise<boolean> {
   try {
-    const res = await fetch(`${getApiBase()}/admin/setup`, {
+    const res = await fetchWithTimeout(`${getApiBase()}/admin/setup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),

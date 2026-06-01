@@ -342,6 +342,7 @@ export default function GalleryPage() {
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [loginErr, setLoginErr] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [isSetupMode, setIsSetupMode] = useState(false);
   const [setupPass2, setSetupPass2] = useState('');
 
@@ -484,34 +485,41 @@ export default function GalleryPage() {
   /* ── handlers ── */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSetupMode) {
-      if (pass !== setupPass2) {
-        setLoginErr(isAr ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
-        return;
-      }
-      if (pass.length < 6) {
-        setLoginErr(isAr ? 'كلمة المرور قصيرة جداً (6 أحرف على الأقل)' : 'Password too short (min 6 chars)');
-        return;
-      }
-      const ok = await adminSetup(user, pass);
-      if (ok) {
-        const token = await adminLogin(user, pass);
-        if (token) {
-          setSessionToken(token);
-          setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setSetupPass2(''); setLoginErr(''); setIsSetupMode(false);
-          toast.success(isAr ? 'تم إنشاء حساب المدير بنجاح' : 'Admin account created');
+    if (loginLoading) return;
+    setLoginErr('');
+    setLoginLoading(true);
+    try {
+      if (isSetupMode) {
+        if (pass !== setupPass2) {
+          setLoginErr(isAr ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match');
+          return;
         }
-      } else {
-        setLoginErr(isAr ? 'فشل إنشاء الحساب' : 'Setup failed');
+        if (pass.length < 6) {
+          setLoginErr(isAr ? 'كلمة المرور قصيرة جداً (6 أحرف على الأقل)' : 'Password too short (min 6 chars)');
+          return;
+        }
+        const ok = await adminSetup(user, pass);
+        if (ok) {
+          const token = await adminLogin(user, pass);
+          if (token) {
+            setSessionToken(token);
+            setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setSetupPass2(''); setLoginErr(''); setIsSetupMode(false);
+            toast.success(isAr ? 'تم إنشاء حساب المدير بنجاح' : 'Admin account created');
+          }
+        } else {
+          setLoginErr(isAr ? 'فشل إنشاء الحساب' : 'Setup failed');
+        }
+        return;
       }
-      return;
-    }
-    const token = await adminLogin(user, pass);
-    if (token) {
-      setSessionToken(token);
-      setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setLoginErr('');
-    } else {
-      setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+      const token = await adminLogin(user, pass);
+      if (token) {
+        setSessionToken(token);
+        setIsAdmin(true); setLoginOpen(false); setUser(''); setPass(''); setLoginErr('');
+      } else {
+        setLoginErr(isAr ? 'بيانات الدخول غير صحيحة' : 'Invalid credentials');
+      }
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -1621,8 +1629,12 @@ export default function GalleryPage() {
               </div>
             )}
             {loginErr && <p className="text-destructive text-sm">{loginErr}</p>}
-            <Button type="submit" className="w-full bg-primary text-primary-foreground">
-              {isSetupMode ? (isAr ? 'إنشاء الحساب' : 'Create Account') : (isAr ? 'دخول' : 'Login')}
+            <Button type="submit" disabled={loginLoading} className="w-full bg-primary text-primary-foreground">
+              {loginLoading
+                ? (isAr ? '⏳ جاري الدخول...' : '⏳ Logging in...')
+                : isSetupMode
+                  ? (isAr ? 'إنشاء الحساب' : 'Create Account')
+                  : (isAr ? 'دخول' : 'Login')}
             </Button>
           </form>
         </DialogContent>
