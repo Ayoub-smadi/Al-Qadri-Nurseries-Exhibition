@@ -13,52 +13,61 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-pool.query(`
-  CREATE TABLE IF NOT EXISTS site_config (
-    id TEXT PRIMARY KEY DEFAULT 'main',
-    data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS admins (
-    username TEXT PRIMARY KEY,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS quote_requests (
-    id TEXT PRIMARY KEY,
-    customer_name TEXT NOT NULL,
-    phone TEXT NOT NULL DEFAULT '',
-    items JSONB NOT NULL DEFAULT '[]',
-    notes TEXT NOT NULL DEFAULT '',
-    discount NUMERIC NOT NULL DEFAULT 0,
-    tax NUMERIC NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    shipping_destination TEXT NOT NULL DEFAULT '',
-    shipping_fee NUMERIC NOT NULL DEFAULT 0,
-    shipping_method TEXT NOT NULL DEFAULT '',
-    shipping_address TEXT NOT NULL DEFAULT ''
-  );
-  CREATE TABLE IF NOT EXISTS images (
-    id TEXT PRIMARY KEY,
-    data TEXT NOT NULL,
-    mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
-    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
-  );
-`).then(() => {
-  return pool.query(`
-    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT '';
-    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0;
-    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_method TEXT NOT NULL DEFAULT '';
-    ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT '';
-  `);
-}).catch((e) => console.error("DB init error:", e.message));
+const dbReady = pool.connect().then(async (client) => {
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS site_config (
+        id TEXT PRIMARY KEY DEFAULT 'main',
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS admins (
+        username TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS quote_requests (
+        id TEXT PRIMARY KEY,
+        customer_name TEXT NOT NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]',
+        notes TEXT NOT NULL DEFAULT '',
+        discount NUMERIC NOT NULL DEFAULT 0,
+        tax NUMERIC NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        shipping_destination TEXT NOT NULL DEFAULT '',
+        shipping_fee NUMERIC NOT NULL DEFAULT 0,
+        shipping_method TEXT NOT NULL DEFAULT '',
+        shipping_address TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE IF NOT EXISTS images (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS invoices (
+        id TEXT PRIMARY KEY,
+        number TEXT NOT NULL,
+        customer_name TEXT NOT NULL DEFAULT '',
+        date TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]',
+        notes TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
+    `);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
+  } catch (e) {
+    console.error("DB init error:", e.message);
+  } finally {
+    client.release();
+  }
+}).catch((e) => console.error("DB connect error:", e.message));
 
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
-const TOKEN_SECRET = crypto
-  .createHash("sha256")
-  .update(DB_URL)
-  .digest();
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const TOKEN_SECRET = crypto.createHash("sha256").update(DB_URL).digest();
 
 function hashPassword(password) {
   return crypto.createHash("sha256").update(password).digest("hex");
@@ -67,10 +76,7 @@ function hashPassword(password) {
 function createToken() {
   const expiry = Date.now() + SESSION_TTL_MS;
   const payload = Buffer.from(JSON.stringify({ expiry })).toString("base64url");
-  const sig = crypto
-    .createHmac("sha256", TOKEN_SECRET)
-    .update(payload)
-    .digest("base64url");
+  const sig = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
@@ -79,10 +85,7 @@ function verifyToken(token) {
   if (dot === -1) return false;
   const payload = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  const expected = crypto
-    .createHmac("sha256", TOKEN_SECRET)
-    .update(payload)
-    .digest("base64url");
+  const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
   if (sig !== expected) return false;
   try {
     const { expiry } = JSON.parse(Buffer.from(payload, "base64url").toString());
@@ -103,13 +106,22 @@ function requireSession(req, res) {
 }
 
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({
+  origin: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  credentials: false,
+}));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+/* ── Health ─────────────────────────────────────────────── */
 
 app.get("/api/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+/* ── Admin Auth ─────────────────────────────────────────── */
 
 app.get("/api/admin/verify", (req, res) => {
   if (!requireSession(req, res)) return;
@@ -173,6 +185,8 @@ app.post("/api/admin/setup", async (req, res) => {
   }
 });
 
+/* ── Site Data ──────────────────────────────────────────── */
+
 app.get("/api/site-data", async (_req, res) => {
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
@@ -202,6 +216,8 @@ app.put("/api/site-data", async (req, res) => {
   }
 });
 
+/* ── Quote Requests ─────────────────────────────────────── */
+
 app.post("/api/quotes", async (req, res) => {
   const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body ?? {};
   if (!customerName || !Array.isArray(items) || items.length === 0) {
@@ -228,8 +244,13 @@ app.post("/api/quotes", async (req, res) => {
 
 app.get("/api/quotes", async (req, res) => {
   if (!requireSession(req, res)) return;
+  const trash = req.query.trash === "1";
   try {
-    const result = await pool.query(`SELECT * FROM quote_requests ORDER BY created_at DESC`);
+    const result = await pool.query(
+      trash
+        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL ORDER BY created_at DESC`
+    );
     res.json({ quotes: result.rows });
   } catch {
     res.status(500).json({ error: "Failed to load quotes" });
@@ -255,34 +276,108 @@ app.put("/api/quotes/:id", async (req, res) => {
   }
 });
 
+/* Soft-delete a quote (move to trash) */
 app.delete("/api/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
   try {
-    await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
+    await pool.query(`UPDATE quote_requests SET deleted_at = NOW() WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete quote" });
   }
 });
 
-app.post("/api/images", async (req, res) => {
+/* Restore a quote from trash */
+app.post("/api/quotes/:id/restore", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { data, mimeType } = req.body ?? {};
-  if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
-  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const mime = mimeType ?? "image/jpeg";
+  const { id } = req.params;
   try {
-    const raw = data.startsWith("data:") ? data.split(",")[1] : data;
-    await pool.query(
-      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
-      [id, raw, mime]
-    );
-    res.json({ id, url: `/api/images/${id}` });
+    await pool.query(`UPDATE quote_requests SET deleted_at = NULL WHERE id = $1`, [id]);
+    res.json({ ok: true });
   } catch {
-    res.status(500).json({ error: "Failed to save image" });
+    res.status(500).json({ error: "Failed to restore quote" });
   }
 });
+
+/* Permanently delete a quote */
+app.delete("/api/quotes/:id/permanent", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await pool.query(`DELETE FROM quote_requests WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to permanently delete quote" });
+  }
+});
+
+/* ── Invoices ───────────────────────────────────────────── */
+
+app.get("/api/invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const result = await pool.query(`SELECT * FROM invoices ORDER BY created_at DESC`);
+    res.json({ invoices: result.rows });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load invoices", detail: e.message });
+  }
+});
+
+app.post("/api/invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { customerName, date, items, notes, status } = req.body ?? {};
+  if (!customerName || !Array.isArray(items)) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+  try {
+    await dbReady;
+    const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 1) AS next FROM invoices`);
+    const nextNum = String(countRow.rows[0].next).padStart(6, "0");
+    const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const invoiceStatus = status === "paid" ? "paid" : "receivable";
+    await pool.query(
+      `INSERT INTO invoices (id, number, customer_name, date, items, notes, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, nextNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? "", invoiceStatus]
+    );
+    res.json({ id, number: nextNum });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save invoice", detail: e.message });
+  }
+});
+
+app.put("/api/invoices/:id/status", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  const { status } = req.body ?? {};
+  if (status !== "paid" && status !== "receivable") {
+    res.status(400).json({ error: "Invalid status" });
+    return;
+  }
+  try {
+    await dbReady;
+    await pool.query(`UPDATE invoices SET status = $1 WHERE id = $2`, [status, id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to update status", detail: e.message });
+  }
+});
+
+app.delete("/api/invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await dbReady;
+    await pool.query(`DELETE FROM invoices WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete invoice" });
+  }
+});
+
+/* ── Images ─────────────────────────────────────────────── */
 
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
@@ -295,9 +390,7 @@ app.post("/api/images/from-url", async (req, res) => {
   try {
     const urlHost = new URL(url).hostname;
     if (knownBadHosts.some(h => urlHost.includes(h))) {
-      res.status(400).json({
-        error: "هذا الرابط لا يخدم الصورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png",
-      });
+      res.status(400).json({ error: "هذا الرابط لا يخدم الصورة مباشرة. استخدم رابطاً ينتهي بـ .jpg أو .png" });
       return;
     }
   } catch {
@@ -348,6 +441,24 @@ app.post("/api/images/from-url", async (req, res) => {
     } else {
       res.status(500).json({ error: "فشل تنزيل الصورة" });
     }
+  }
+});
+
+app.post("/api/images", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { data, mimeType } = req.body ?? {};
+  if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
+  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const mime = mimeType ?? "image/jpeg";
+  try {
+    const raw = data.startsWith("data:") ? data.split(",")[1] : data;
+    await pool.query(
+      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
+      [id, raw, mime]
+    );
+    res.json({ id, url: `/api/images/${id}` });
+  } catch {
+    res.status(500).json({ error: "Failed to save image" });
   }
 });
 
