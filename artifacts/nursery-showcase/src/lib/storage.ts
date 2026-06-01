@@ -399,6 +399,7 @@ export interface QuoteItem {
   price: number;
   unavailable?: boolean;
   sizeUnavailable?: boolean;
+  availableSize?: string;
 }
 
 export interface QuoteRequest {
