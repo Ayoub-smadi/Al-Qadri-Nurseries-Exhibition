@@ -223,7 +223,7 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
       <td style="padding:8px 8px;text-align:center;line-height:2;">
         ${it.availableSize
-          ? `<span style="position:relative;display:inline-block;color:#aaa;font-size:11px;padding:0 2px;"><span style="position:relative;z-index:1;">${it.size || '-'}</span><span style="position:absolute;left:0;right:0;height:2px;background:#999;display:block;top:50%;margin-top:-1px;z-index:2;border-radius:1px;"></span></span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
+          ? `<span style="display:inline-flex;flex-direction:column;align-items:stretch;"><span style="color:#aaa;font-size:11px;font-weight:500;line-height:1;display:block;">${it.size || '-'}</span><span style="display:block;height:2px;background:#555;border-radius:1px;margin-top:-0.5em;"></span></span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
           : (it.size || '-')
         }
       </td>
