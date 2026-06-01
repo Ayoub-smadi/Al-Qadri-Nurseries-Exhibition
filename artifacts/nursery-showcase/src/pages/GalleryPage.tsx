@@ -3132,10 +3132,15 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDelete = async (id: string) => {
     if (!confirm(isAr ? 'نقل للمحذوفات؟' : 'Move to trash?')) return;
-    await deleteQuote(id);
+    const ok = await deleteQuote(id);
+    if (!ok) {
+      toast.error(isAr ? 'فشل نقل الطلب للمحذوفات' : 'Failed to move to trash');
+      return;
+    }
     setQuotes(prev => prev.filter(q => q.id !== id));
     if (editQuote?.id === id) setEditQuote(null);
     toast.success(isAr ? 'تم النقل للمحذوفات' : 'Moved to trash');
+    loadTrash();
   };
 
   const handleRestore = async (id: string) => {
