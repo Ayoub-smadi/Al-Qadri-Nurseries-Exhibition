@@ -3145,9 +3145,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleRestore = async (id: string) => {
     setRestoringId(id);
-    await restoreQuote(id);
-    setTrashQuotes(prev => prev.filter(q => q.id !== id));
+    const ok = await restoreQuote(id);
     setRestoringId(null);
+    if (!ok) {
+      toast.error(isAr ? 'فشل استعادة الطلب' : 'Failed to restore request');
+      return;
+    }
+    setTrashQuotes(prev => prev.filter(q => q.id !== id));
+    await load();
     toast.success(isAr ? 'تمت الاستعادة' : 'Restored');
   };
 
