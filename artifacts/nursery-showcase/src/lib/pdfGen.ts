@@ -221,9 +221,9 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.plantNameEn || ''}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.sectionNameAr}</td>
       <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
-      <td style="padding:6px 8px;text-align:center;line-height:1.8;">
+      <td style="padding:8px 8px;text-align:center;line-height:2;">
         ${it.availableSize
-          ? `<span style="display:inline-block;color:#999;font-size:11px;text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:#999;">${it.size || '-'}</span><br/><span style="color:#2e7d32;font-weight:700;font-size:12px;">${it.availableSize}</span>`
+          ? `<span style="position:relative;display:inline-block;color:#aaa;font-size:11px;padding:0 2px;"><span style="position:relative;z-index:1;">${it.size || '-'}</span><span style="position:absolute;left:0;right:0;height:2px;background:#999;display:block;top:50%;margin-top:-1px;z-index:2;border-radius:1px;"></span></span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
           : (it.size || '-')
         }
       </td>

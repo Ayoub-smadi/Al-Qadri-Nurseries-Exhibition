@@ -3536,8 +3536,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-muted-foreground arabic shrink-0">{isAr ? 'طلب:' : 'Req:'}</span>
                                 {item.availableSize ? (
-                                  <span className="text-xs arabic font-medium text-muted-foreground" style={{ textDecoration: 'line-through', textDecorationThickness: '1.5px', textDecorationColor: 'currentColor' }}>
+                                  <span className="relative inline-block text-xs arabic font-medium text-muted-foreground">
                                     {item.size}
+                                    <span className="absolute inset-x-0 bg-gray-400 dark:bg-gray-500 rounded-full" style={{ height: '2px', top: '50%', marginTop: '-1px' }} />
                                   </span>
                                 ) : (
                                   <span className="text-xs arabic font-medium text-primary">{item.size}</span>
