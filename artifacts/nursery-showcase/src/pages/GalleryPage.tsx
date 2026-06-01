@@ -3535,9 +3535,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                             <div className="mt-1 space-y-0.5">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-muted-foreground arabic shrink-0">{isAr ? 'طلب:' : 'Req:'}</span>
-                                <span className={`text-xs arabic font-medium ${item.availableSize ? 'line-through text-muted-foreground' : 'text-primary'}`}>
-                                  {item.size}
-                                </span>
+                                {item.availableSize ? (
+                                  <span className="relative inline-block text-xs arabic font-medium text-muted-foreground">
+                                    {item.size}
+                                    <span className="absolute inset-x-0 top-1/2 h-px bg-muted-foreground -translate-y-1/2" />
+                                  </span>
+                                ) : (
+                                  <span className="text-xs arabic font-medium text-primary">{item.size}</span>
+                                )}
                               </div>
                             </div>
                           )}
@@ -3605,6 +3610,13 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       >
                         📍 {isAr ? 'توصيل' : 'Delivery'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_method: 'delivery_free', shipping_fee: 0 })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'delivery_free' ? 'bg-teal-100 border-teal-400 text-teal-700 dark:bg-teal-900/40 dark:border-teal-600 dark:text-teal-300' : 'border-border text-muted-foreground hover:border-teal-400 hover:text-teal-600'}`}
+                      >
+                        🚗 {isAr ? 'مجاني' : 'Free'}
+                      </button>
                     </div>
                   </div>
                   <div className="px-4 py-3 space-y-2">
@@ -3617,7 +3629,25 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                             <p className="text-xs text-green-600/70 dark:text-green-500/70 arabic">{isAr ? 'الزبون سيستلم الطلب من المشتل مباشرةً — بدون رسوم شحن' : 'Customer will pick up from store — no shipping charge'}</p>
                           </div>
                         </div>
-                      ) : editQuote.shipping_method === 'delivery'
+                      ) : editQuote.shipping_method === 'delivery_free'
+                        ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-800">
+                              <span className="text-2xl">🚗</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-teal-700 dark:text-teal-400 arabic">{isAr ? 'توصيل مجاني' : 'Free Delivery'}</p>
+                                <p className="text-xs text-teal-600/70 dark:text-teal-500/70 arabic">{isAr ? 'بدون رسوم توصيل' : 'No delivery fee'}</p>
+                              </div>
+                            </div>
+                            <input
+                              value={editQuote.shipping_address ?? ''}
+                              onChange={e => setEditQuote({ ...editQuote, shipping_address: e.target.value })}
+                              dir="rtl"
+                              placeholder={isAr ? 'عنوان التوصيل (اختياري)...' : 'Delivery address (optional)...'}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+                        ) : editQuote.shipping_method === 'delivery'
                         ? (
                           <div className="space-y-2">
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
