@@ -3198,6 +3198,20 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setEditQuote({ ...editQuote, items });
   };
 
+  const updateItemSize = (itemIdx: number, size: string) => {
+    if (!editQuote) return;
+    const items = editQuote.items.map((it, i) => i === itemIdx ? { ...it, size } : it);
+    setEditQuote({ ...editQuote, items });
+  };
+
+  const toggleItemSizeUnavailable = (itemIdx: number) => {
+    if (!editQuote) return;
+    const items = editQuote.items.map((it, i) =>
+      i === itemIdx ? { ...it, sizeUnavailable: !it.sizeUnavailable } : it
+    );
+    setEditQuote({ ...editQuote, items });
+  };
+
   const toggleItemUnavailable = (itemIdx: number) => {
     if (!editQuote) return;
     const items = editQuote.items.map((it, i) =>
@@ -3518,7 +3532,27 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-bold arabic text-foreground ${item.unavailable ? 'line-through opacity-50' : ''}`}>{isAr ? item.plantNameAr : item.plantNameEn}</p>
                           <p className="text-xs text-muted-foreground arabic">{isAr ? item.sectionNameAr : item.sectionNameEn}</p>
-                          <p className="text-xs text-primary arabic">{isAr ? 'الكمية:' : 'Qty:'} {item.quantity}{item.size ? ` · ${item.size}` : ''}</p>
+                          <p className="text-xs text-primary arabic">{isAr ? 'الكمية:' : 'Qty:'} {item.quantity}</p>
+                          {/* Editable size field */}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Label className="text-[10px] text-muted-foreground arabic shrink-0">{isAr ? 'الحجم:' : 'Size:'}</Label>
+                            <input
+                              value={item.size}
+                              onChange={e => updateItemSize(idx, e.target.value)}
+                              placeholder={isAr ? 'أدخل الحجم' : 'Enter size'}
+                              dir="rtl"
+                              className={`flex-1 min-w-0 rounded border px-1.5 py-0.5 text-xs arabic focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors ${
+                                item.sizeUnavailable
+                                  ? 'border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950/20 dark:border-orange-700 dark:text-orange-300 line-through'
+                                  : 'border-border bg-background text-foreground'
+                              }`}
+                            />
+                          </div>
+                          {item.sizeUnavailable && (
+                            <span className="inline-block mt-0.5 text-[10px] bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded-full font-bold arabic">
+                              {isAr ? 'الحجم المطلوب غير متوفر' : 'Requested size unavailable'}
+                            </span>
+                          )}
                           {item.unavailable && (
                             <span className="inline-block mt-0.5 text-[10px] bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-bold arabic">
                               {isAr ? 'غير متوفر حاليًا' : 'Currently Unavailable'}
@@ -3536,6 +3570,17 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                             }`}
                           >
                             {item.unavailable ? (isAr ? '✕ غير متوفر' : '✕ N/A') : (isAr ? 'غير متوفر؟' : 'Unavail?')}
+                          </button>
+                          <button
+                            onClick={() => toggleItemSizeUnavailable(idx)}
+                            title={isAr ? 'الحجم غير متوفر' : 'Size unavailable'}
+                            className={`text-[10px] px-2 py-1 rounded-lg border font-bold arabic transition-colors ${
+                              item.sizeUnavailable
+                                ? 'bg-orange-100 border-orange-300 text-orange-600 dark:bg-orange-900/30 dark:border-orange-700 dark:text-orange-400'
+                                : 'border-border text-muted-foreground hover:border-orange-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20'
+                            }`}
+                          >
+                            {item.sizeUnavailable ? (isAr ? '✕ الحجم' : '✕ Size') : (isAr ? 'الحجم؟' : 'Size?')}
                           </button>
                           {!item.unavailable && (
                             <div className="w-28">

@@ -221,7 +221,10 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.plantNameEn || ''}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.sectionNameAr}</td>
       <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
-      <td style="padding:6px 8px;text-align:center;">${it.size || '-'}</td>
+      <td style="padding:6px 8px;text-align:center;">
+        ${it.size || '-'}
+        ${it.sizeUnavailable ? `<br/><span style="color:#e65100;font-size:10px;font-weight:700;">الحجم غير متوفر</span>` : ''}
+      </td>
       ${it.unavailable ? unavailCell : priceCell}
       <td style="padding:4px;text-align:center;width:64px;">
         ${imgSrc ? `<img src="${imgSrc}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:56px;height:56px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
