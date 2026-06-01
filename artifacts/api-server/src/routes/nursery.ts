@@ -143,9 +143,14 @@ router.get("/admin/verify", (req, res) => {
 
 router.get("/site-data", async (_req, res) => {
   try {
-    const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
+    const rows = await pool.query(`SELECT data, updated_at FROM site_config WHERE id = 'main'`);
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    res.json({ data: rows.rows[0].data });
+    const { data, updated_at } = rows.rows[0] as { data: unknown; updated_at: string };
+    const etag = `"${Buffer.from(updated_at ?? '').toString('base64').slice(0, 16)}"`;
+    res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
+    res.setHeader('ETag', etag);
+    if (_req.headers['if-none-match'] === etag) { res.status(304).end(); return; }
+    res.json({ data });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }

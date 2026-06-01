@@ -367,7 +367,7 @@ export async function uploadImage(file: File): Promise<string> {
       ctx.drawImage(img, 0, 0, width, height);
       // PNG → keep as PNG to preserve transparency; JPEG → compress normally
       const mimeType = isPng ? "image/png" : "image/jpeg";
-      const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.75);
+      const dataUrl = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.55);
       try {
         const res = await fetch(`${getApiBase()}/images`, {
           method: "POST",

@@ -286,7 +286,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                           className={`relative cursor-pointer rounded-lg overflow-hidden aspect-square border-2 transition-all ${checked ? 'border-primary shadow-sm' : 'border-transparent opacity-50'}`}
                           onClick={() => togglePhoto(sec.id, photo.id)}>
                           <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-                            className="w-full h-full object-cover" />
+                            className="w-full h-full object-cover" loading="lazy" decoding="async" />
                           <div className={`absolute inset-0 bg-primary/20 transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`} />
                           <div className="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-1">
                             <p className="text-white text-[10px] font-semibold truncate arabic text-center leading-tight">
@@ -1336,6 +1336,7 @@ export default function GalleryPage() {
                         src={branch.image}
                         alt={isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy" decoding="async"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -2009,7 +2010,7 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
   const remaining = section.photos.length - visibleCount;
 
   return (
-    <section className="w-full max-w-5xl mx-auto">
+    <section className="w-full max-w-5xl mx-auto" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 600px' }}>
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <div className="flex-1 h-px bg-border" />
@@ -2486,7 +2487,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                 {displayed.length === 3 ? (
                   <>
                     <div className="md:col-span-3 relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                      <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                       {(displayed[0].titleAr || displayed[0].titleEn) && (
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 pt-10 pb-4">
                           <p className="text-white font-bold arabic text-lg drop-shadow">{isAr ? displayed[0].titleAr : (displayed[0].titleEn || displayed[0].titleAr)}</p>
@@ -2502,7 +2503,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                     <div className="md:col-span-2 flex flex-col gap-4">
                       {[displayed[1], displayed[2]].map(img => (
                         <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg flex-1 aspect-[4/3] md:aspect-auto">
-                          <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                           {(img.titleAr || img.titleEn) && (
                             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
                               <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>
@@ -2521,7 +2522,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                 ) : (
                   displayed.map(img => (
                     <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                       {(img.titleAr || img.titleEn) && (
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
                           <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>
@@ -2884,7 +2885,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                         >
                           <div className="aspect-square bg-muted overflow-hidden">
                             {photo.image ? (
-                              <img src={photo.image} alt={photo.nameAr} className="w-full h-full object-cover" />
+                              <img src={photo.image} alt={photo.nameAr} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                 <Flower2 className="w-6 h-6 opacity-30" />
