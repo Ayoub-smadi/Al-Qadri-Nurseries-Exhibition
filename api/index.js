@@ -129,6 +129,7 @@ app.get("/api/admin/verify", (req, res) => {
 });
 
 app.post("/api/admin/login", async (req, res) => {
+  await dbReady;
   const { username, password } = req.body ?? {};
   if (!username || !password) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -150,6 +151,7 @@ app.post("/api/admin/login", async (req, res) => {
 });
 
 app.get("/api/admin/needs-setup", async (_req, res) => {
+  await dbReady;
   try {
     const rows = await pool.query(`SELECT COUNT(*) AS c FROM admins`);
     res.json({ needsSetup: parseInt(rows.rows[0].c, 10) === 0 });
@@ -159,6 +161,7 @@ app.get("/api/admin/needs-setup", async (_req, res) => {
 });
 
 app.post("/api/admin/setup", async (req, res) => {
+  await dbReady;
   const { username, password, secret } = req.body ?? {};
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
@@ -188,6 +191,7 @@ app.post("/api/admin/setup", async (req, res) => {
 /* ── Site Data ──────────────────────────────────────────── */
 
 app.get("/api/site-data", async (_req, res) => {
+  await dbReady;
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
@@ -198,6 +202,7 @@ app.get("/api/site-data", async (_req, res) => {
 });
 
 app.put("/api/site-data", async (req, res) => {
+  await dbReady;
   if (!requireSession(req, res)) return;
   const { data } = req.body ?? {};
   if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -219,6 +224,7 @@ app.put("/api/site-data", async (req, res) => {
 /* ── Quote Requests ─────────────────────────────────────── */
 
 app.post("/api/quotes", async (req, res) => {
+  await dbReady;
   const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body ?? {};
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" });
@@ -422,8 +428,8 @@ app.post("/api/images/from-url", async (req, res) => {
       return;
     }
     const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > 20 * 1024 * 1024) {
-      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 20MB)" });
+    if (buffer.byteLength > 3 * 1024 * 1024) {
+      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 3MB) — يُرجى استخدام صورة أصغر" });
       return;
     }
     const base64 = Buffer.from(buffer).toString("base64");

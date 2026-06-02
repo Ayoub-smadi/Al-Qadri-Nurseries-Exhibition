@@ -80,6 +80,7 @@ function requireSession(req: Request, res: Response): boolean {
 const router: IRouter = Router();
 
 router.post("/admin/login", async (req, res) => {
+  await dbReady;
   const { username, password } = req.body as { username?: string; password?: string };
   if (!username || !password) {
     res.status(401).json({ error: "Invalid credentials" });
@@ -102,6 +103,7 @@ router.post("/admin/login", async (req, res) => {
 });
 
 router.get("/admin/needs-setup", async (_req, res) => {
+  await dbReady;
   try {
     const rows = await pool.query(`SELECT COUNT(*) AS c FROM admins`);
     res.json({ needsSetup: parseInt(rows.rows[0].c, 10) === 0 });
@@ -111,6 +113,7 @@ router.get("/admin/needs-setup", async (_req, res) => {
 });
 
 router.post("/admin/setup", async (req, res) => {
+  await dbReady;
   const { username, password, secret } = req.body as { username?: string; password?: string; secret?: string };
   if (!username || !password) {
     res.status(400).json({ error: "Missing fields" });
@@ -142,6 +145,7 @@ router.get("/admin/verify", (req, res) => {
 });
 
 router.get("/site-data", async (_req, res) => {
+  await dbReady;
   try {
     const rows = await pool.query(`SELECT data, updated_at FROM site_config WHERE id = 'main'`);
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
@@ -157,6 +161,7 @@ router.get("/site-data", async (_req, res) => {
 });
 
 router.put("/site-data", async (req, res) => {
+  await dbReady;
   if (!requireSession(req, res)) return;
   const { data } = req.body as { data?: unknown };
   if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -176,6 +181,7 @@ router.put("/site-data", async (req, res) => {
 });
 
 router.post("/quotes", async (req, res) => {
+  await dbReady;
   const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body as {
     customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number;
   };
@@ -367,8 +373,8 @@ router.post("/images/from-url", async (req, res) => {
       return;
     }
     const buffer = await fetchResponse.arrayBuffer();
-    if (buffer.byteLength > 20 * 1024 * 1024) {
-      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 20MB)" });
+    if (buffer.byteLength > 3 * 1024 * 1024) {
+      res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 3MB) — يُرجى استخدام صورة أصغر" });
       return;
     }
     const base64 = Buffer.from(buffer).toString("base64");

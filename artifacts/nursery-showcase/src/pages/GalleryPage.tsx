@@ -651,10 +651,22 @@ export default function GalleryPage() {
     }
   };
 
-  const handleAddPhoto = (e: React.FormEvent) => {
+  const handleAddPhoto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!photoUrl || !addPhotoSectionId) return;
-    const photo: Photo = { id: uid(), image: photoUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
+    let finalUrl = photoUrl;
+    if (photoUrl.startsWith('http') && !photoUrl.startsWith('/api/')) {
+      setPhotoUrlLoading(true);
+      try {
+        finalUrl = await uploadImageFromUrl(photoUrl);
+      } catch {
+        toast.error(isAr ? 'فشل استيراد الصورة — تأكد من الرابط' : 'Failed to import image — check the URL');
+        setPhotoUrlLoading(false);
+        return;
+      }
+      setPhotoUrlLoading(false);
+    }
+    const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
     updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
     setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
   };
@@ -702,12 +714,24 @@ export default function GalleryPage() {
     setEditPhotoExtraImages(photo.extraImages ?? []);
   };
 
-  const handleSaveEditPhoto = (e: React.FormEvent) => {
+  const handleSaveEditPhoto = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editPhotoTarget) return;
+    let finalUrl = editPhotoUrl;
+    if (editPhotoUrl.startsWith('http') && !editPhotoUrl.startsWith('/api/')) {
+      setEditPhotoUrlLoading(true);
+      try {
+        finalUrl = await uploadImageFromUrl(editPhotoUrl);
+      } catch {
+        toast.error(isAr ? 'فشل استيراد الصورة — تأكد من الرابط' : 'Failed to import image — check the URL');
+        setEditPhotoUrlLoading(false);
+        return;
+      }
+      setEditPhotoUrlLoading(false);
+    }
     const updated: Photo = {
       ...editPhotoTarget.photo,
-      image: editPhotoUrl,
+      image: finalUrl,
       nameAr: editPhotoNameAr,
       nameEn: editPhotoNameEn,
       descriptionAr: editPhotoDescAr,
