@@ -204,7 +204,8 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
   const afterDiscount = subtotal - discountAmt;
   const taxAmt = afterDiscount * (Number(quote.tax) / 100);
   const shippingFee = Number(quote.shipping_fee) || 0;
-  const grand = afterDiscount + taxAmt + shippingFee;
+  const plantingFee = Number(quote.planting_fee) || 0;
+  const grand = afterDiscount + taxAmt + shippingFee + plantingFee;
 
   const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const quoteNum = quote.id.replace('q-', '').split('-')[0];
@@ -316,11 +317,20 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
         <div style="flex:1;border:1px solid #00796b;border-radius:6px;padding:8px 12px;background:#e0f2f1;">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">طريقة التوصيل${quote.shipping_address ? ` — ${quote.shipping_address}` : ''}</div>
           <div style="font-size:13px;font-weight:700;color:#00796b;">🚗 توصيل مجاني</div>
-        </div>` : (quote.shipping_method ? `
+        </div>` : (quote.shipping_method && quote.shipping_method !== 'delivery_plant' ? `
         <div style="flex:1;border:1px solid ${quote.shipping_method === 'pickup' ? '#2e7d32' : '#ddd'};border-radius:6px;padding:8px 12px;${quote.shipping_method === 'pickup' ? 'background:#f1f8f1;' : ''}">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">${quote.shipping_method === 'pickup' ? 'طريقة التوصيل' : 'عنوان الشحن'}</div>
           <div style="font-size:13px;font-weight:700;${quote.shipping_method === 'pickup' ? 'color:#2e7d32;' : ''}">${quote.shipping_method === 'pickup' ? '🏪 استلام من المشتل' : (quote.shipping_address ?? '')}</div>
         </div>` : ''))}
+        ${plantingFee > 0 ? `
+        <div style="flex:1;border:1px solid #e65100;border-radius:6px;padding:8px 12px;background:#fff8f0;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">🌱 اجور شحن وزراعة${quote.shipping_address ? ` — ${quote.shipping_address}` : ''}</div>
+          <div style="font-size:13px;font-weight:700;color:#e65100;">${fmt(plantingFee)} د.أ</div>
+        </div>` : (quote.shipping_method === 'delivery_plant' && plantingFee === 0 ? `
+        <div style="flex:1;border:1px solid #e65100;border-radius:6px;padding:8px 12px;background:#fff8f0;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">طريقة التوصيل${quote.shipping_address ? ` — ${quote.shipping_address}` : ''}</div>
+          <div style="font-size:13px;font-weight:700;color:#e65100;">🌱 شحن وزراعة</div>
+        </div>` : '')}
         <div style="flex:2;border:2px solid #2e7d32;border-radius:6px;padding:8px 12px;background:#f1f8f1;">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>
           <div style="font-size:18px;font-weight:800;color:#2e7d32;">${fmt(grand)} د.أ</div>
