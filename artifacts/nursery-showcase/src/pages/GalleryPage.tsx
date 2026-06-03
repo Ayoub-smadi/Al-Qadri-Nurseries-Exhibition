@@ -3485,6 +3485,10 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 arabic font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
                         : q.shipping_method === 'delivery'
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_address}</span>
+                          : q.shipping_method === 'delivery_free'
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 arabic font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
+                          : q.shipping_method === 'delivery_plant'
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {isAr ? 'اجور شحن وزراعة' : 'Ship & Plant'}</span>
                           : null
                       }
                     </button>
@@ -3523,6 +3527,10 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       ? <span className="text-green-600 dark:text-green-400 font-medium">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span>
                       : editQuote.shipping_method === 'delivery'
                         ? <span className="text-blue-600 dark:text-blue-400 font-medium">📍 {editQuote.shipping_address ? editQuote.shipping_address : (isAr ? 'توصيل — لم يُحدَّد العنوان' : 'Delivery — no address')}</span>
+                        : editQuote.shipping_method === 'delivery_free'
+                        ? <span className="text-teal-600 dark:text-teal-400 font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
+                        : editQuote.shipping_method === 'delivery_plant'
+                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🌱 {isAr ? 'اجور شحن وزراعة' : 'Shipping & Planting'}</span>
                         : <span className="text-orange-500 font-medium">⚠️ {isAr ? 'لم يُحدَّد — اختر من الأسفل واحفظ' : 'Not set — choose below & save'}</span>
                     }
                   </p>
@@ -3654,6 +3662,13 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       >
                         🚗 {isAr ? 'مجاني' : 'Free'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_method: 'delivery_plant' })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'delivery_plant' ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/40 dark:border-orange-600 dark:text-orange-300' : 'border-border text-muted-foreground hover:border-orange-400 hover:text-orange-600'}`}
+                      >
+                        🌱 {isAr ? 'شحن وزراعة' : 'Ship & Plant'}
+                      </button>
                     </div>
                   </div>
                   <div className="px-4 py-3 space-y-2">
@@ -3702,6 +3717,24 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                               onChange={e => setEditQuote({ ...editQuote, shipping_address: e.target.value })}
                               dir="rtl"
                               placeholder={isAr ? 'اكتب عنوان التوصيل...' : 'Enter delivery address...'}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                          </div>
+                        ) : editQuote.shipping_method === 'delivery_plant'
+                        ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+                              <span className="text-2xl">🌱</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'اجور شحن وزراعة' : 'Shipping & Planting'}</p>
+                                <p className="text-xs text-orange-600/70 dark:text-orange-500/70 arabic">{isAr ? 'يشمل التوصيل وخدمة الزراعة' : 'Includes delivery and planting service'}</p>
+                              </div>
+                            </div>
+                            <input
+                              value={editQuote.shipping_address ?? ''}
+                              onChange={e => setEditQuote({ ...editQuote, shipping_address: e.target.value })}
+                              dir="rtl"
+                              placeholder={isAr ? 'عنوان التوصيل والزراعة (اختياري)...' : 'Delivery & planting address (optional)...'}
                               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
                           </div>
