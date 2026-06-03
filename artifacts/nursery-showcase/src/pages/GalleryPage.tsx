@@ -3213,7 +3213,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     e.stopPropagation();
     const newStatus = q.status === 'priced' ? 'pending' : 'priced';
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: newStatus, notes: q.notes, shippingFee: q.shipping_fee, plantingFee: q.planting_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...x, status: newStatus } : x));
     if (editQuote?.id === q.id) setEditQuote(prev => prev ? { ...prev, status: newStatus } : prev);
@@ -3221,7 +3221,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleSave = async (q: QuoteRequest) => {
     setSavingId(q.id);
-    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
+    await updateQuote(q.id, { items: q.items, discount: q.discount, tax: q.tax, status: 'priced', notes: q.notes, shippingFee: q.shipping_fee, plantingFee: q.planting_fee, shippingMethod: q.shipping_method, shippingAddress: q.shipping_address });
     setSavingId(null);
     setQuotes(prev => prev.map(x => x.id === q.id ? { ...q, status: 'priced' } : x));
     setEditQuote(prev => prev?.id === q.id ? { ...q, status: 'priced' } : prev);
@@ -3292,7 +3292,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const grand = (q: QuoteRequest) => {
     const sub = subtotal(q);
     const after = sub - sub * (Number(q.discount) / 100);
-    return after + after * (Number(q.tax) / 100) + (Number(q.shipping_fee) || 0);
+    return after + after * (Number(q.tax) / 100) + (Number(q.shipping_fee) || 0) + (Number(q.planting_fee) || 0);
   };
 
   if (!open) return null;
@@ -3749,7 +3749,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                 </div>
 
                 {/* Discount / Tax / Shipping */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="arabic text-xs mb-1 block">{isAr ? 'نسبة الخصم (%)' : 'Discount (%)'}</Label>
                     <Input type="number" min={0} max={100} step={0.1} value={editQuote.discount || ''}
@@ -3766,6 +3766,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     <Label className="arabic text-xs mb-1 block">{isAr ? 'رسوم الشحن (د.أ)' : 'Shipping (JD)'}</Label>
                     <Input type="number" min={0} step={0.01} value={editQuote.shipping_fee || ''}
                       onChange={e => setEditQuote({ ...editQuote, shipping_fee: Number(e.target.value) })}
+                      placeholder="0.00" className="h-9" dir="ltr" />
+                  </div>
+                  <div>
+                    <Label className="arabic text-xs mb-1 block">{isAr ? 'رسوم شحن وزراعة (د.أ)' : 'Ship & Plant (JD)'}</Label>
+                    <Input type="number" min={0} step={0.01} value={editQuote.planting_fee || ''}
+                      onChange={e => setEditQuote({ ...editQuote, planting_fee: Number(e.target.value) })}
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
                 </div>
@@ -3802,6 +3808,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     <div className="flex justify-between arabic text-blue-600">
                       <span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span>
                       <span>+ {Number(editQuote.shipping_fee).toFixed(2)} د.أ</span>
+                    </div>
+                  )}
+                  {Number(editQuote.planting_fee) > 0 && (
+                    <div className="flex justify-between arabic text-orange-600">
+                      <span>🌱 {isAr ? 'رسوم شحن وزراعة' : 'Ship & Plant'}</span>
+                      <span>+ {Number(editQuote.planting_fee).toFixed(2)} د.أ</span>
                     </div>
                   )}
                   <div className="flex justify-between arabic border-t border-border pt-2 font-extrabold text-base text-green-600">

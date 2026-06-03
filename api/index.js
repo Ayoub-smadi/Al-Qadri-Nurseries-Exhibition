@@ -58,6 +58,7 @@ const dbReady = pool.connect().then(async (client) => {
       );
     `);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
   } catch (e) {
     console.error("DB init error:", e.message);
@@ -266,14 +267,14 @@ app.get("/api/quotes", async (req, res) => {
 app.put("/api/quotes/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { items, discount, tax, status, notes, shippingFee, shippingMethod, shippingAddress } = req.body ?? {};
+  const { items, discount, tax, status, notes, shippingFee, plantingFee, shippingMethod, shippingAddress } = req.body ?? {};
   try {
     await pool.query(
       `UPDATE quote_requests SET items = $1, discount = $2, tax = $3, status = $4, notes = COALESCE($5, notes),
-       shipping_fee = $6, shipping_method = COALESCE($7, shipping_method), shipping_address = COALESCE($8, shipping_address)
-       WHERE id = $9`,
+       shipping_fee = $6, shipping_method = COALESCE($7, shipping_method), shipping_address = COALESCE($8, shipping_address),
+       planting_fee = $9 WHERE id = $10`,
       [JSON.stringify(items ?? []), discount ?? 0, tax ?? 0, status ?? "priced", notes ?? null,
-       shippingFee ?? 0, shippingMethod ?? null, shippingAddress ?? null, id]
+       shippingFee ?? 0, shippingMethod ?? null, shippingAddress ?? null, plantingFee ?? 0, id]
     );
     res.json({ ok: true });
   } catch (e) {

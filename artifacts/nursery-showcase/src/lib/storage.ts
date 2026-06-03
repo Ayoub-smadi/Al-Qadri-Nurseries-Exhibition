@@ -421,6 +421,7 @@ export interface QuoteRequest {
   deleted_at?: string | null;
   shipping_destination?: string;
   shipping_fee?: number;
+  planting_fee?: number;
   shipping_method?: string;
   shipping_address?: string;
 }
@@ -474,7 +475,7 @@ export async function fetchQuotes(opts?: { trash?: boolean }): Promise<QuoteRequ
   return null;
 }
 
-export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number; shippingMethod?: string; shippingAddress?: string }): Promise<boolean> {
+export async function updateQuote(id: string, data: { items: QuoteItem[]; discount: number; tax: number; status: string; notes?: string; shippingFee?: number; plantingFee?: number; shippingMethod?: string; shippingAddress?: string }): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
