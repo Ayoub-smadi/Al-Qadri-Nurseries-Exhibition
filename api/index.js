@@ -362,10 +362,18 @@ app.post("/api/invoices", async (req, res) => {
 app.put("/api/invoices/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { number, discount } = req.body ?? {};
+  const { number, discount, customerName, date, items, notes, status } = req.body ?? {};
   try {
     await dbReady;
-    await pool.query(`UPDATE invoices SET number = COALESCE($1, number), discount = $2 WHERE id = $3`, [number?.trim() || null, discount ?? 0, id]);
+    if (items !== undefined) {
+      const invoiceStatus = status === "paid" ? "paid" : "receivable";
+      await pool.query(
+        `UPDATE invoices SET number = COALESCE($1, number), discount = $2, customer_name = $3, date = $4, items = $5, notes = $6, status = $7 WHERE id = $8`,
+        [number?.trim() || null, discount ?? 0, customerName, date, JSON.stringify(items), notes ?? "", invoiceStatus, id]
+      );
+    } else {
+      await pool.query(`UPDATE invoices SET number = COALESCE($1, number), discount = $2 WHERE id = $3`, [number?.trim() || null, discount ?? 0, id]);
+    }
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "Failed to update invoice", detail: e.message });

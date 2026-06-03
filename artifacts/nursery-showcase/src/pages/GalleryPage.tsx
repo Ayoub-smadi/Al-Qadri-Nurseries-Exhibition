@@ -3862,8 +3862,11 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [view, setView] = useState<'list' | 'create'>('list');
+  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
   const [tab, setTab] = useState<'receivable' | 'paid'>('receivable');
+  const [editingInv, setEditingInv] = useState<Invoice | null>(null);
+  const [editDraft, setEditDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable'; discount: number; invoiceNumber: string }>({ customerName: '', date: '', items: [], notes: '', status: 'receivable', discount: 0, invoiceNumber: '' });
+  const [saving, setSaving] = useState(false);
 
   const emptyItem = (): InvoiceItem => ({ description: '', quantity: 1, unitPrice: 0 });
   const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable'; discount: number; invoiceNumber: string }>({
@@ -3937,15 +3940,65 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
     toast.success(isAr ? 'تم الحذف' : 'Deleted');
   };
 
+  const handleOpenEdit = (inv: Invoice) => {
+    setEditingInv(inv);
+    setEditDraft({
+      customerName: inv.customer_name,
+      date: inv.date ?? new Date().toISOString().slice(0, 10),
+      items: (inv.items as InvoiceItem[]).map(it => ({ ...it })),
+      notes: inv.notes ?? '',
+      status: (inv.status ?? 'receivable') as 'paid' | 'receivable',
+      discount: Number(inv.discount) || 0,
+      invoiceNumber: inv.number ?? '',
+    });
+    setView('edit');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingInv) return;
+    if (!editDraft.customerName.trim()) { toast.error(isAr ? 'أدخل اسم المطلوب منه' : 'Enter customer name'); return; }
+    if (editDraft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
+    setSaving(true);
+    const ok = await updateInvoice(editingInv.id, {
+      number: editDraft.invoiceNumber.trim() || editingInv.number,
+      discount: editDraft.discount || 0,
+      customerName: editDraft.customerName,
+      date: editDraft.date,
+      items: editDraft.items,
+      notes: editDraft.notes,
+      status: editDraft.status,
+    });
+    if (ok) {
+      toast.success(isAr ? 'تم حفظ التعديلات' : 'Changes saved');
+      setView('list');
+      setEditingInv(null);
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل الحفظ — حاول مجدداً' : 'Save failed — please try again');
+    }
+    setSaving(false);
+  };
+
   const updateItem = (idx: number, field: keyof InvoiceItem, value: string | number) => {
     const items = draft.items.map((it, i) => i === idx ? { ...it, [field]: value } : it);
     setDraft({ ...draft, items });
+  };
+
+  const updateEditItem = (idx: number, field: keyof InvoiceItem, value: string | number) => {
+    const items = editDraft.items.map((it, i) => i === idx ? { ...it, [field]: value } : it);
+    setEditDraft({ ...editDraft, items });
   };
 
   const addItem = () => setDraft({ ...draft, items: [...draft.items, emptyItem()] });
   const removeItem = (idx: number) => {
     if (draft.items.length === 1) return;
     setDraft({ ...draft, items: draft.items.filter((_, i) => i !== idx) });
+  };
+
+  const addEditItem = () => setEditDraft({ ...editDraft, items: [...editDraft.items, emptyItem()] });
+  const removeEditItem = (idx: number) => {
+    if (editDraft.items.length === 1) return;
+    setEditDraft({ ...editDraft, items: editDraft.items.filter((_, i) => i !== idx) });
   };
 
   const filteredInvoices = invoices.filter(inv => (inv.status ?? 'receivable') === tab);
@@ -3968,8 +4021,8 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                 <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'فاتورة جديدة' : 'New Invoice'}
               </Button>
             )}
-            {view === 'create' && (
-              <button onClick={() => setView('list')} className="text-xs arabic text-muted-foreground hover:text-foreground transition-colors">
+            {(view === 'create' || view === 'edit') && (
+              <button onClick={() => { setView('list'); setEditingInv(null); }} className="text-xs arabic text-muted-foreground hover:text-foreground transition-colors">
                 {isAr ? '← العودة' : '← Back'}
               </button>
             )}
@@ -4110,6 +4163,110 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
           </div>
         )}
 
+        {/* Edit form */}
+        {view === 'edit' && editingInv && (() => {
+          const editSubtotal = editDraft.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+          const editTotal = Math.max(0, editSubtotal - (editDraft.discount || 0));
+          return (
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              <div className="flex items-center gap-2 pb-1 border-b border-border">
+                <span className="text-xs font-mono font-bold text-primary">#{editingInv.number}</span>
+                <span className="text-xs text-muted-foreground arabic">{isAr ? 'تعديل الفاتورة' : 'Edit Invoice'}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <Label className="arabic text-xs mb-1.5 block">{isAr ? 'المطلوب منه' : 'Customer Name'} *</Label>
+                  <Input value={editDraft.customerName} onChange={e => setEditDraft({ ...editDraft, customerName: e.target.value })} dir="rtl" className="arabic" />
+                </div>
+                <div>
+                  <Label className="arabic text-xs mb-1.5 block">{isAr ? 'التاريخ' : 'Date'}</Label>
+                  <Input type="date" value={editDraft.date} onChange={e => setEditDraft({ ...editDraft, date: e.target.value })} dir="ltr" />
+                </div>
+                <div>
+                  <Label className="arabic text-xs mb-1.5 block">{isAr ? 'رقم الفاتورة' : 'Invoice No.'}</Label>
+                  <Input value={editDraft.invoiceNumber} onChange={e => setEditDraft({ ...editDraft, invoiceNumber: e.target.value })} dir="ltr" />
+                </div>
+                <div>
+                  <Label className="arabic text-xs mb-1.5 block">{isAr ? 'الخصم (د.أ)' : 'Discount (JD)'}</Label>
+                  <Input type="number" min={0} step={0.001} value={editDraft.discount || ''} onChange={e => setEditDraft({ ...editDraft, discount: Number(e.target.value) })} placeholder="0.000" dir="ltr" />
+                </div>
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-2 block">{isAr ? 'نوع الفاتورة' : 'Invoice Type'}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setEditDraft({ ...editDraft, status: 'receivable' })} className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${editDraft.status === 'receivable' ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' : 'border-border text-muted-foreground hover:border-amber-300'}`}>
+                    {isAr ? '⏳ ذمم' : '⏳ Receivable'}
+                  </button>
+                  <button type="button" onClick={() => setEditDraft({ ...editDraft, status: 'paid' })} className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${editDraft.status === 'paid' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400' : 'border-border text-muted-foreground hover:border-green-300'}`}>
+                    {isAr ? '✅ مدفوع' : '✅ Paid'}
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="bg-muted/50 px-4 py-2 border-b border-border flex items-center justify-between">
+                  <p className="text-xs font-bold arabic text-foreground/70">{isAr ? 'الأصناف' : 'Items'}</p>
+                  <button onClick={addEditItem} className="flex items-center gap-1 text-xs text-primary hover:underline arabic font-medium">
+                    <Plus className="w-3 h-3" />{isAr ? 'إضافة صنف' : 'Add item'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-12 gap-2 px-3 py-1.5 bg-muted/30 border-b border-border text-[10px] font-bold text-muted-foreground arabic">
+                  <div className="col-span-5 text-right">{isAr ? 'البيان' : 'Description'}</div>
+                  <div className="col-span-2 text-center">{isAr ? 'الوحدة' : 'Qty'}</div>
+                  <div className="col-span-3 text-center">{isAr ? 'السعر (د.أ)' : 'Price (JD)'}</div>
+                  <div className="col-span-2 text-center">{isAr ? 'الإجمالي' : 'Total'}</div>
+                </div>
+                <div className="divide-y divide-border">
+                  {editDraft.items.map((it, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
+                      <div className="col-span-5">
+                        <Input value={it.description} onChange={e => updateEditItem(idx, 'description', e.target.value)} dir="rtl" className="arabic text-xs h-8" placeholder={isAr ? 'البيان...' : 'Item...'} />
+                      </div>
+                      <div className="col-span-2">
+                        <Input type="number" min={1} value={it.quantity} onChange={e => updateEditItem(idx, 'quantity', Number(e.target.value))} className="text-center text-xs h-8" />
+                      </div>
+                      <div className="col-span-3">
+                        <Input type="number" min={0} step={0.001} value={it.unitPrice || ''} onChange={e => updateEditItem(idx, 'unitPrice', Number(e.target.value))} className="text-center text-xs h-8" placeholder="0.000" />
+                      </div>
+                      <div className="col-span-2 flex items-center justify-between gap-1">
+                        <span className="text-xs text-center flex-1 font-mono">{(it.quantity * it.unitPrice).toFixed(3)}</span>
+                        <button onClick={() => removeEditItem(idx)} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-3 bg-muted/50 border-t border-border space-y-1">
+                  {editDraft.discount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground arabic">{isAr ? 'المجموع قبل الخصم' : 'Subtotal'}</span>
+                      <span className="text-sm arabic">{editSubtotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                    </div>
+                  )}
+                  {editDraft.discount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-red-600 arabic">— {isAr ? 'خصم' : 'Discount'}</span>
+                      <span className="text-sm text-red-600 arabic">−{editDraft.discount.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'الإجمالي الكلي' : 'Grand Total'}</span>
+                    <span className="text-base font-extrabold text-primary arabic">{editTotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-1.5 block">{isAr ? 'ملاحظات' : 'Notes'}</Label>
+                <textarea value={editDraft.notes} onChange={e => setEditDraft({ ...editDraft, notes: e.target.value })} rows={2} dir="rtl" placeholder={isAr ? 'ملاحظات اختيارية...' : 'Optional notes...'} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              </div>
+              <Button onClick={handleSaveEdit} disabled={saving} className="w-full arabic">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : <FileText className="w-4 h-4 me-2" />}
+                {isAr ? 'حفظ التعديلات' : 'Save Changes'}
+              </Button>
+            </div>
+          );
+        })()}
+
         {/* Invoices list */}
         {view === 'list' && (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -4183,6 +4340,9 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                             className={`px-2.5 py-1 rounded-lg text-[11px] font-bold arabic transition-all border ${isPaid ? 'border-green-300 text-green-700 bg-green-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 dark:bg-green-950/20 dark:text-green-400' : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:bg-amber-950/20 dark:text-amber-400'}`}
                           >
                             {togglingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : (isPaid ? (isAr ? 'مدفوع' : 'Paid') : (isAr ? 'ذمم' : 'Due'))}
+                          </button>
+                          <button onClick={() => handleOpenEdit(inv)} title={isAr ? 'تعديل' : 'Edit'} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(inv)} disabled={pdfingId === inv.id} className="arabic text-xs h-7 px-2">
                             {pdfingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}

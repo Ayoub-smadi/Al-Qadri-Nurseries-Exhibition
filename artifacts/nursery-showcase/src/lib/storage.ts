@@ -574,7 +574,7 @@ export async function updateInvoiceStatus(id: string, status: 'paid' | 'receivab
   } catch { return false; }
 }
 
-export async function updateInvoice(id: string, data: { number?: string; discount?: number }): Promise<boolean> {
+export async function updateInvoice(id: string, data: { number?: string; discount?: number; customerName?: string; date?: string; items?: InvoiceItem[]; notes?: string; status?: string }): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
