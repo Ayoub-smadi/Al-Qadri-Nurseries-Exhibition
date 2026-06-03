@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
-import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, PDFSectionInput } from '@/lib/pdfGen';
+import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -10,7 +10,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Trash, ArchiveRestore,
+  FileText, Trash, ArchiveRestore, Award,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -417,6 +417,8 @@ export default function GalleryPage() {
   const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
   /* admin invoices */
   const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
+  /* experience certificate */
+  const [certOpen, setCertOpen] = useState(false);
 
   /* backup / restore */
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -1498,6 +1500,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
             <ToolBtn icon={<FileText className="w-3.5 h-3.5" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
+            <ToolBtn icon={<Award className="w-3.5 h-3.5" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => setCertOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <div className="w-px h-5 bg-border shrink-0" />
             <ToolBtn icon={<FileSpreadsheet className="w-3.5 h-3.5" />} label={isAr ? 'Excel' : 'Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
@@ -1995,6 +1998,16 @@ export default function GalleryPage() {
           lang={lang}
           siteData={siteData}
           onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); openLoginModal(); }}
+        />
+      )}
+
+      {/* Experience Certificate Modal */}
+      {isAdmin && (
+        <CertificateModal
+          open={certOpen}
+          onClose={() => setCertOpen(false)}
+          lang={lang}
+          logoUrl={siteData.logo?.customUrl ?? ''}
         />
       )}
 
@@ -3844,6 +3857,90 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
           )}
         </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Experience Certificate Modal ──────────────────────── */
+function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onClose: () => void; lang: string; logoUrl: string }) {
+  const isAr = lang === 'ar';
+  const today = new Date().toLocaleDateString('ar-JO');
+  const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today });
+  const [generating, setGenerating] = useState(false);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const handleGenerate = async () => {
+    if (!form.employeeName.trim() || !form.nationalId.trim() || !form.jobTitle.trim() || !form.startDate.trim() || !form.endDate.trim()) {
+      toast.error(isAr ? 'يرجى تعبئة جميع الحقول' : 'Please fill in all fields');
+      return;
+    }
+    setGenerating(true);
+    await downloadCertificatePDF({ ...form, logoUrl });
+    setGenerating(false);
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Award className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'شهادة خبرة' : 'Experience Certificate'}</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* decorative preview hint */}
+          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-xs arabic text-amber-800 dark:text-amber-300 leading-relaxed text-right" dir="rtl">
+            ستصدر الشهادة بترويسة المؤسسة مع اللوجو والختم تلقائياً · أدخل بيانات الموظف ثم اضغط <strong>توليد PDF</strong>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">اسم الموظف *</Label>
+              <Input value={form.employeeName} onChange={set('employeeName')} dir="rtl" className="arabic text-right" placeholder="الاسم الرباعي..." />
+            </div>
+            <div>
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">الرقم الوطني *</Label>
+              <Input value={form.nationalId} onChange={set('nationalId')} dir="ltr" className="text-left" placeholder="xxxxxxxxxx" />
+            </div>
+            <div>
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">المسمى الوظيفي *</Label>
+              <Input value={form.jobTitle} onChange={set('jobTitle')} dir="rtl" className="arabic text-right" placeholder="عامل / مشرف / محاسب..." />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ البداية *</Label>
+                <Input value={form.startDate} onChange={set('startDate')} dir="rtl" className="arabic text-right" placeholder="1/1/2022" />
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ النهاية *</Label>
+                <Input value={form.endDate} onChange={set('endDate')} dir="rtl" className="arabic text-right" placeholder="31/12/2024" />
+              </div>
+            </div>
+            <div>
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ إصدار الشهادة</Label>
+              <Input value={form.issueDate} onChange={set('issueDate')} dir="rtl" className="arabic text-right" />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-border shrink-0">
+          <Button onClick={handleGenerate} disabled={generating} className="w-full arabic gap-2">
+            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            {isAr ? 'توليد PDF' : 'Generate PDF'}
+          </Button>
+        </div>
       </div>
     </div>
   );

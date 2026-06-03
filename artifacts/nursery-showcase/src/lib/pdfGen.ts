@@ -601,3 +601,128 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   const safeName = invoice.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
 }
+
+/* ── Experience Certificate PDF ─────────────────────────── */
+export interface CertificateData {
+  employeeName: string;
+  nationalId: string;
+  jobTitle: string;
+  startDate: string;
+  endDate: string;
+  issueDate: string;
+  logoUrl?: string;
+  stampUrl?: string;
+}
+
+export async function downloadCertificatePDF(data: CertificateData): Promise<void> {
+  const logoDataUrl  = data.logoUrl  ? await toDataUrl(data.logoUrl).catch(() => '') : '';
+  const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
+
+  const html = `
+    <div style="font-family:'Cairo',sans-serif;background:#fff;width:794px;min-height:1122px;direction:rtl;color:#111;font-size:14px;position:relative;box-sizing:border-box;">
+
+      <!-- DECORATIVE BORDER -->
+      <div style="position:absolute;inset:0;border:10px solid #1a3a8a;pointer-events:none;z-index:0;"></div>
+      <div style="position:absolute;inset:14px;border:2px solid #b8922a;pointer-events:none;z-index:0;"></div>
+
+      <!-- INNER CONTENT -->
+      <div style="position:relative;z-index:1;padding:48px 56px;">
+
+        <!-- HEADER ROW: logo + title + contact -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;border-bottom:3px double #1a3a8a;padding-bottom:20px;">
+          <!-- contact block (right side in RTL = logical left) -->
+          <div style="text-align:right;font-size:11px;color:#444;line-height:1.9;">
+            <div style="font-weight:700;color:#1a3a8a;font-size:13px;">Al-Qadri Agricultural Foundation and Nurseries</div>
+            <div>Jarash - Al-Rashaydeh</div>
+            <div dir="ltr">+962 777 772 211</div>
+            <div dir="ltr">tamerqadri@gmail.com</div>
+          </div>
+          <!-- logo center -->
+          <div style="text-align:center;flex:1;">
+            ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:90px;height:90px;object-fit:contain;display:inline-block;" />` : ''}
+            <div style="font-size:20px;font-weight:900;color:#1a3a8a;margin-top:4px;">مؤسسة ومشاتل القادري الزراعية</div>
+            <div style="font-size:11px;color:#555;">لصاحبها ثامر احمد عبدالرحمن القادري</div>
+          </div>
+          <!-- spacer to balance RTL layout -->
+          <div style="width:180px;"></div>
+        </div>
+
+        <!-- TITLE -->
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:8px 48px;background:#fdf8ee;">
+            <span style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:2px;">شـهـادة خـبـرة</span>
+          </div>
+        </div>
+
+        <!-- SALUTATION -->
+        <p style="font-size:14px;font-weight:700;color:#333;margin-bottom:22px;text-align:center;">إلى من يهمه الأمر،،،</p>
+
+        <!-- BODY TEXT -->
+        <div style="font-size:15px;line-height:2.2;color:#222;text-align:justify;">
+          <p style="margin-bottom:16px;">
+            تشهد <strong>مؤسسة ومشاتل القادري الزراعية</strong> بأن الموظف
+            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.employeeName}&nbsp;</strong>،
+            حامل الرقم الوطني
+            <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>،
+            قد عمل لدينا في وظيفة
+            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.jobTitle}&nbsp;</strong>
+            خلال الفترة الممتدة من
+            <strong>&nbsp;${data.startDate}&nbsp;</strong>
+            إلى
+            <strong>&nbsp;${data.endDate}&nbsp;</strong>،
+            وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.
+          </p>
+          <p style="margin-bottom:16px;">
+            كما أظهر كفاءة عالية في أداء المهام الموكلة إليه، وكان يتمتع بروح العمل الجماعي والقدرة على تحمل ضغط العمل.
+          </p>
+          <p style="margin-bottom:28px;">
+            وقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.
+          </p>
+          <p style="margin-bottom:32px;text-align:right;">
+            وتفضلوا بقبول فائق الاحترام ،،،
+          </p>
+        </div>
+
+        <!-- SIGNATURE + STAMP ROW -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+          <!-- stamp right (RTL) -->
+          <div style="text-align:center;width:160px;">
+            <div style="font-size:12px;color:#555;margin-bottom:8px;">الختم</div>
+            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:120px;height:120px;object-fit:contain;" />` : '<div style="width:120px;height:120px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
+          </div>
+          <!-- signature left (RTL) -->
+          <div style="text-align:center;width:200px;">
+            <div style="font-size:12px;color:#555;margin-bottom:6px;">التوقيع</div>
+            <div style="border-top:1px solid #333;padding-top:6px;">
+              <div style="font-size:14px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
+              <div style="font-size:11px;color:#555;">صاحب المؤسسة</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ISSUE DATE -->
+        <div style="margin-top:28px;text-align:center;font-size:12px;color:#666;border-top:1px solid #ddd;padding-top:12px;">
+          <span style="font-weight:600;">التاريخ:</span> ${data.issueDate}
+        </div>
+
+      </div>
+    </div>`;
+
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+  await document.fonts.ready;
+
+  const inner = div.firstElementChild as HTMLElement;
+  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  document.body.removeChild(div);
+
+  const PX_PER_MM = 3.7795275591;
+  const pageW = canvas.width / PX_PER_MM;
+  const pageH = canvas.height / PX_PER_MM;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [pageW, pageH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pageW, pageH);
+  const safeName = data.employeeName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  pdf.save(`شهادة_خبرة_${safeName}.pdf`);
+}
