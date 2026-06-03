@@ -637,6 +637,8 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
           </div>
           <!-- contact block -->
           <div style="text-align:right;font-size:11px;color:#444;line-height:2;min-width:160px;">
+            <div style="font-weight:700;color:#1a3a8a;font-size:12px;">Al-Qadri Agricultural Foundation</div>
+            <div style="color:#666;margin-bottom:4px;">Jarash - Al-Rashaydeh</div>
             <div dir="ltr" style="font-weight:700;">+962 777 772 211</div>
             <div dir="ltr">tamerqadri@gmail.com</div>
           </div>
