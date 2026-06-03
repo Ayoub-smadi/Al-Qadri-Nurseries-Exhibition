@@ -628,29 +628,24 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
       <!-- INNER CONTENT -->
       <div style="position:relative;z-index:1;padding:48px 56px;">
 
-        <!-- HEADER ROW: logo + title + contact -->
+        <!-- HEADER ROW: logo + contact -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;border-bottom:3px double #1a3a8a;padding-bottom:20px;">
-          <!-- contact block (right side in RTL = logical left) -->
-          <div style="text-align:right;font-size:11px;color:#444;line-height:1.9;">
-            <div style="font-weight:700;color:#1a3a8a;font-size:13px;">Al-Qadri Agricultural Foundation and Nurseries</div>
-            <div>Jarash - Al-Rashaydeh</div>
-            <div dir="ltr">+962 777 772 211</div>
-            <div dir="ltr">tamerqadri@gmail.com</div>
-          </div>
-          <!-- logo center -->
+          <!-- logo + name center -->
           <div style="text-align:center;flex:1;">
             ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:90px;height:90px;object-fit:contain;display:inline-block;" />` : ''}
-            <div style="font-size:20px;font-weight:900;color:#1a3a8a;margin-top:4px;">مؤسسة ومشاتل القادري الزراعية</div>
-            <div style="font-size:11px;color:#555;">لصاحبها ثامر احمد عبدالرحمن القادري</div>
+            <div style="font-size:20px;font-weight:900;color:#1a3a8a;margin-top:4px;">مؤسسة القادري الزراعية</div>
           </div>
-          <!-- spacer to balance RTL layout -->
-          <div style="width:180px;"></div>
+          <!-- contact block -->
+          <div style="text-align:right;font-size:11px;color:#444;line-height:2;min-width:160px;">
+            <div dir="ltr" style="font-weight:700;">+962 777 772 211</div>
+            <div dir="ltr">tamerqadri@gmail.com</div>
+          </div>
         </div>
 
         <!-- TITLE -->
         <div style="text-align:center;margin-bottom:32px;">
-          <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:8px 48px;background:#fdf8ee;">
-            <span style="font-size:22px;font-weight:900;color:#1a3a8a;letter-spacing:2px;">شـهـادة خـبـرة</span>
+          <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:10px 56px;background:#fdf8ee;">
+            <span style="font-size:24px;font-weight:900;color:#1a3a8a;letter-spacing:0;">شهادة خبرة</span>
           </div>
         </div>
 
@@ -660,7 +655,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
         <!-- BODY TEXT -->
         <div style="font-size:15px;line-height:2.2;color:#222;text-align:justify;">
           <p style="margin-bottom:16px;">
-            تشهد <strong>مؤسسة ومشاتل القادري الزراعية</strong> بأن الموظف
+            تشهد <strong>مؤسسة القادري الزراعية</strong> بأن الموظف
             <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.employeeName}&nbsp;</strong>،
             حامل الرقم الوطني
             <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>،
