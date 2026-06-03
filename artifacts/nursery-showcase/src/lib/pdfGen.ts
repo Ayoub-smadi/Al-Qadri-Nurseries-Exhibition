@@ -419,7 +419,9 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
 
   const items = invoice.items as InvoiceItem[];
-  const total = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const subtotal = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const discountAmt = Number(invoice.discount) || 0;
+  const total = Math.max(0, subtotal - discountAmt);
 
   const toDinarsFilsHtml = (amount: number) => {
     const dinars = Math.floor(amount);
@@ -505,6 +507,28 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
           ).join('')}
         </tbody>
         <tfoot>
+          ${discountAmt > 0 ? (() => {
+            const subDinars = Math.floor(subtotal);
+            const subFils = Math.round((subtotal - subDinars) * 1000);
+            const discDinars = Math.floor(discountAmt);
+            const discFils = Math.round((discountAmt - discDinars) * 1000);
+            return `<tr style="background:#fff8f0;border-top:1px solid #1a3a8a;">
+              <td colspan="2" style="padding:6px 12px;text-align:center;font-size:12px;border-left:1px solid #1a3a8a;color:#555;">
+                ${subFils > 0 ? subFils : '-'} &nbsp;|&nbsp; ${subDinars}
+              </td>
+              <td colspan="4" style="padding:6px 12px;text-align:right;font-size:12px;color:#555;">
+                المجموع قبل الخصم
+              </td>
+            </tr>
+            <tr style="background:#fff0ee;border-top:1px dashed #e57373;">
+              <td colspan="2" style="padding:6px 12px;text-align:center;font-size:12px;border-left:1px solid #1a3a8a;color:#c62828;">
+                −${discFils > 0 ? discFils : '-'} &nbsp;|&nbsp; −${discDinars}
+              </td>
+              <td colspan="4" style="padding:6px 12px;text-align:right;font-size:12px;color:#c62828;">
+                خصم
+              </td>
+            </tr>`;
+          })() : ''}
           <tr style="background:#eef2ff;border-top:2px solid #1a3a8a;font-weight:800;">
             <td colspan="2" style="padding:8px 12px;text-align:center;font-size:13px;border-left:1px solid #1a3a8a;">
               ${totalFils > 0 ? totalFils : '-'} &nbsp;|&nbsp; ${totalDinars}

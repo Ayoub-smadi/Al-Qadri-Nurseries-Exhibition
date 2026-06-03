@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -3866,8 +3866,8 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
   const [tab, setTab] = useState<'receivable' | 'paid'>('receivable');
 
   const emptyItem = (): InvoiceItem => ({ description: '', quantity: 1, unitPrice: 0 });
-  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable' }>({
-    customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable',
+  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable'; discount: number; invoiceNumber: string }>({
+    customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable', discount: 0, invoiceNumber: '',
   });
 
   const load = useCallback(async () => {
@@ -3879,15 +3879,16 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
-  const resetDraft = () => setDraft({ customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable' });
+  const resetDraft = () => setDraft({ customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable', discount: 0, invoiceNumber: '' });
 
-  const total = draft.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const subtotalDraft = draft.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const total = Math.max(0, subtotalDraft - (draft.discount || 0));
 
   const handleCreate = async () => {
     if (!draft.customerName.trim()) { toast.error(isAr ? 'أدخل اسم المطلوب منه' : 'Enter customer name'); return; }
     if (draft.items.some(it => !it.description.trim())) { toast.error(isAr ? 'أدخل وصف جميع الأصناف' : 'Enter description for all items'); return; }
     setCreating(true);
-    const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes, status: draft.status });
+    const result = await createInvoice({ customerName: draft.customerName, date: draft.date, items: draft.items, notes: draft.notes, status: draft.status, discount: draft.discount || 0, invoiceNumber: draft.invoiceNumber.trim() || undefined });
     const successResult = (result !== null && result !== undefined && typeof result === 'object' && 'id' in result) ? result as {id:string;number:string} : null;
     const errorResult  = (result !== null && result !== undefined && typeof result === 'object' && 'error' in result) ? result as {error:string} : null;
     if (successResult) {
@@ -4000,6 +4001,24 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                   dir="ltr"
                 />
               </div>
+              <div>
+                <Label className="arabic text-xs mb-1.5 block">{isAr ? 'رقم الفاتورة (اختياري)' : 'Invoice No. (optional)'}</Label>
+                <Input
+                  value={draft.invoiceNumber}
+                  onChange={e => setDraft({ ...draft, invoiceNumber: e.target.value })}
+                  placeholder={isAr ? 'تلقائي إذا تُرك فارغاً...' : 'Auto if left empty...'}
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label className="arabic text-xs mb-1.5 block">{isAr ? 'الخصم (د.أ)' : 'Discount (JD)'}</Label>
+                <Input
+                  type="number" min={0} step={0.001}
+                  value={draft.discount || ''}
+                  onChange={e => setDraft({ ...draft, discount: Number(e.target.value) })}
+                  placeholder="0.000" dir="ltr"
+                />
+              </div>
             </div>
 
             {/* Status selector */}
@@ -4058,9 +4077,23 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-t border-border">
-                <span className="text-sm font-bold arabic text-foreground">{isAr ? 'الاجمالي' : 'Total'}</span>
-                <span className="text-base font-extrabold text-primary arabic">{total.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+              <div className="px-4 py-3 bg-muted/50 border-t border-border space-y-1">
+                {draft.discount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground arabic">{isAr ? 'المجموع قبل الخصم' : 'Subtotal'}</span>
+                    <span className="text-sm arabic text-foreground">{subtotalDraft.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                  </div>
+                )}
+                {draft.discount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-red-600 arabic">— {isAr ? 'خصم' : 'Discount'}</span>
+                    <span className="text-sm text-red-600 arabic">−{(draft.discount).toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold arabic text-foreground">{isAr ? 'الإجمالي الكلي' : 'Grand Total'}</span>
+                  <span className="text-base font-extrabold text-primary arabic">{total.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                </div>
               </div>
             </div>
 
@@ -4121,7 +4154,9 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
               ) : (
                 <div className="divide-y divide-border">
                   {filteredInvoices.map(inv => {
-                    const invTotal = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                    const invSubtotal = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                    const invDiscount = Number(inv.discount) || 0;
+                    const invTotal = Math.max(0, invSubtotal - invDiscount);
                     const isPaid = inv.status === 'paid';
                     return (
                       <div key={inv.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
@@ -4136,6 +4171,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                           <p className="text-xs text-muted-foreground arabic mt-0.5">
                             {inv.date ? new Date(inv.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
                             {' · '}{inv.items.length} {isAr ? 'صنف' : 'items'}
+                            {invDiscount > 0 && <span className="text-red-500"> · خصم {invDiscount.toFixed(3)}</span>}
                             {' · '}<span className="font-bold text-green-600">{invTotal.toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
                           </p>
                         </div>

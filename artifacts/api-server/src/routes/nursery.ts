@@ -31,6 +31,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
+      await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
     } catch (e) {
       console.error("DB init error:", (e as Error).message);
     } finally {
@@ -283,24 +284,38 @@ router.get("/invoices", async (req, res) => {
 
 router.post("/invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { customerName, date, items, notes, status } = req.body as {
-    customerName?: string; date?: string; items?: unknown[]; notes?: string; status?: string;
+  const { customerName, date, items, notes, status, discount, invoiceNumber } = req.body as {
+    customerName?: string; date?: string; items?: unknown[]; notes?: string; status?: string; discount?: number; invoiceNumber?: string;
   };
   if (!customerName || !Array.isArray(items)) {
     res.status(400).json({ error: "Missing required fields" }); return;
   }
   try {
     await dbReady;
-    const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 1) AS next FROM invoices`);
-    const nextNum = String(countRow.rows[0].next).padStart(6, '0');
+    let finalNum = invoiceNumber?.trim();
+    if (!finalNum) {
+      const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 1) AS next FROM invoices`);
+      finalNum = String(countRow.rows[0].next).padStart(6, '0');
+    }
     const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const invoiceStatus = status === 'paid' ? 'paid' : 'receivable';
     await pool.query(
-      `INSERT INTO invoices (id, number, customer_name, date, items, notes, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, nextNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? '', invoiceStatus]
+      `INSERT INTO invoices (id, number, customer_name, date, items, notes, status, discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [id, finalNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? '', invoiceStatus, discount ?? 0]
     );
-    res.json({ id, number: nextNum });
+    res.json({ id, number: finalNum });
   } catch (e) { res.status(500).json({ error: "Failed to save invoice", detail: (e as Error).message }); }
+});
+
+router.put("/invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  const { number, discount } = req.body as { number?: string; discount?: number };
+  try {
+    await dbReady;
+    await pool.query(`UPDATE invoices SET number = COALESCE($1, number), discount = $2 WHERE id = $3`, [number?.trim() || null, discount ?? 0, id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to update invoice", detail: (e as Error).message }); }
 });
 
 router.put("/invoices/:id/status", async (req, res) => {
