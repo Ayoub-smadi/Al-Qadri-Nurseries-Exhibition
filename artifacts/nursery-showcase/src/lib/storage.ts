@@ -544,7 +544,7 @@ export async function fetchReceipts(): Promise<Receipt[] | 'unauthorized' | null
   return null;
 }
 
-export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | null> {
+export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
   const token = getToken();
   if (!token) return 'unauthorized';
   try {
@@ -555,8 +555,9 @@ export async function createReceipt(data: { receivedFrom: string; amount: number
     });
     if (res.ok) return await res.json() as { id: string; number: string };
     if (res.status === 401 || res.status === 403) return 'unauthorized';
-  } catch { /* ignore */ }
-  return null;
+    const body = await res.json().catch(() => ({})) as { error?: string; detail?: string };
+    return { error: body.detail ?? body.error ?? `HTTP ${res.status}` };
+  } catch (e) { return { error: String(e) }; }
 }
 
 export async function updateReceipt(id: string, data: { receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {

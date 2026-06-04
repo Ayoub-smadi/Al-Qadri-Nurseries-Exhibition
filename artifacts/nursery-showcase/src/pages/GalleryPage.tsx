@@ -4587,13 +4587,15 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
     setCreating(true);
     const result = await createReceipt({ ...draft });
     if (result === 'unauthorized') { handleUnauthorized(); setCreating(false); return; }
-    if (result) {
+    if (result && 'number' in result) {
       toast.success(isAr ? `تم إنشاء سند قبض رقم ${result.number}` : `Receipt No. ${result.number} created`);
       setDraft(emptyDraft());
       setView('list');
       await load();
+    } else if (result && 'error' in result) {
+      toast.error(`${isAr ? 'خطأ' : 'Error'}: ${result.error}`);
     } else {
-      toast.error(isAr ? 'فشل في الحفظ' : 'Save failed');
+      toast.error(isAr ? 'فشل في الحفظ — تحقق من الاتصال' : 'Save failed — check connection');
     }
     setCreating(false);
   };
