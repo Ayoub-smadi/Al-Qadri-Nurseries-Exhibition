@@ -533,19 +533,20 @@ export interface Receipt {
   created_at: string;
 }
 
-export async function fetchReceipts(): Promise<Receipt[] | null> {
+export async function fetchReceipts(): Promise<Receipt[] | 'unauthorized' | null> {
   const token = getToken();
-  if (!token) return null;
+  if (!token) return 'unauthorized';
   try {
     const res = await fetch(`${getApiBase()}/receipts`, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { receipts?: Receipt[] }; return j.receipts ?? []; }
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
   } catch { /* ignore */ }
   return null;
 }
 
-export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | null> {
+export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | null> {
   const token = getToken();
-  if (!token) return null;
+  if (!token) return 'unauthorized';
   try {
     const res = await fetch(`${getApiBase()}/receipts`, {
       method: 'POST',
@@ -553,28 +554,31 @@ export async function createReceipt(data: { receivedFrom: string; amount: number
       body: JSON.stringify(data),
     });
     if (res.ok) return await res.json() as { id: string; number: string };
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
   } catch { /* ignore */ }
   return null;
 }
 
-export async function updateReceipt(id: string, data: { receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean> {
+export async function updateReceipt(id: string, data: { receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
   const token = getToken();
-  if (!token) return false;
+  if (!token) return 'unauthorized';
   try {
     const res = await fetch(`${getApiBase()}/receipts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(data),
     });
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
     return res.ok;
   } catch { return false; }
 }
 
-export async function deleteReceipt(id: string): Promise<boolean> {
+export async function deleteReceipt(id: string): Promise<boolean | 'unauthorized'> {
   const token = getToken();
-  if (!token) return false;
+  if (!token) return 'unauthorized';
   try {
     const res = await fetch(`${getApiBase()}/receipts/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
     return res.ok;
   } catch { return false; }
 }

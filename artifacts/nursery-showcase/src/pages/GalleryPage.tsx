@@ -2011,6 +2011,7 @@ export default function GalleryPage() {
           onClose={() => setAdminReceiptsOpen(false)}
           lang={lang}
           logoUrl={siteData.logo?.customUrl ?? ''}
+          onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); setAdminReceiptsOpen(false); setSessionExpired(true); }}
         />
       )}
 
@@ -4474,108 +4475,22 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
   );
 }
 
-/* ── Admin Receipts Modal (سندات القبض) ─────────────────── */
-function AdminReceiptsModal({ open, onClose, lang, logoUrl }: {
-  open: boolean; onClose: () => void; lang: string; logoUrl: string;
+/* ── Receipt Form (standalone — must NOT be defined inside modal) ─── */
+type ReceiptDraft = {
+  receivedFrom: string; amount: number; amountText: string;
+  description: string; paymentMethod: 'cash' | 'check' | 'transfer';
+  date: string; notes: string; receiptNumber: string;
+};
+
+function ReceiptForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: {
+  d: ReceiptDraft;
+  setD: React.Dispatch<React.SetStateAction<ReceiptDraft>>;
+  onSubmit: () => void;
+  submitting: boolean;
+  submitLabel: string;
+  isAr: boolean;
 }) {
-  const isAr = lang === 'ar';
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [pdfingId, setPdfingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
-  const [editingRec, setEditingRec] = useState<Receipt | null>(null);
-
-  const emptyDraft = () => ({
-    receivedFrom: '', amount: 0, amountText: '', description: '',
-    paymentMethod: 'cash' as 'cash' | 'check' | 'transfer',
-    date: new Date().toISOString().slice(0, 10), notes: '', receiptNumber: '',
-  });
-  const [draft, setDraft] = useState(emptyDraft());
-  const [editDraft, setEditDraft] = useState(emptyDraft());
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const data = await fetchReceipts();
-    if (data !== null) setReceipts(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { if (open) load(); }, [open, load]);
-
-  const handleCreate = async () => {
-    if (!draft.receivedFrom.trim()) { toast.error(isAr ? 'أدخل اسم الدافع' : 'Enter payer name'); return; }
-    if (!draft.description.trim()) { toast.error(isAr ? 'أدخل سبب الدفع' : 'Enter description'); return; }
-    setCreating(true);
-    const result = await createReceipt({ ...draft });
-    if (result) {
-      toast.success(isAr ? `تم إنشاء سند قبض رقم ${result.number}` : `Receipt No. ${result.number} created`);
-      setDraft(emptyDraft());
-      setView('list');
-      await load();
-    } else {
-      toast.error(isAr ? 'فشل في الحفظ' : 'Save failed');
-    }
-    setCreating(false);
-  };
-
-  const handleOpenEdit = (rec: Receipt) => {
-    setEditingRec(rec);
-    setEditDraft({
-      receivedFrom: rec.received_from, amount: Number(rec.amount),
-      amountText: rec.amount_text, description: rec.description,
-      paymentMethod: rec.payment_method, date: rec.date,
-      notes: rec.notes, receiptNumber: rec.number,
-    });
-    setView('edit');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingRec) return;
-    setSaving(true);
-    const ok = await updateReceipt(editingRec.id, {
-      receivedFrom: editDraft.receivedFrom, amount: editDraft.amount,
-      amountText: editDraft.amountText, description: editDraft.description,
-      paymentMethod: editDraft.paymentMethod, date: editDraft.date,
-      notes: editDraft.notes, number: editDraft.receiptNumber,
-    });
-    if (ok) {
-      toast.success(isAr ? 'تم الحفظ' : 'Saved');
-      setView('list');
-      await load();
-    } else {
-      toast.error(isAr ? 'فشل الحفظ' : 'Save failed');
-    }
-    setSaving(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    setDeletingId(id);
-    await deleteReceipt(id);
-    setReceipts(prev => prev.filter(r => r.id !== id));
-    setDeletingId(null);
-  };
-
-  const handleDownloadPDF = async (rec: Receipt) => {
-    setPdfingId(rec.id);
-    await downloadReceiptPDF({
-      number: rec.number, receivedFrom: rec.received_from,
-      amount: Number(rec.amount), amountText: rec.amount_text,
-      description: rec.description, paymentMethod: rec.payment_method,
-      date: rec.date, notes: rec.notes, logoUrl,
-    });
-    setPdfingId(null);
-  };
-
-  const ReceiptForm = ({ d, setD, onSubmit, submitting, submitLabel }: {
-    d: typeof draft;
-    setD: React.Dispatch<React.SetStateAction<typeof draft>>;
-    onSubmit: () => void;
-    submitting: boolean;
-    submitLabel: string;
-  }) => (
+  return (
     <div className="flex flex-col gap-3 p-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
@@ -4626,6 +4541,112 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl }: {
       </Button>
     </div>
   );
+}
+
+/* ── Admin Receipts Modal (سندات القبض) ─────────────────── */
+function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: {
+  open: boolean; onClose: () => void; lang: string; logoUrl: string; onSessionExpired: () => void;
+}) {
+  const isAr = lang === 'ar';
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
+  const [editingRec, setEditingRec] = useState<Receipt | null>(null);
+
+  const emptyDraft = (): ReceiptDraft => ({
+    receivedFrom: '', amount: 0, amountText: '', description: '',
+    paymentMethod: 'cash',
+    date: new Date().toISOString().slice(0, 10), notes: '', receiptNumber: '',
+  });
+  const [draft, setDraft] = useState<ReceiptDraft>(emptyDraft());
+  const [editDraft, setEditDraft] = useState<ReceiptDraft>(emptyDraft());
+
+  const handleUnauthorized = useCallback(() => {
+    setSessionToken(null);
+    onClose();
+    onSessionExpired();
+  }, [onClose, onSessionExpired]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchReceipts();
+    if (data === 'unauthorized') { handleUnauthorized(); return; }
+    if (data !== null) setReceipts(data);
+    setLoading(false);
+  }, [handleUnauthorized]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const handleCreate = async () => {
+    if (!draft.receivedFrom.trim()) { toast.error(isAr ? 'أدخل اسم الدافع' : 'Enter payer name'); return; }
+    if (!draft.description.trim()) { toast.error(isAr ? 'أدخل سبب الدفع' : 'Enter description'); return; }
+    setCreating(true);
+    const result = await createReceipt({ ...draft });
+    if (result === 'unauthorized') { handleUnauthorized(); setCreating(false); return; }
+    if (result) {
+      toast.success(isAr ? `تم إنشاء سند قبض رقم ${result.number}` : `Receipt No. ${result.number} created`);
+      setDraft(emptyDraft());
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل في الحفظ' : 'Save failed');
+    }
+    setCreating(false);
+  };
+
+  const handleOpenEdit = (rec: Receipt) => {
+    setEditingRec(rec);
+    setEditDraft({
+      receivedFrom: rec.received_from, amount: Number(rec.amount),
+      amountText: rec.amount_text, description: rec.description,
+      paymentMethod: rec.payment_method, date: rec.date,
+      notes: rec.notes, receiptNumber: rec.number,
+    });
+    setView('edit');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRec) return;
+    setSaving(true);
+    const ok = await updateReceipt(editingRec.id, {
+      receivedFrom: editDraft.receivedFrom, amount: editDraft.amount,
+      amountText: editDraft.amountText, description: editDraft.description,
+      paymentMethod: editDraft.paymentMethod, date: editDraft.date,
+      notes: editDraft.notes, number: editDraft.receiptNumber,
+    });
+    if (ok === 'unauthorized') { handleUnauthorized(); setSaving(false); return; }
+    if (ok) {
+      toast.success(isAr ? 'تم الحفظ' : 'Saved');
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل الحفظ' : 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    const ok = await deleteReceipt(id);
+    if (ok === 'unauthorized') { handleUnauthorized(); setDeletingId(null); return; }
+    setReceipts(prev => prev.filter(r => r.id !== id));
+    setDeletingId(null);
+  };
+
+  const handleDownloadPDF = async (rec: Receipt) => {
+    setPdfingId(rec.id);
+    await downloadReceiptPDF({
+      number: rec.number, receivedFrom: rec.received_from,
+      amount: Number(rec.amount), amountText: rec.amount_text,
+      description: rec.description, paymentMethod: rec.payment_method,
+      date: rec.date, notes: rec.notes, logoUrl,
+    });
+    setPdfingId(null);
+  };
 
   if (!open) return null;
 
@@ -4653,11 +4674,11 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl }: {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {view === 'create' && (
-            <ReceiptForm d={draft} setD={setDraft} onSubmit={handleCreate} submitting={creating} submitLabel={isAr ? 'حفظ السند' : 'Save Receipt'} />
+            <ReceiptForm d={draft} setD={setDraft} onSubmit={handleCreate} submitting={creating} submitLabel={isAr ? 'حفظ السند' : 'Save Receipt'} isAr={isAr} />
           )}
 
           {view === 'edit' && (
-            <ReceiptForm d={editDraft} setD={setEditDraft} onSubmit={handleSaveEdit} submitting={saving} submitLabel={isAr ? 'حفظ التعديلات' : 'Save Changes'} />
+            <ReceiptForm d={editDraft} setD={setEditDraft} onSubmit={handleSaveEdit} submitting={saving} submitLabel={isAr ? 'حفظ التعديلات' : 'Save Changes'} isAr={isAr} />
           )}
 
           {view === 'list' && (
