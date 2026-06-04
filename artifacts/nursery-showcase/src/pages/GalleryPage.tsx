@@ -1,14 +1,14 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
-import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt } from '@/lib/storage';
+import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
-  Search, Receipt, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
+  Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Trash, ArchiveRestore, Award,
 } from 'lucide-react';
@@ -417,6 +417,8 @@ export default function GalleryPage() {
   const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
   /* admin invoices */
   const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
+  /* admin receipts */
+  const [adminReceiptsOpen, setAdminReceiptsOpen] = useState(false);
   /* experience certificate */
   const [certOpen, setCertOpen] = useState(false);
 
@@ -1242,7 +1244,7 @@ export default function GalleryPage() {
           onClick={() => setQuoteOpen(true)}
           className="no-print relative flex items-center gap-1.5 h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold arabic whitespace-nowrap hover:bg-primary/90 transition-colors shadow-sm"
         >
-          <Receipt className="w-4 h-4 shrink-0" />
+          <ReceiptIcon className="w-4 h-4 shrink-0" />
           <span className="hidden sm:inline">{isAr ? 'طلب عرض سعر' : 'Request Quote'}</span>
           <span className="sm:hidden">{isAr ? 'عرض سعر' : 'Quote'}</span>
           {quoteCart.length > 0 && (
@@ -1500,6 +1502,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<Settings className="w-3.5 h-3.5" />} label={isAr ? 'التواصل' : 'Contact'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
             <ToolBtn icon={<FileText className="w-3.5 h-3.5" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
+            <ToolBtn icon={<ReceiptIcon className="w-3.5 h-3.5" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
             <ToolBtn icon={<Award className="w-3.5 h-3.5" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => setCertOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <div className="w-px h-5 bg-border shrink-0" />
@@ -1998,6 +2001,16 @@ export default function GalleryPage() {
           lang={lang}
           siteData={siteData}
           onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); openLoginModal(); }}
+        />
+      )}
+
+      {/* Admin Receipts Modal */}
+      {isAdmin && (
+        <AdminReceiptsModal
+          open={adminReceiptsOpen}
+          onClose={() => setAdminReceiptsOpen(false)}
+          lang={lang}
+          logoUrl={siteData.logo?.customUrl ?? ''}
         />
       )}
 
@@ -2853,7 +2866,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
-            <Receipt className="w-5 h-5 text-primary" />
+            <ReceiptIcon className="w-5 h-5 text-primary" />
             <div>
               <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلب عرض سعر' : 'Request a Quote'}</h2>
               {cart.length > 0 && <p className="text-xs text-muted-foreground arabic">{cart.length} {isAr ? 'نبات محدد' : 'plants selected'}</p>}
@@ -3056,7 +3069,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               </div>
             </div>
             <Button type="submit" className="w-full h-11 text-base arabic font-bold" disabled={submitting || !custName.trim() || cart.length === 0 || !shippingMode}>
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Receipt className="w-4 h-4 me-2" />{isAr ? 'إرسال طلب العرض' : 'Send Quote Request'}</>}
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ReceiptIcon className="w-4 h-4 me-2" />{isAr ? 'إرسال طلب العرض' : 'Send Quote Request'}</>}
             </Button>
           </form>
         )}
@@ -3851,7 +3864,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             </div>
           ) : (
             <div className="hidden sm:flex flex-1 items-center justify-center text-muted-foreground flex-col gap-3">
-              <Receipt className="w-10 h-10 opacity-20" />
+              <ReceiptIcon className="w-10 h-10 opacity-20" />
               <p className="text-sm arabic">{isAr ? 'اختر طلباً لعرض التفاصيل' : 'Select a request to view details'}</p>
             </div>
           )}
@@ -4456,6 +4469,247 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Admin Receipts Modal (سندات القبض) ─────────────────── */
+function AdminReceiptsModal({ open, onClose, lang, logoUrl }: {
+  open: boolean; onClose: () => void; lang: string; logoUrl: string;
+}) {
+  const isAr = lang === 'ar';
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
+  const [editingRec, setEditingRec] = useState<Receipt | null>(null);
+
+  const emptyDraft = () => ({
+    receivedFrom: '', amount: 0, amountText: '', description: '',
+    paymentMethod: 'cash' as 'cash' | 'check' | 'transfer',
+    date: new Date().toISOString().slice(0, 10), notes: '', receiptNumber: '',
+  });
+  const [draft, setDraft] = useState(emptyDraft());
+  const [editDraft, setEditDraft] = useState(emptyDraft());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchReceipts();
+    if (data !== null) setReceipts(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const handleCreate = async () => {
+    if (!draft.receivedFrom.trim()) { toast.error(isAr ? 'أدخل اسم الدافع' : 'Enter payer name'); return; }
+    if (!draft.description.trim()) { toast.error(isAr ? 'أدخل سبب الدفع' : 'Enter description'); return; }
+    setCreating(true);
+    const result = await createReceipt({ ...draft });
+    if (result) {
+      toast.success(isAr ? `تم إنشاء سند قبض رقم ${result.number}` : `Receipt No. ${result.number} created`);
+      setDraft(emptyDraft());
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل في الحفظ' : 'Save failed');
+    }
+    setCreating(false);
+  };
+
+  const handleOpenEdit = (rec: Receipt) => {
+    setEditingRec(rec);
+    setEditDraft({
+      receivedFrom: rec.received_from, amount: Number(rec.amount),
+      amountText: rec.amount_text, description: rec.description,
+      paymentMethod: rec.payment_method, date: rec.date,
+      notes: rec.notes, receiptNumber: rec.number,
+    });
+    setView('edit');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRec) return;
+    setSaving(true);
+    const ok = await updateReceipt(editingRec.id, {
+      receivedFrom: editDraft.receivedFrom, amount: editDraft.amount,
+      amountText: editDraft.amountText, description: editDraft.description,
+      paymentMethod: editDraft.paymentMethod, date: editDraft.date,
+      notes: editDraft.notes, number: editDraft.receiptNumber,
+    });
+    if (ok) {
+      toast.success(isAr ? 'تم الحفظ' : 'Saved');
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل الحفظ' : 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    await deleteReceipt(id);
+    setReceipts(prev => prev.filter(r => r.id !== id));
+    setDeletingId(null);
+  };
+
+  const handleDownloadPDF = async (rec: Receipt) => {
+    setPdfingId(rec.id);
+    await downloadReceiptPDF({
+      number: rec.number, receivedFrom: rec.received_from,
+      amount: Number(rec.amount), amountText: rec.amount_text,
+      description: rec.description, paymentMethod: rec.payment_method,
+      date: rec.date, notes: rec.notes, logoUrl,
+    });
+    setPdfingId(null);
+  };
+
+  const ReceiptForm = ({ d, setD, onSubmit, submitting, submitLabel }: {
+    d: typeof draft;
+    setD: React.Dispatch<React.SetStateAction<typeof draft>>;
+    onSubmit: () => void;
+    submitting: boolean;
+    submitLabel: string;
+  }) => (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'رقم السند' : 'Receipt No.'}</Label>
+          <Input className="arabic text-sm" placeholder={isAr ? 'تلقائي' : 'Auto'} value={d.receiptNumber} onChange={e => setD(p => ({ ...p, receiptNumber: e.target.value }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'التاريخ' : 'Date'}</Label>
+          <Input type="date" className="text-sm" value={d.date} onChange={e => setD(p => ({ ...p, date: e.target.value }))} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'استلمنا من السيد/السيدة *' : 'Received From *'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'اسم الدافع' : 'Payer name'} value={d.receivedFrom} onChange={e => setD(p => ({ ...p, receivedFrom: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'المبلغ (دينار)' : 'Amount (JD)'}</Label>
+          <Input type="number" step="0.001" min="0" className="text-sm" value={d.amount || ''} onChange={e => setD(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'المبلغ كتابةً' : 'Amount in Words'}</Label>
+          <Input className="arabic text-sm" placeholder={isAr ? 'مثال: مئة دينار' : 'e.g. One Hundred Dinars'} value={d.amountText} onChange={e => setD(p => ({ ...p, amountText: e.target.value }))} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'وذلك عن (سبب الدفع) *' : 'Description *'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'سبب الدفع' : 'Reason for payment'} value={d.description} onChange={e => setD(p => ({ ...p, description: e.target.value }))} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs arabic">{isAr ? 'طريقة الدفع' : 'Payment Method'}</Label>
+        <div className="flex gap-4">
+          {(['cash', 'check', 'transfer'] as const).map(m => (
+            <label key={m} className="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="payMethod" checked={d.paymentMethod === m} onChange={() => setD(p => ({ ...p, paymentMethod: m }))} className="accent-primary" />
+              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : 'تحويل'}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'ملاحظات' : 'Notes'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'ملاحظات إضافية (اختياري)' : 'Optional notes'} value={d.notes} onChange={e => setD(p => ({ ...p, notes: e.target.value }))} />
+      </div>
+      <Button onClick={onSubmit} disabled={submitting} className="arabic mt-1">
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin me-1" /> : <Plus className="w-4 h-4 me-1" />}
+        {submitLabel}
+      </Button>
+    </div>
+  );
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-background rounded-2xl shadow-2xl border border-border w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          {view !== 'list' ? (
+            <button onClick={() => setView('list')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors arabic">
+              <ChevronDown className="w-4 h-4 rotate-90" />
+              {isAr ? 'رجوع' : 'Back'}
+            </button>
+          ) : <div />}
+          <h2 className="text-base font-bold arabic text-center flex-1">
+            {view === 'create' ? (isAr ? 'سند قبض جديد' : 'New Receipt')
+              : view === 'edit' ? (isAr ? 'تعديل السند' : 'Edit Receipt')
+              : (isAr ? 'سندات القبض' : 'Receipts')}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {view === 'create' && (
+            <ReceiptForm d={draft} setD={setDraft} onSubmit={handleCreate} submitting={creating} submitLabel={isAr ? 'حفظ السند' : 'Save Receipt'} />
+          )}
+
+          {view === 'edit' && (
+            <ReceiptForm d={editDraft} setD={setEditDraft} onSubmit={handleSaveEdit} submitting={saving} submitLabel={isAr ? 'حفظ التعديلات' : 'Save Changes'} />
+          )}
+
+          {view === 'list' && (
+            <div className="flex flex-col h-full">
+              <div className="px-4 py-3 border-b border-border shrink-0">
+                <Button size="sm" onClick={() => { setDraft(emptyDraft()); setView('create'); }} className="arabic text-xs w-full">
+                  <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'سند قبض جديد' : 'New Receipt'}
+                </Button>
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+              ) : receipts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                  <ReceiptIcon className="w-10 h-10 opacity-30" />
+                  <p className="text-sm arabic">{isAr ? 'لا توجد سندات قبض' : 'No receipts yet'}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {receipts.map(rec => (
+                    <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 dark:bg-blue-950/30">
+                        <ReceiptIcon className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-primary">#{rec.number}</span>
+                          <span className="text-sm font-bold arabic text-foreground truncate">{rec.received_from}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground arabic mt-0.5">
+                          {rec.date ? new Date(rec.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
+                          {' · '}{rec.description}
+                          {' · '}<span className="font-bold text-blue-600">{Number(rec.amount).toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 items-center">
+                        <button onClick={() => handleOpenEdit(rec)} title={isAr ? 'تعديل' : 'Edit'} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(rec)} disabled={pdfingId === rec.id} className="arabic text-xs h-7 px-2">
+                          {pdfingId === rec.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}
+                        </Button>
+                        <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                          {deletingId === rec.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

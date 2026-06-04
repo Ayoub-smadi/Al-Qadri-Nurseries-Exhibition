@@ -520,6 +520,65 @@ export async function permanentDeleteQuote(id: string): Promise<boolean> {
   return false;
 }
 
+export interface Receipt {
+  id: string;
+  number: string;
+  received_from: string;
+  amount: number;
+  amount_text: string;
+  description: string;
+  payment_method: 'cash' | 'check' | 'transfer';
+  date: string;
+  notes: string;
+  created_at: string;
+}
+
+export async function fetchReceipts(): Promise<Receipt[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/receipts`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) { const j = await res.json() as { receipts?: Receipt[] }; return j.receipts ?? []; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/receipts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json() as { id: string; number: string };
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function updateReceipt(id: string, data: { receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/receipts/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function deleteReceipt(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/receipts/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function fetchInvoices(): Promise<Invoice[] | null> {
   const token = getToken();
   if (!token) return null;

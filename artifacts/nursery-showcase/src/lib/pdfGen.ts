@@ -602,6 +602,163 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
 }
 
+/* ── Receipt (سند قبض) PDF ──────────────────────────────── */
+export interface ReceiptPDFData {
+  number: string;
+  receivedFrom: string;
+  amount: number;
+  amountText: string;
+  description: string;
+  paymentMethod: 'cash' | 'check' | 'transfer';
+  date: string;
+  notes?: string;
+  logoUrl?: string;
+}
+
+export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
+  const logoDataUrl = data.logoUrl ? await toDataUrl(data.logoUrl).catch(() => '') : '';
+  const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
+
+  const dinars = Math.floor(data.amount);
+  const fils = Math.round((data.amount - dinars) * 1000);
+
+  const paymentLabels = { cash: 'نقداً', check: 'شيك', transfer: 'تحويل بنكي' };
+  const paymentMethodAr = paymentLabels[data.paymentMethod] || 'نقداً';
+
+  const checkBox = (checked: boolean) =>
+    `<span style="display:inline-block;width:14px;height:14px;border:2px solid #1a3a8a;border-radius:2px;text-align:center;line-height:11px;font-size:11px;color:#1a3a8a;vertical-align:middle;margin-left:4px;">${checked ? '✓' : ''}</span>`;
+
+  const dateDisplay = data.date
+    ? new Date(data.date).toLocaleDateString('ar-JO')
+    : new Date().toLocaleDateString('ar-JO');
+
+  const html = `
+    <div style="font-family:'Cairo',sans-serif;background:#fff;width:700px;direction:rtl;color:#111;font-size:13px;padding:0;">
+
+      <!-- HEADER -->
+      <div style="background:#fff;padding:20px 24px 14px;border-bottom:3px solid #1a3a8a;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="text-align:right;">
+            <div style="font-size:22px;font-weight:900;color:#1a3a8a;line-height:1.2;">مؤسسة القادري الزراعية</div>
+            <div style="font-size:10px;color:#555;margin-top:2px;">جرش - الرشايدة &nbsp;·&nbsp; الأردن</div>
+            <div style="font-size:10px;color:#1a3a8a;direction:ltr;text-align:right;margin-top:1px;">0777772211 &nbsp;·&nbsp; 0778111155</div>
+          </div>
+          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;" />` : ''}
+          <div style="text-align:left;direction:ltr;">
+            <div style="font-size:13px;font-weight:700;color:#1a3a8a;">Al-Qadri Agricultural Foundation</div>
+            <div style="font-size:10px;color:#555;margin-top:2px;">Jarash - Al-Rashaydeh · Jordan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TITLE + NUMBER + DATE -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#f0f4ff;border-bottom:1px solid #c8d4f0;">
+        <div style="font-size:11px;color:#555;direction:ltr;text-align:left;">
+          <span style="color:#888;">Date / التاريخ: </span><strong>${dateDisplay}</strong>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:20px;font-weight:900;color:#1a3a8a;border:2px solid #1a3a8a;display:inline-block;padding:4px 32px;border-radius:4px;background:#fff;">
+            سـنـد قـبـض
+          </div>
+        </div>
+        <div style="font-size:11px;color:#555;direction:ltr;text-align:right;">
+          <span style="color:#888;">No. </span><strong style="font-size:14px;color:#1a3a8a;">${data.number.padStart(6, '0')}</strong>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div style="padding:20px 24px;">
+
+        <!-- Received from -->
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
+          <span style="font-size:12px;color:#555;white-space:nowrap;">استلمنا من السيد / السيدة:</span>
+          <span style="font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #1a3a8a;padding-bottom:1px;flex:1;">${data.receivedFrom}</span>
+        </div>
+
+        <!-- Amount row -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <span style="font-size:12px;color:#555;white-space:nowrap;">مبلغاً وقدره:</span>
+          <div style="flex:1;display:flex;gap:0;border:2px solid #1a3a8a;border-radius:6px;overflow:hidden;">
+            <div style="flex:1;padding:8px 12px;text-align:center;background:#fff;">
+              <div style="font-size:9px;color:#888;margin-bottom:2px;">دينار</div>
+              <div style="font-size:18px;font-weight:900;color:#1a3a8a;">${dinars}</div>
+            </div>
+            <div style="width:2px;background:#1a3a8a;"></div>
+            <div style="width:80px;padding:8px 12px;text-align:center;background:#fff;">
+              <div style="font-size:9px;color:#888;margin-bottom:2px;">فلس</div>
+              <div style="font-size:18px;font-weight:900;color:#1a3a8a;">${fils > 0 ? fils : '---'}</div>
+            </div>
+          </div>
+          <div style="flex:2;padding:8px 12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
+            <div style="font-size:9px;color:#888;margin-bottom:2px;">المبلغ كتابةً</div>
+            <div style="font-size:13px;font-weight:700;">${data.amountText || (dinars + ' دينار' + (fils > 0 ? ` و ${fils} فلس` : ''))}</div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
+          <span style="font-size:12px;color:#555;white-space:nowrap;">وذلك عن:</span>
+          <span style="font-size:14px;font-weight:700;flex:1;">${data.description}</span>
+        </div>
+
+        <!-- Payment method -->
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:${data.notes ? '14px' : '20px'};padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;">
+          <span style="font-size:12px;color:#555;">طريقة الدفع:</span>
+          <span>${checkBox(data.paymentMethod === 'cash')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'cash' ? '700' : '400'};">نقداً</span></span>
+          <span>${checkBox(data.paymentMethod === 'check')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'check' ? '700' : '400'};">شيك</span></span>
+          <span>${checkBox(data.paymentMethod === 'transfer')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'transfer' ? '700' : '400'};">تحويل بنكي</span></span>
+          <span style="font-size:12px;font-weight:700;color:#1a3a8a;margin-right:auto;">${paymentMethodAr}</span>
+        </div>
+
+        ${data.notes ? `
+        <div style="margin-bottom:20px;padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;background:#fffdf0;">
+          <span style="font-size:10px;color:#888;">ملاحظات: </span>
+          <span style="font-size:12px;">${data.notes}</span>
+        </div>` : ''}
+
+        <!-- Signatures -->
+        <div style="display:flex;justify-content:space-between;gap:16px;margin-top:24px;padding-top:16px;border-top:2px solid #1a3a8a;">
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:11px;color:#555;margin-bottom:28px;">توقيع الدافع</div>
+            <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:72px;height:auto;object-fit:contain;display:inline-block;opacity:0.85;" />` : '<div style="width:72px;height:60px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:11px;color:#555;margin-bottom:6px;">توقيع المستلم</div>
+            <div style="font-size:12px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
+            <div style="border-top:1px solid #999;margin-top:4px;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="padding:8px 24px;background:#f0f4ff;border-top:2px solid #1a3a8a;text-align:center;font-size:9px;color:#888;direction:ltr;">
+        Al-Qadri Agricultural Foundation · Jarash - Al-Rashaydeh · Jordan · 0777772211
+      </div>
+    </div>`;
+
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+  await document.fonts.ready;
+
+  const inner = div.firstElementChild as HTMLElement;
+  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  document.body.removeChild(div);
+
+  const PX_PER_MM = 3.7795275591;
+  const pageW = canvas.width / PX_PER_MM;
+  const pageH = canvas.height / PX_PER_MM;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [pageW, pageH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.93), 'JPEG', 0, 0, pageW, pageH);
+  const safeName = data.receivedFrom.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  pdf.save(`سند_قبض_${data.number}_${safeName}.pdf`);
+}
+
 /* ── Experience Certificate PDF ─────────────────────────── */
 export interface CertificateData {
   employeeName: string;

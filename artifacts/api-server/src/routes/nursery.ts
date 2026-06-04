@@ -32,6 +32,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
+      await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     } catch (e) {
       console.error("DB init error:", (e as Error).message);
     } finally {
@@ -350,6 +351,65 @@ router.delete("/invoices/:id", async (req, res) => {
     await pool.query(`DELETE FROM invoices WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete invoice" }); }
+});
+
+/* ── Receipts (سندات القبض) ─────────────────────────────── */
+
+router.get("/receipts", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const result = await pool.query(`SELECT * FROM receipts ORDER BY created_at DESC`);
+    res.json({ receipts: result.rows });
+  } catch (e) { res.status(500).json({ error: "Failed to load receipts", detail: (e as Error).message }); }
+});
+
+router.post("/receipts", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { receivedFrom, amount, amountText, description, paymentMethod, date, notes, receiptNumber } = req.body as {
+    receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; receiptNumber?: string;
+  };
+  if (!receivedFrom) { res.status(400).json({ error: "Missing receivedFrom" }); return; }
+  try {
+    await dbReady;
+    let finalNum = receiptNumber?.trim();
+    if (!finalNum) {
+      const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 1) AS next FROM receipts`);
+      finalNum = String(countRow.rows[0].next).padStart(6, '0');
+    }
+    const id = `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    await pool.query(
+      `INSERT INTO receipts (id, number, received_from, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [id, finalNum, receivedFrom, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
+    );
+    res.json({ id, number: finalNum });
+  } catch (e) { res.status(500).json({ error: "Failed to save receipt", detail: (e as Error).message }); }
+});
+
+router.put("/receipts/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  const { receivedFrom, amount, amountText, description, paymentMethod, date, notes, number } = req.body as {
+    receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string;
+  };
+  try {
+    await dbReady;
+    await pool.query(
+      `UPDATE receipts SET number=COALESCE($1,number), received_from=$2, amount=$3, amount_text=$4, description=$5, payment_method=$6, date=$7, notes=$8 WHERE id=$9`,
+      [number?.trim() || null, receivedFrom, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to update receipt", detail: (e as Error).message }); }
+});
+
+router.delete("/receipts/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await dbReady;
+    await pool.query(`DELETE FROM receipts WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete receipt" }); }
 });
 
 router.post("/images/from-url", async (req, res) => {
