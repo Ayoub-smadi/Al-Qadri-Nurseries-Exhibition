@@ -584,6 +584,70 @@ export async function deleteReceipt(id: string): Promise<boolean | 'unauthorized
   } catch { return false; }
 }
 
+export interface Disbursement {
+  id: string;
+  number: string;
+  paid_to: string;
+  amount: number;
+  amount_text: string;
+  description: string;
+  payment_method: 'cash' | 'check' | 'transfer';
+  date: string;
+  notes: string;
+  created_at: string;
+}
+
+export async function fetchDisbursements(): Promise<Disbursement[] | 'unauthorized' | null> {
+  const token = getToken();
+  if (!token) return 'unauthorized';
+  try {
+    const res = await fetch(`${getApiBase()}/disbursements`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.ok) { const j = await res.json() as { disbursements?: Disbursement[] }; return j.disbursements ?? []; }
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function createDisbursement(data: { paidTo: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; disbursementNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
+  const token = getToken();
+  if (!token) return 'unauthorized';
+  try {
+    const res = await fetch(`${getApiBase()}/disbursements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json() as { id: string; number: string };
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
+    const body = await res.json().catch(() => ({})) as { error?: string; detail?: string };
+    return { error: body.detail ?? body.error ?? `HTTP ${res.status}` };
+  } catch (e) { return { error: String(e) }; }
+}
+
+export async function updateDisbursement(id: string, data: { paidTo?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
+  const token = getToken();
+  if (!token) return 'unauthorized';
+  try {
+    const res = await fetch(`${getApiBase()}/disbursements/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(data),
+    });
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function deleteDisbursement(id: string): Promise<boolean | 'unauthorized'> {
+  const token = getToken();
+  if (!token) return 'unauthorized';
+  try {
+    const res = await fetch(`${getApiBase()}/disbursements/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    if (res.status === 401 || res.status === 403) return 'unauthorized';
+    return res.ok;
+  } catch { return false; }
+}
+
 export async function fetchInvoices(): Promise<Invoice[] | null> {
   const token = getToken();
   if (!token) return null;

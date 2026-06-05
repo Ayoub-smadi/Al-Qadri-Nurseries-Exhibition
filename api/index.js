@@ -62,6 +62,7 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
     await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
   } catch (e) {
     console.error("DB init error:", e.message);
   } finally {
@@ -470,6 +471,69 @@ app.delete("/api/receipts/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete receipt" });
+  }
+});
+
+/* ── Disbursements (سندات الصرف) ────────────────────────── */
+
+app.get("/api/disbursements", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const result = await pool.query(`SELECT * FROM disbursements ORDER BY created_at DESC`);
+    res.json({ disbursements: result.rows });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load disbursements", detail: e.message });
+  }
+});
+
+app.post("/api/disbursements", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { paidTo, amount, amountText, description, paymentMethod, date, notes, disbursementNumber } = req.body ?? {};
+  if (!paidTo) { res.status(400).json({ error: "Missing paidTo" }); return; }
+  try {
+    await dbReady;
+    let finalNum = disbursementNumber?.trim();
+    if (!finalNum) {
+      const countRow = await pool.query(`SELECT COALESCE(MAX(CAST(number AS INTEGER)) + 1, 1) AS next FROM disbursements`);
+      finalNum = String(countRow.rows[0].next).padStart(6, '0');
+    }
+    const id = `dis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    await pool.query(
+      `INSERT INTO disbursements (id, number, paid_to, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [id, finalNum, paidTo, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
+    );
+    res.json({ id, number: finalNum });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save disbursement", detail: e.message });
+  }
+});
+
+app.put("/api/disbursements/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  const { paidTo, amount, amountText, description, paymentMethod, date, notes, number } = req.body ?? {};
+  try {
+    await dbReady;
+    await pool.query(
+      `UPDATE disbursements SET number=COALESCE($1,number), paid_to=$2, amount=$3, amount_text=$4, description=$5, payment_method=$6, date=$7, notes=$8 WHERE id=$9`,
+      [number?.trim() || null, paidTo, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to update disbursement", detail: e.message });
+  }
+});
+
+app.delete("/api/disbursements/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id } = req.params;
+  try {
+    await dbReady;
+    await pool.query(`DELETE FROM disbursements WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete disbursement" });
   }
 });
 

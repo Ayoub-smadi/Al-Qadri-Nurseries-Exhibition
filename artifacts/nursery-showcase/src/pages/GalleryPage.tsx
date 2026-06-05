@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt } from '@/lib/storage';
-import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
+import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -10,7 +10,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Trash, ArchiveRestore, Award,
+  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -419,6 +419,8 @@ export default function GalleryPage() {
   const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
   /* admin receipts */
   const [adminReceiptsOpen, setAdminReceiptsOpen] = useState(false);
+  /* admin disbursements */
+  const [adminDisbursementsOpen, setAdminDisbursementsOpen] = useState(false);
   /* experience certificate */
   const [certOpen, setCertOpen] = useState(false);
 
@@ -1503,6 +1505,7 @@ export default function GalleryPage() {
             <ToolBtn icon={<Inbox className="w-3.5 h-3.5" />} label={isAr ? 'طلبات العروض' : 'Quotes'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
             <ToolBtn icon={<FileText className="w-3.5 h-3.5" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
             <ToolBtn icon={<ReceiptIcon className="w-3.5 h-3.5" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
+            <ToolBtn icon={<ArrowUpFromLine className="w-3.5 h-3.5" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
             <ToolBtn icon={<Award className="w-3.5 h-3.5" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => setCertOpen(true)} />
             <ToolBtn icon={<FileDown className="w-3.5 h-3.5" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} variant="dark" onClick={() => setPdfModalTarget('all')} />
             <div className="w-px h-5 bg-border shrink-0" />
@@ -2012,6 +2015,17 @@ export default function GalleryPage() {
           lang={lang}
           logoUrl={siteData.logo?.customUrl ?? ''}
           onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); setAdminReceiptsOpen(false); setSessionExpired(true); }}
+        />
+      )}
+
+      {/* Admin Disbursements Modal */}
+      {isAdmin && (
+        <AdminDisbursementsModal
+          open={adminDisbursementsOpen}
+          onClose={() => setAdminDisbursementsOpen(false)}
+          lang={lang}
+          logoUrl={siteData.logo?.customUrl ?? ''}
+          onSessionExpired={() => { setSessionToken(null); setIsAdmin(false); setAdminDisbursementsOpen(false); setSessionExpired(true); }}
         />
       )}
 
@@ -4724,6 +4738,269 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
                         </Button>
                         <button onClick={() => handleDelete(rec.id)} disabled={deletingId === rec.id} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                           {deletingId === rec.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Disbursement Form (must NOT be defined inside modal) ── */
+type DisbursementDraft = {
+  paidTo: string; amount: number; amountText: string;
+  description: string; paymentMethod: 'cash' | 'check' | 'transfer';
+  date: string; notes: string; disbursementNumber: string;
+};
+
+function DisbursementForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: {
+  d: DisbursementDraft;
+  setD: React.Dispatch<React.SetStateAction<DisbursementDraft>>;
+  onSubmit: () => void;
+  submitting: boolean;
+  submitLabel: string;
+  isAr: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'رقم السند' : 'Voucher No.'}</Label>
+          <Input className="arabic text-sm" placeholder={isAr ? 'تلقائي' : 'Auto'} value={d.disbursementNumber} onChange={e => setD(p => ({ ...p, disbursementNumber: e.target.value }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'التاريخ' : 'Date'}</Label>
+          <Input type="date" className="text-sm" value={d.date} onChange={e => setD(p => ({ ...p, date: e.target.value }))} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'صرفنا للسيد/السيدة *' : 'Paid To *'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'اسم المستلم' : 'Payee name'} value={d.paidTo} onChange={e => setD(p => ({ ...p, paidTo: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'المبلغ (دينار)' : 'Amount (JD)'}</Label>
+          <Input type="number" step="0.001" min="0" className="text-sm" value={d.amount || ''} onChange={e => setD(p => ({ ...p, amount: parseFloat(e.target.value) || 0 }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs arabic">{isAr ? 'المبلغ كتابةً' : 'Amount in Words'}</Label>
+          <Input className="arabic text-sm" placeholder={isAr ? 'مثال: مئة دينار' : 'e.g. One Hundred Dinars'} value={d.amountText} onChange={e => setD(p => ({ ...p, amountText: e.target.value }))} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'وذلك عن (سبب الصرف) *' : 'Description *'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'سبب الصرف' : 'Reason for payment'} value={d.description} onChange={e => setD(p => ({ ...p, description: e.target.value }))} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs arabic">{isAr ? 'طريقة الدفع' : 'Payment Method'}</Label>
+        <div className="flex gap-4">
+          {(['cash', 'check', 'transfer'] as const).map(m => (
+            <label key={m} className="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="disPayMethod" checked={d.paymentMethod === m} onChange={() => setD(p => ({ ...p, paymentMethod: m }))} className="accent-primary" />
+              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : 'تحويل'}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'ملاحظات' : 'Notes'}</Label>
+        <Input className="arabic text-sm" placeholder={isAr ? 'ملاحظات إضافية (اختياري)' : 'Optional notes'} value={d.notes} onChange={e => setD(p => ({ ...p, notes: e.target.value }))} />
+      </div>
+      <Button onClick={onSubmit} disabled={submitting} className="arabic mt-1">
+        {submitting ? <Loader2 className="w-4 h-4 animate-spin me-1" /> : <Plus className="w-4 h-4 me-1" />}
+        {submitLabel}
+      </Button>
+    </div>
+  );
+}
+
+/* ── Admin Disbursements Modal (سندات الصرف) ─────────────── */
+function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpired }: {
+  open: boolean; onClose: () => void; lang: string; logoUrl: string; onSessionExpired: () => void;
+}) {
+  const isAr = lang === 'ar';
+  const [disbursements, setDisbursements] = useState<Disbursement[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
+  const [editingDis, setEditingDis] = useState<Disbursement | null>(null);
+
+  const emptyDraft = (): DisbursementDraft => ({
+    paidTo: '', amount: 0, amountText: '', description: '',
+    paymentMethod: 'cash',
+    date: new Date().toISOString().slice(0, 10), notes: '', disbursementNumber: '',
+  });
+  const [draft, setDraft] = useState<DisbursementDraft>(emptyDraft());
+  const [editDraft, setEditDraft] = useState<DisbursementDraft>(emptyDraft());
+
+  const handleUnauthorized = useCallback(() => {
+    setSessionToken(null);
+    onClose();
+    onSessionExpired();
+  }, [onClose, onSessionExpired]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await fetchDisbursements();
+    if (data === 'unauthorized') { handleUnauthorized(); return; }
+    if (data !== null) setDisbursements(data);
+    setLoading(false);
+  }, [handleUnauthorized]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const handleCreate = async () => {
+    if (!draft.paidTo.trim()) { toast.error(isAr ? 'أدخل اسم المستلم' : 'Enter payee name'); return; }
+    if (!draft.description.trim()) { toast.error(isAr ? 'أدخل سبب الصرف' : 'Enter description'); return; }
+    setCreating(true);
+    const result = await createDisbursement({ ...draft });
+    if (result === 'unauthorized') { handleUnauthorized(); setCreating(false); return; }
+    if (result && 'number' in result) {
+      toast.success(isAr ? `تم إنشاء سند صرف رقم ${result.number}` : `Disbursement No. ${result.number} created`);
+      setDraft(emptyDraft());
+      setView('list');
+      await load();
+    } else if (result && 'error' in result) {
+      toast.error(`${isAr ? 'خطأ' : 'Error'}: ${result.error}`);
+    } else {
+      toast.error(isAr ? 'فشل في الحفظ — تحقق من الاتصال' : 'Save failed — check connection');
+    }
+    setCreating(false);
+  };
+
+  const handleOpenEdit = (dis: Disbursement) => {
+    setEditingDis(dis);
+    setEditDraft({
+      paidTo: dis.paid_to, amount: Number(dis.amount),
+      amountText: dis.amount_text, description: dis.description,
+      paymentMethod: dis.payment_method, date: dis.date,
+      notes: dis.notes, disbursementNumber: dis.number,
+    });
+    setView('edit');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDis) return;
+    setSaving(true);
+    const ok = await updateDisbursement(editingDis.id, {
+      paidTo: editDraft.paidTo, amount: editDraft.amount,
+      amountText: editDraft.amountText, description: editDraft.description,
+      paymentMethod: editDraft.paymentMethod, date: editDraft.date,
+      notes: editDraft.notes, number: editDraft.disbursementNumber,
+    });
+    if (ok === 'unauthorized') { handleUnauthorized(); setSaving(false); return; }
+    if (ok) {
+      toast.success(isAr ? 'تم الحفظ' : 'Saved');
+      setView('list');
+      await load();
+    } else {
+      toast.error(isAr ? 'فشل الحفظ' : 'Save failed');
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    const ok = await deleteDisbursement(id);
+    if (ok === 'unauthorized') { handleUnauthorized(); setDeletingId(null); return; }
+    setDisbursements(prev => prev.filter(d => d.id !== id));
+    setDeletingId(null);
+  };
+
+  const handleDownloadPDF = async (dis: Disbursement) => {
+    setPdfingId(dis.id);
+    await downloadDisbursementPDF({
+      number: dis.number, paidTo: dis.paid_to,
+      amount: Number(dis.amount), amountText: dis.amount_text,
+      description: dis.description, paymentMethod: dis.payment_method,
+      date: dis.date, notes: dis.notes, logoUrl,
+    });
+    setPdfingId(null);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-background rounded-2xl shadow-2xl border border-border w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          {view !== 'list' ? (
+            <button onClick={() => setView('list')} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors arabic">
+              <ChevronDown className="w-4 h-4 rotate-90" />
+              {isAr ? 'رجوع' : 'Back'}
+            </button>
+          ) : <div />}
+          <h2 className="text-base font-bold arabic text-center flex-1">
+            {view === 'create' ? (isAr ? 'سند صرف جديد' : 'New Disbursement')
+              : view === 'edit' ? (isAr ? 'تعديل السند' : 'Edit Disbursement')
+              : (isAr ? 'سندات الصرف' : 'Disbursements')}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {view === 'create' && (
+            <DisbursementForm d={draft} setD={setDraft} onSubmit={handleCreate} submitting={creating} submitLabel={isAr ? 'حفظ السند' : 'Save Disbursement'} isAr={isAr} />
+          )}
+
+          {view === 'edit' && (
+            <DisbursementForm d={editDraft} setD={setEditDraft} onSubmit={handleSaveEdit} submitting={saving} submitLabel={isAr ? 'حفظ التعديلات' : 'Save Changes'} isAr={isAr} />
+          )}
+
+          {view === 'list' && (
+            <div className="flex flex-col h-full">
+              <div className="px-4 py-3 border-b border-border shrink-0">
+                <Button size="sm" onClick={() => { setDraft(emptyDraft()); setView('create'); }} className="arabic text-xs w-full">
+                  <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'سند صرف جديد' : 'New Disbursement'}
+                </Button>
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+              ) : disbursements.length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+                  <ArrowUpFromLine className="w-10 h-10 opacity-30" />
+                  <p className="text-sm arabic">{isAr ? 'لا توجد سندات صرف' : 'No disbursements yet'}</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {disbursements.map(dis => (
+                    <div key={dis.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-orange-100 dark:bg-orange-950/30">
+                        <ArrowUpFromLine className="w-4 h-4 text-orange-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-primary">#{dis.number}</span>
+                          <span className="text-sm font-bold arabic text-foreground truncate">{dis.paid_to}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground arabic mt-0.5">
+                          {dis.date ? new Date(dis.date).toLocaleDateString(isAr ? 'ar-JO' : 'en-GB') : ''}
+                          {' · '}{dis.description}
+                          {' · '}<span className="font-bold text-orange-600">{Number(dis.amount).toFixed(3)} {isAr ? 'د.أ' : 'JD'}</span>
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 items-center">
+                        <button onClick={() => handleOpenEdit(dis)} title={isAr ? 'تعديل' : 'Edit'} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(dis)} disabled={pdfingId === dis.id} className="arabic text-xs h-7 px-2">
+                          {pdfingId === dis.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />PDF</>}
+                        </Button>
+                        <button onClick={() => handleDelete(dis.id)} disabled={deletingId === dis.id} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                          {deletingId === dis.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
