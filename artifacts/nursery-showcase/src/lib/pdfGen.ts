@@ -741,13 +741,23 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
     </div>`;
 
   const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.style.cssText = 'position:fixed;left:0;top:-9999px;z-index:-1;';
   div.innerHTML = html;
   document.body.appendChild(div);
   await document.fonts.ready;
 
   const inner = div.firstElementChild as HTMLElement;
-  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  const canvas = await html2canvas(inner, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#fff',
+    logging: false,
+    width: inner.scrollWidth,
+    height: inner.scrollHeight,
+    windowWidth: inner.scrollWidth,
+    windowHeight: inner.scrollHeight,
+  });
   document.body.removeChild(div);
 
   const PX_PER_MM = 3.7795275591;
