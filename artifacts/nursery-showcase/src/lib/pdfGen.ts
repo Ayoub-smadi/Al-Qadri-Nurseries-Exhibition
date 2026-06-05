@@ -633,103 +633,112 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
     : new Date().toLocaleDateString('ar-JO');
 
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#fff;width:700px;direction:rtl;color:#111;font-size:13px;padding:0;">
+    <div style="font-family:'Cairo',sans-serif;background:#fff;width:700px;direction:rtl;color:#111;font-size:13px;padding:0;box-sizing:border-box;">
 
       <!-- HEADER -->
       <div style="background:#fff;padding:20px 24px 14px;border-bottom:3px solid #1a3a8a;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="text-align:right;">
-            <div style="font-size:22px;font-weight:900;color:#1a3a8a;line-height:1.2;">مؤسسة القادري الزراعية</div>
-            <div style="font-size:10px;color:#555;margin-top:2px;">جرش - الرشايدة &nbsp;·&nbsp; الأردن</div>
-            <div style="font-size:10px;color:#1a3a8a;direction:ltr;text-align:right;margin-top:1px;">0777772211 &nbsp;·&nbsp; 0778111155</div>
-          </div>
-          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;" />` : ''}
-          <div style="text-align:left;direction:ltr;">
-            <div style="font-size:13px;font-weight:700;color:#1a3a8a;">Al-Qadri Agricultural Foundation</div>
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="text-align:right;vertical-align:middle;width:34%;">
+            <div style="font-size:20px;font-weight:900;color:#1a3a8a;line-height:1.3;">مؤسسة القادري الزراعية</div>
+            <div style="font-size:10px;color:#555;margin-top:2px;">جرش - الرشايدة · الأردن</div>
+            <div style="font-size:10px;color:#1a3a8a;direction:ltr;text-align:right;margin-top:1px;">0777772211 · 0778111155</div>
+          </td>
+          <td style="text-align:center;vertical-align:middle;width:32%;">
+            ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:68px;height:68px;object-fit:contain;" />` : ''}
+          </td>
+          <td style="text-align:left;vertical-align:middle;width:34%;direction:ltr;">
+            <div style="font-size:12px;font-weight:700;color:#1a3a8a;">Al-Qadri Agricultural Foundation</div>
             <div style="font-size:10px;color:#555;margin-top:2px;">Jarash - Al-Rashaydeh · Jordan</div>
-          </div>
-        </div>
+          </td>
+        </tr></table>
       </div>
 
       <!-- TITLE + NUMBER + DATE -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#f0f4ff;border-bottom:1px solid #c8d4f0;">
-        <div style="font-size:11px;color:#555;direction:ltr;text-align:left;">
-          <span style="color:#888;">Date / التاريخ: </span><strong>${dateDisplay}</strong>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px;font-weight:900;color:#1a3a8a;border:2px solid #1a3a8a;display:inline-block;padding:4px 32px;border-radius:4px;background:#fff;">
-            سـنـد قـبـض
-          </div>
-        </div>
-        <div style="font-size:11px;color:#555;direction:ltr;text-align:right;">
-          <span style="color:#888;">No. </span><strong style="font-size:14px;color:#1a3a8a;">${data.number.padStart(6, '0')}</strong>
-        </div>
+      <div style="padding:10px 24px;background:#f0f4ff;border-bottom:1px solid #c8d4f0;">
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="width:33%;text-align:right;direction:ltr;font-size:11px;color:#555;vertical-align:middle;">
+            <span style="color:#888;">Date: </span><strong>${dateDisplay}</strong>
+          </td>
+          <td style="width:34%;text-align:center;vertical-align:middle;">
+            <div style="font-size:18px;font-weight:900;color:#1a3a8a;border:2px solid #1a3a8a;display:inline-block;padding:4px 24px;border-radius:4px;background:#fff;">سـنـد قـبـض</div>
+          </td>
+          <td style="width:33%;text-align:left;direction:ltr;font-size:11px;color:#555;vertical-align:middle;">
+            <span style="color:#888;">No. </span><strong style="font-size:14px;color:#1a3a8a;">${data.number.padStart(6, '0')}</strong>
+          </td>
+        </tr></table>
       </div>
 
       <!-- BODY -->
-      <div style="padding:20px 24px;">
+      <div style="padding:18px 24px;">
 
         <!-- Received from -->
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">استلمنا من السيد / السيدة:</span>
-          <span style="font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #1a3a8a;padding-bottom:1px;flex:1;">${data.receivedFrom}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;"><tr>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">استلمنا من السيد / السيدة:</td>
+          <td style="padding:10px 14px 6px;font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #1a3a8a;vertical-align:bottom;">${data.receivedFrom}</td>
+        </tr></table>
 
         <!-- Amount row -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">مبلغاً وقدره:</span>
-          <div style="flex:1;display:flex;gap:0;border:2px solid #1a3a8a;border-radius:6px;overflow:hidden;">
-            <div style="flex:1;padding:8px 12px;text-align:center;background:#fff;">
-              <div style="font-size:9px;color:#888;margin-bottom:2px;">دينار</div>
-              <div style="font-size:18px;font-weight:900;color:#1a3a8a;">${dinars}</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><tr>
+          <td style="font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;padding-left:8px;width:1%;">مبلغاً وقدره:</td>
+          <td style="vertical-align:middle;width:30%;">
+            <table style="width:100%;border-collapse:collapse;border:2px solid #1a3a8a;border-radius:6px;overflow:hidden;"><tr>
+              <td style="padding:6px 10px;text-align:center;border-left:2px solid #1a3a8a;background:#fff;">
+                <div style="font-size:8px;color:#888;margin-bottom:1px;">دينار</div>
+                <div style="font-size:17px;font-weight:900;color:#1a3a8a;">${dinars}</div>
+              </td>
+              <td style="padding:6px 10px;text-align:center;background:#fff;width:70px;">
+                <div style="font-size:8px;color:#888;margin-bottom:1px;">فلس</div>
+                <div style="font-size:17px;font-weight:900;color:#1a3a8a;">${fils > 0 ? fils : '---'}</div>
+              </td>
+            </tr></table>
+          </td>
+          <td style="padding-right:8px;vertical-align:middle;">
+            <div style="padding:8px 12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
+              <div style="font-size:8px;color:#888;margin-bottom:2px;">المبلغ كتابةً</div>
+              <div style="font-size:13px;font-weight:700;">${data.amountText || (dinars + ' دينار' + (fils > 0 ? ` و ${fils} فلس` : ''))}</div>
             </div>
-            <div style="width:2px;background:#1a3a8a;"></div>
-            <div style="width:80px;padding:8px 12px;text-align:center;background:#fff;">
-              <div style="font-size:9px;color:#888;margin-bottom:2px;">فلس</div>
-              <div style="font-size:18px;font-weight:900;color:#1a3a8a;">${fils > 0 ? fils : '---'}</div>
-            </div>
-          </div>
-          <div style="flex:2;padding:8px 12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
-            <div style="font-size:9px;color:#888;margin-bottom:2px;">المبلغ كتابةً</div>
-            <div style="font-size:13px;font-weight:700;">${data.amountText || (dinars + ' دينار' + (fils > 0 ? ` و ${fils} فلس` : ''))}</div>
-          </div>
-        </div>
+          </td>
+        </tr></table>
 
         <!-- Description -->
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">وذلك عن:</span>
-          <span style="font-size:14px;font-weight:700;flex:1;">${data.description}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;"><tr>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">وذلك عن:</td>
+          <td style="padding:10px 14px;font-size:14px;font-weight:700;vertical-align:middle;">${data.description}</td>
+        </tr></table>
 
         <!-- Payment method -->
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:${data.notes ? '14px' : '20px'};padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;">
-          <span style="font-size:12px;color:#555;">طريقة الدفع:</span>
-          <span>${checkBox(data.paymentMethod === 'cash')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'cash' ? '700' : '400'};">نقداً</span></span>
-          <span>${checkBox(data.paymentMethod === 'check')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'check' ? '700' : '400'};">شيك</span></span>
-          <span>${checkBox(data.paymentMethod === 'transfer')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'transfer' ? '700' : '400'};">تحويل بنكي</span></span>
-          <span style="font-size:12px;font-weight:700;color:#1a3a8a;margin-right:auto;">${paymentMethodAr}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:${data.notes ? '12px' : '18px'};border:1px solid #e0e0e0;border-radius:6px;"><tr>
+          <td style="padding:8px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">طريقة الدفع:</td>
+          <td style="padding:8px 14px;vertical-align:middle;">
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'cash')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'cash' ? '700' : '400'};">نقداً</span></span>
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'check')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'check' ? '700' : '400'};">شيك</span></span>
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'transfer')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'transfer' ? '700' : '400'};">تحويل بنكي</span></span>
+          </td>
+          <td style="padding:8px 14px;font-size:12px;font-weight:700;color:#1a3a8a;text-align:left;vertical-align:middle;direction:ltr;">${paymentMethodAr}</td>
+        </tr></table>
 
         ${data.notes ? `
-        <div style="margin-bottom:20px;padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;background:#fffdf0;">
+        <div style="margin-bottom:18px;padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;background:#fffdf0;">
           <span style="font-size:10px;color:#888;">ملاحظات: </span>
           <span style="font-size:12px;">${data.notes}</span>
         </div>` : ''}
 
         <!-- Signatures -->
-        <div style="display:flex;justify-content:space-between;gap:16px;margin-top:24px;padding-top:16px;border-top:2px solid #1a3a8a;">
-          <div style="flex:1;text-align:center;">
-            <div style="font-size:11px;color:#555;margin-bottom:28px;">توقيع الدافع</div>
-            <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
-          </div>
-          <div style="flex:1;text-align:center;">
-            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:72px;height:auto;object-fit:contain;display:inline-block;opacity:0.85;" />` : '<div style="width:72px;height:60px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
-          </div>
-          <div style="flex:1;text-align:center;">
-            <div style="font-size:11px;color:#555;margin-bottom:6px;">توقيع المستلم</div>
-            <div style="font-size:12px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
-            <div style="border-top:1px solid #999;margin-top:4px;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
-          </div>
+        <div style="border-top:2px solid #1a3a8a;margin-top:20px;padding-top:14px;">
+          <table style="width:100%;border-collapse:collapse;"><tr>
+            <td style="text-align:center;vertical-align:top;width:33%;">
+              <div style="font-size:11px;color:#555;margin-bottom:32px;">توقيع الدافع</div>
+              <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+            </td>
+            <td style="text-align:center;vertical-align:middle;width:34%;">
+              ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:70px;height:auto;object-fit:contain;opacity:0.85;" />` : '<div style="width:70px;height:60px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
+            </td>
+            <td style="text-align:center;vertical-align:top;width:33%;">
+              <div style="font-size:11px;color:#555;margin-bottom:8px;">توقيع المستلم</div>
+              <div style="font-size:12px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
+              <div style="border-top:1px solid #999;margin-top:8px;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+            </td>
+          </tr></table>
         </div>
 
       </div>
@@ -740,20 +749,25 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
       </div>
     </div>`;
 
-  // Wrap in an LTR container so html2canvas getBoundingClientRect works correctly
-  // (direction:rtl on the captured element causes right-side clipping in html2canvas)
+  // Use onclone to place the element at 0,0 in the cloned document — this is the only
+  // reliable way to capture RTL content without clipping in html2canvas.
   const host = document.createElement('div');
-  host.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;direction:ltr;width:700px;';
+  host.style.cssText = 'position:fixed;left:-9999px;top:-9999px;z-index:-1;';
   host.innerHTML = html;
   document.body.appendChild(host);
   await document.fonts.ready;
 
-  const canvas = await html2canvas(host, {
+  const canvas = await html2canvas(host.firstElementChild as HTMLElement, {
     scale: 2,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#fff',
     logging: false,
+    onclone: (_doc: Document, el: HTMLElement) => {
+      el.style.position = 'fixed';
+      el.style.left = '0';
+      el.style.top = '0';
+    },
   });
   document.body.removeChild(host);
 
@@ -797,103 +811,112 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
     : new Date().toLocaleDateString('ar-JO');
 
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#fff;width:700px;direction:rtl;color:#111;font-size:13px;padding:0;">
+    <div style="font-family:'Cairo',sans-serif;background:#fff;width:700px;direction:rtl;color:#111;font-size:13px;padding:0;box-sizing:border-box;">
 
       <!-- HEADER -->
       <div style="background:#fff;padding:20px 24px 14px;border-bottom:3px solid #7c2d12;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <div style="text-align:right;">
-            <div style="font-size:22px;font-weight:900;color:#7c2d12;line-height:1.2;">مؤسسة القادري الزراعية</div>
-            <div style="font-size:10px;color:#555;margin-top:2px;">جرش - الرشايدة &nbsp;·&nbsp; الأردن</div>
-            <div style="font-size:10px;color:#7c2d12;direction:ltr;text-align:right;margin-top:1px;">0777772211 &nbsp;·&nbsp; 0778111155</div>
-          </div>
-          ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:72px;height:72px;object-fit:contain;" />` : ''}
-          <div style="text-align:left;direction:ltr;">
-            <div style="font-size:13px;font-weight:700;color:#7c2d12;">Al-Qadri Agricultural Foundation</div>
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="text-align:right;vertical-align:middle;width:34%;">
+            <div style="font-size:20px;font-weight:900;color:#7c2d12;line-height:1.3;">مؤسسة القادري الزراعية</div>
+            <div style="font-size:10px;color:#555;margin-top:2px;">جرش - الرشايدة · الأردن</div>
+            <div style="font-size:10px;color:#7c2d12;direction:ltr;text-align:right;margin-top:1px;">0777772211 · 0778111155</div>
+          </td>
+          <td style="text-align:center;vertical-align:middle;width:32%;">
+            ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:68px;height:68px;object-fit:contain;" />` : ''}
+          </td>
+          <td style="text-align:left;vertical-align:middle;width:34%;direction:ltr;">
+            <div style="font-size:12px;font-weight:700;color:#7c2d12;">Al-Qadri Agricultural Foundation</div>
             <div style="font-size:10px;color:#555;margin-top:2px;">Jarash - Al-Rashaydeh · Jordan</div>
-          </div>
-        </div>
+          </td>
+        </tr></table>
       </div>
 
       <!-- TITLE + NUMBER + DATE -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#fff7f5;border-bottom:1px solid #fcd5c8;">
-        <div style="font-size:11px;color:#555;direction:ltr;text-align:left;">
-          <span style="color:#888;">Date / التاريخ: </span><strong>${dateDisplay}</strong>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px;font-weight:900;color:#7c2d12;border:2px solid #7c2d12;display:inline-block;padding:4px 32px;border-radius:4px;background:#fff;">
-            سـنـد صـرف
-          </div>
-        </div>
-        <div style="font-size:11px;color:#555;direction:ltr;text-align:right;">
-          <span style="color:#888;">No. </span><strong style="font-size:14px;color:#7c2d12;">${data.number.padStart(6, '0')}</strong>
-        </div>
+      <div style="padding:10px 24px;background:#fff7f5;border-bottom:1px solid #fcd5c8;">
+        <table style="width:100%;border-collapse:collapse;"><tr>
+          <td style="width:33%;text-align:right;direction:ltr;font-size:11px;color:#555;vertical-align:middle;">
+            <span style="color:#888;">Date: </span><strong>${dateDisplay}</strong>
+          </td>
+          <td style="width:34%;text-align:center;vertical-align:middle;">
+            <div style="font-size:18px;font-weight:900;color:#7c2d12;border:2px solid #7c2d12;display:inline-block;padding:4px 24px;border-radius:4px;background:#fff;">سـنـد صـرف</div>
+          </td>
+          <td style="width:33%;text-align:left;direction:ltr;font-size:11px;color:#555;vertical-align:middle;">
+            <span style="color:#888;">No. </span><strong style="font-size:14px;color:#7c2d12;">${data.number.padStart(6, '0')}</strong>
+          </td>
+        </tr></table>
       </div>
 
       <!-- BODY -->
-      <div style="padding:20px 24px;">
+      <div style="padding:18px 24px;">
 
         <!-- Paid to -->
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">صرفنا للسيد / السيدة:</span>
-          <span style="font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #7c2d12;padding-bottom:1px;flex:1;">${data.paidTo}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;"><tr>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">صرفنا للسيد / السيدة:</td>
+          <td style="padding:10px 14px 6px;font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #7c2d12;vertical-align:bottom;">${data.paidTo}</td>
+        </tr></table>
 
         <!-- Amount row -->
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">مبلغاً وقدره:</span>
-          <div style="flex:1;display:flex;gap:0;border:2px solid #7c2d12;border-radius:6px;overflow:hidden;">
-            <div style="flex:1;padding:8px 12px;text-align:center;background:#fff;">
-              <div style="font-size:9px;color:#888;margin-bottom:2px;">دينار</div>
-              <div style="font-size:18px;font-weight:900;color:#7c2d12;">${dinars}</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;"><tr>
+          <td style="font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;padding-left:8px;width:1%;">مبلغاً وقدره:</td>
+          <td style="vertical-align:middle;width:30%;">
+            <table style="width:100%;border-collapse:collapse;border:2px solid #7c2d12;border-radius:6px;overflow:hidden;"><tr>
+              <td style="padding:6px 10px;text-align:center;border-left:2px solid #7c2d12;background:#fff;">
+                <div style="font-size:8px;color:#888;margin-bottom:1px;">دينار</div>
+                <div style="font-size:17px;font-weight:900;color:#7c2d12;">${dinars}</div>
+              </td>
+              <td style="padding:6px 10px;text-align:center;background:#fff;width:70px;">
+                <div style="font-size:8px;color:#888;margin-bottom:1px;">فلس</div>
+                <div style="font-size:17px;font-weight:900;color:#7c2d12;">${fils > 0 ? fils : '---'}</div>
+              </td>
+            </tr></table>
+          </td>
+          <td style="padding-right:8px;vertical-align:middle;">
+            <div style="padding:8px 12px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;">
+              <div style="font-size:8px;color:#888;margin-bottom:2px;">المبلغ كتابةً</div>
+              <div style="font-size:13px;font-weight:700;">${data.amountText || (dinars + ' دينار' + (fils > 0 ? ` و ${fils} فلس` : ''))}</div>
             </div>
-            <div style="width:2px;background:#7c2d12;"></div>
-            <div style="width:80px;padding:8px 12px;text-align:center;background:#fff;">
-              <div style="font-size:9px;color:#888;margin-bottom:2px;">فلس</div>
-              <div style="font-size:18px;font-weight:900;color:#7c2d12;">${fils > 0 ? fils : '---'}</div>
-            </div>
-          </div>
-          <div style="flex:2;padding:8px 12px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;">
-            <div style="font-size:9px;color:#888;margin-bottom:2px;">المبلغ كتابةً</div>
-            <div style="font-size:13px;font-weight:700;">${data.amountText || (dinars + ' دينار' + (fils > 0 ? ` و ${fils} فلس` : ''))}</div>
-          </div>
-        </div>
+          </td>
+        </tr></table>
 
         <!-- Description -->
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;padding:10px 14px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;">
-          <span style="font-size:12px;color:#555;white-space:nowrap;">وذلك عن:</span>
-          <span style="font-size:14px;font-weight:700;flex:1;">${data.description}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;"><tr>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">وذلك عن:</td>
+          <td style="padding:10px 14px;font-size:14px;font-weight:700;vertical-align:middle;">${data.description}</td>
+        </tr></table>
 
         <!-- Payment method -->
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:${data.notes ? '14px' : '20px'};padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;">
-          <span style="font-size:12px;color:#555;">طريقة الدفع:</span>
-          <span>${checkBox(data.paymentMethod === 'cash')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'cash' ? '700' : '400'};">نقداً</span></span>
-          <span>${checkBox(data.paymentMethod === 'check')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'check' ? '700' : '400'};">شيك</span></span>
-          <span>${checkBox(data.paymentMethod === 'transfer')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'transfer' ? '700' : '400'};">تحويل بنكي</span></span>
-          <span style="font-size:12px;font-weight:700;color:#7c2d12;margin-right:auto;">${paymentMethodAr}</span>
-        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:${data.notes ? '12px' : '18px'};border:1px solid #e0e0e0;border-radius:6px;"><tr>
+          <td style="padding:8px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">طريقة الدفع:</td>
+          <td style="padding:8px 14px;vertical-align:middle;">
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'cash')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'cash' ? '700' : '400'};">نقداً</span></span>
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'check')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'check' ? '700' : '400'};">شيك</span></span>
+            <span style="margin-left:16px;">${checkBox(data.paymentMethod === 'transfer')} <span style="font-size:12px;font-weight:${data.paymentMethod === 'transfer' ? '700' : '400'};">تحويل بنكي</span></span>
+          </td>
+          <td style="padding:8px 14px;font-size:12px;font-weight:700;color:#7c2d12;text-align:left;vertical-align:middle;direction:ltr;">${paymentMethodAr}</td>
+        </tr></table>
 
         ${data.notes ? `
-        <div style="margin-bottom:20px;padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;background:#fffdf0;">
+        <div style="margin-bottom:18px;padding:8px 14px;border:1px solid #e0e0e0;border-radius:6px;background:#fffdf0;">
           <span style="font-size:10px;color:#888;">ملاحظات: </span>
           <span style="font-size:12px;">${data.notes}</span>
         </div>` : ''}
 
         <!-- Signatures -->
-        <div style="display:flex;justify-content:space-between;gap:16px;margin-top:24px;padding-top:16px;border-top:2px solid #7c2d12;">
-          <div style="flex:1;text-align:center;">
-            <div style="font-size:11px;color:#555;margin-bottom:28px;">توقيع المستلم</div>
-            <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
-          </div>
-          <div style="flex:1;text-align:center;">
-            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:72px;height:auto;object-fit:contain;display:inline-block;opacity:0.85;" />` : '<div style="width:72px;height:60px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
-          </div>
-          <div style="flex:1;text-align:center;">
-            <div style="font-size:11px;color:#555;margin-bottom:6px;">توقيع الصارف</div>
-            <div style="font-size:12px;font-weight:700;color:#7c2d12;">م. ثامر القادري</div>
-            <div style="border-top:1px solid #999;margin-top:4px;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
-          </div>
+        <div style="border-top:2px solid #7c2d12;margin-top:20px;padding-top:14px;">
+          <table style="width:100%;border-collapse:collapse;"><tr>
+            <td style="text-align:center;vertical-align:top;width:33%;">
+              <div style="font-size:11px;color:#555;margin-bottom:32px;">توقيع المستلم</div>
+              <div style="border-top:1px solid #999;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+            </td>
+            <td style="text-align:center;vertical-align:middle;width:34%;">
+              ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:70px;height:auto;object-fit:contain;opacity:0.85;" />` : '<div style="width:70px;height:60px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
+            </td>
+            <td style="text-align:center;vertical-align:top;width:33%;">
+              <div style="font-size:11px;color:#555;margin-bottom:8px;">توقيع الصارف</div>
+              <div style="font-size:12px;font-weight:700;color:#7c2d12;">م. ثامر القادري</div>
+              <div style="border-top:1px solid #999;margin-top:8px;padding-top:4px;font-size:10px;color:#aaa;">...........................</div>
+            </td>
+          </tr></table>
         </div>
 
       </div>
@@ -904,20 +927,24 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
       </div>
     </div>`;
 
-  // Wrap in an LTR container so html2canvas getBoundingClientRect works correctly
-  // (direction:rtl on the captured element causes right-side clipping in html2canvas)
+  // Use onclone to position the element at 0,0 in the cloned document for clean capture
   const host = document.createElement('div');
-  host.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;direction:ltr;width:700px;';
+  host.style.cssText = 'position:fixed;left:-9999px;top:-9999px;z-index:-1;';
   host.innerHTML = html;
   document.body.appendChild(host);
   await document.fonts.ready;
 
-  const canvas = await html2canvas(host, {
+  const canvas = await html2canvas(host.firstElementChild as HTMLElement, {
     scale: 2,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#fff',
     logging: false,
+    onclone: (_doc: Document, el: HTMLElement) => {
+      el.style.position = 'fixed';
+      el.style.left = '0';
+      el.style.top = '0';
+    },
   });
   document.body.removeChild(host);
 
