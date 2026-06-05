@@ -740,29 +740,22 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
       </div>
     </div>`;
 
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
-  div.innerHTML = html;
-  document.body.appendChild(div);
+  // Wrap in an LTR container so html2canvas getBoundingClientRect works correctly
+  // (direction:rtl on the captured element causes right-side clipping in html2canvas)
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;direction:ltr;width:700px;';
+  host.innerHTML = html;
+  document.body.appendChild(host);
   await document.fonts.ready;
 
-  const inner = div.firstElementChild as HTMLElement;
-  const w = inner.scrollWidth;
-  const h = inner.scrollHeight;
-  const canvas = await html2canvas(inner, {
+  const canvas = await html2canvas(host, {
     scale: 2,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#fff',
     logging: false,
-    width: w,
-    height: h,
-    windowWidth: w + 9999,
-    windowHeight: Math.max(h, window.innerHeight),
-    scrollX: 9999,
-    scrollY: 0,
   });
-  document.body.removeChild(div);
+  document.body.removeChild(host);
 
   const PX_PER_MM = 3.7795275591;
   const pageW = canvas.width / PX_PER_MM;
@@ -911,29 +904,22 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
       </div>
     </div>`;
 
-  const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
-  div.innerHTML = html;
-  document.body.appendChild(div);
+  // Wrap in an LTR container so html2canvas getBoundingClientRect works correctly
+  // (direction:rtl on the captured element causes right-side clipping in html2canvas)
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;direction:ltr;width:700px;';
+  host.innerHTML = html;
+  document.body.appendChild(host);
   await document.fonts.ready;
 
-  const inner = div.firstElementChild as HTMLElement;
-  const w = inner.scrollWidth;
-  const h = inner.scrollHeight;
-  const canvas = await html2canvas(inner, {
+  const canvas = await html2canvas(host, {
     scale: 2,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#fff',
     logging: false,
-    width: w,
-    height: h,
-    windowWidth: w + 9999,
-    windowHeight: Math.max(h, window.innerHeight),
-    scrollX: 9999,
-    scrollY: 0,
   });
-  document.body.removeChild(div);
+  document.body.removeChild(host);
 
   const PX_PER_MM = 3.7795275591;
   const pageW = canvas.width / PX_PER_MM;
