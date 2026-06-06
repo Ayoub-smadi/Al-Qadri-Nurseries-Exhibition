@@ -194,9 +194,10 @@ router.post("/quotes", async (req, res) => {
     logger.warn({ customerName, itemsType: typeof items }, '[NEW QUOTE] rejected — missing fields');
     res.status(400).json({ error: "Missing required fields" }); return;
   }
-  if (shippingMethod !== 'pickup' && shippingMethod !== 'delivery') {
+  const validMethods = ['pickup', 'delivery', 'plant_only', 'delivery_plant'];
+  if (!shippingMethod || !validMethods.includes(shippingMethod)) {
     logger.warn({ shippingMethod }, '[NEW QUOTE] rejected — invalid shipping method');
-    res.status(400).json({ error: "يجب اختيار طريقة التوصيل: استلام من المشتل أو توصيل" }); return;
+    res.status(400).json({ error: "يجب اختيار طريقة التوصيل" }); return;
   }
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
