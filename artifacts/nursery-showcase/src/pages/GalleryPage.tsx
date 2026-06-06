@@ -2847,10 +2847,10 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     e.preventDefault();
     if (!custName.trim() || cart.length === 0) return;
     if (!shippingMode) { setShippingError(true); return; }
-    if ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') && !shippingAddress.trim()) { setShippingError(true); return; }
+    if ((shippingMode === 'delivery' || shippingMode === 'delivery_plant' || shippingMode === 'plant_only') && !shippingAddress.trim()) { setShippingError(true); return; }
     // Snapshot ALL state values NOW before any async op — prevents stale closure issues
     const snapShipping = shippingMode as 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant';
-    const snapAddress  = (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? shippingAddress.trim() : '';
+    const snapAddress  = (shippingMode === 'delivery' || shippingMode === 'delivery_plant' || shippingMode === 'plant_only') ? shippingAddress.trim() : '';
     const snapName     = custName.trim();
     const snapPhone    = custPhone.trim();
     const snapNotes    = custNotes.trim();
@@ -2913,7 +2913,10 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 {successData.mode === 'pickup' ? (
                   <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
                 ) : successData.mode === 'plant_only' ? (
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-orange-600">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span></div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-orange-600">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span></div>
+                    {successData.address && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'موقع الزراعة' : 'Plant Site'}</span><span className="font-medium text-orange-600 text-end">📍 {successData.address}</span></div>}
+                  </div>
                 ) : successData.mode === 'delivery_plant' ? (
                   <div className="flex flex-col gap-1">
                     <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-orange-600">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span></div>
@@ -3091,11 +3094,20 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                     placeholder={isAr ? 'اكتب عنوانك للتوصيل...' : 'Enter your delivery address...'}
                   />
                 )}
+                {shippingMode === 'plant_only' && (
+                  <Input
+                    value={shippingAddress}
+                    onChange={e => { setShippingAddress(e.target.value); setShippingError(false); }}
+                    dir="rtl"
+                    className="arabic"
+                    placeholder={isAr ? 'اكتب عنوان موقع الزراعة...' : 'Enter the planting site address...'}
+                  />
+                )}
                 {shippingError && (
                   <p className="text-xs text-red-600 dark:text-red-400 arabic mt-1">
                     {isAr
-                      ? ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
-                      : ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
+                      ? (shippingMode === 'plant_only' ? '⚠️ يرجى كتابة عنوان موقع الزراعة' : (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
+                      : (shippingMode === 'plant_only' ? '⚠️ Please enter the planting site address' : (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
                   </p>
                 )}
               </div>
@@ -3556,7 +3568,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           : q.shipping_method === 'delivery_plant'
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span>
                           : q.shipping_method === 'plant_only'
-                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {q.shipping_address ? `📍 ${q.shipping_address}` : (isAr ? 'زراعة الأشجار' : 'Planting Only')}</span>
                           : null
                       }
                     </button>
@@ -3817,12 +3829,21 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           </div>
                         ) : editQuote.shipping_method === 'plant_only'
                         ? (
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-                            <span className="text-2xl">🌱</span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'زراعة الأشجار فقط' : 'Planting Only'}</p>
-                              <p className="text-xs text-orange-600/70 dark:text-orange-500/70 arabic">{isAr ? 'خدمة الزراعة فقط — بدون توصيل' : 'Planting service only — no delivery'}</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+                              <span className="text-2xl">🌱</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'زراعة الأشجار فقط' : 'Planting Only'}</p>
+                                <p className="text-xs text-orange-600/70 dark:text-orange-500/70 arabic">{isAr ? 'خدمة الزراعة فقط — بدون توصيل' : 'Planting service only — no delivery'}</p>
+                              </div>
                             </div>
+                            <input
+                              value={editQuote.shipping_address ?? ''}
+                              onChange={e => setEditQuote({ ...editQuote, shipping_address: e.target.value })}
+                              dir="rtl"
+                              placeholder={isAr ? 'موقع الزراعة (اختياري)...' : 'Planting site address (optional)...'}
+                              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
                           </div>
                         ) : (
                           <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
@@ -3855,7 +3876,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       placeholder="0.00" className="h-9" dir="ltr" />
                   </div>
                   <div>
-                    <Label className="arabic text-xs mb-1 block">{isAr ? 'رسوم شحن وزراعة (د.أ)' : 'Ship & Plant (JD)'}</Label>
+                    <Label className="arabic text-xs mb-1 block">{isAr ? 'رسوم الزراعة (د.أ)' : 'Planting Fee (JD)'}</Label>
                     <Input type="number" min={0} step={0.01} value={editQuote.planting_fee || ''}
                       onChange={e => setEditQuote({ ...editQuote, planting_fee: Number(e.target.value) })}
                       placeholder="0.00" className="h-9" dir="ltr" />
@@ -3898,7 +3919,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   )}
                   {Number(editQuote.planting_fee) > 0 && (
                     <div className="flex justify-between arabic text-orange-600">
-                      <span>🌱 {isAr ? 'رسوم شحن وزراعة' : 'Ship & Plant'}</span>
+                      <span>🌱 {isAr ? 'رسوم الزراعة' : 'Planting Fee'}</span>
                       <span>+ {Number(editQuote.planting_fee).toFixed(2)} د.أ</span>
                     </div>
                   )}
