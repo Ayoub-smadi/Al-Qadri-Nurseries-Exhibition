@@ -234,8 +234,9 @@ app.post("/api/quotes", async (req, res) => {
     res.status(400).json({ error: "Missing required fields" });
     return;
   }
-  if (shippingMethod !== "pickup" && shippingMethod !== "delivery") {
-    res.status(400).json({ error: "يجب اختيار طريقة التوصيل: استلام من المشتل أو توصيل" });
+  const validMethods = ["pickup", "delivery", "plant_only", "delivery_plant", "delivery_free"];
+  if (!shippingMethod || !validMethods.includes(shippingMethod)) {
+    res.status(400).json({ error: "يجب اختيار طريقة التوصيل" });
     return;
   }
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
