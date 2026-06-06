@@ -444,7 +444,7 @@ export interface Invoice {
   created_at: string;
 }
 
-export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
+export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
   // Strip large base64 images from items before sending — keeps body small and reliable
   const itemsForApi = data.items.map(item => ({ ...item, plantImage: '' }));
   const payload = { ...data, items: itemsForApi };

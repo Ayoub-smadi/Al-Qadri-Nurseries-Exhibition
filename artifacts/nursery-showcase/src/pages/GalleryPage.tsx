@@ -3069,7 +3069,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'plant_only' ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'border-border bg-background hover:bg-muted'}`}
                   >
                     <span className="text-lg">🌱</span>
-                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
+                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'زراعة الأشجار فقط' : 'Planting Only'}</span>
                     {shippingMode === 'plant_only' && <CheckCircle2 className="w-4 h-4 text-orange-500 shrink-0" />}
                   </button>
                   <button
