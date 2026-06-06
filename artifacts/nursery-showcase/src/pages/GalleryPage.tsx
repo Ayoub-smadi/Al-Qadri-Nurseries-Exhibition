@@ -2804,12 +2804,12 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custNotes, setCustNotes] = useState('');
-  const [shippingMode, setShippingMode] = useState<'pickup' | 'delivery' | ''>('');
+  const [shippingMode, setShippingMode] = useState<'pickup' | 'delivery' | 'plant_only' | 'delivery_plant' | ''>('');
   const [shippingAddress, setShippingAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [shippingError, setShippingError] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [successData, setSuccessData] = useState<{ name: string; mode: 'pickup' | 'delivery'; address: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ name: string; mode: 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant'; address: string } | null>(null);
 
   // size modal
   const [sizeTarget, setSizeTarget] = useState<{ s: Section; p: Photo } | null>(null);
@@ -2847,10 +2847,10 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
     e.preventDefault();
     if (!custName.trim() || cart.length === 0) return;
     if (!shippingMode) { setShippingError(true); return; }
-    if (shippingMode === 'delivery' && !shippingAddress.trim()) { setShippingError(true); return; }
+    if ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') && !shippingAddress.trim()) { setShippingError(true); return; }
     // Snapshot ALL state values NOW before any async op — prevents stale closure issues
-    const snapShipping = shippingMode as 'pickup' | 'delivery';
-    const snapAddress  = shippingMode === 'delivery' ? shippingAddress.trim() : '';
+    const snapShipping = shippingMode as 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant';
+    const snapAddress  = (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? shippingAddress.trim() : '';
     const snapName     = custName.trim();
     const snapPhone    = custPhone.trim();
     const snapNotes    = custNotes.trim();
@@ -2911,7 +2911,14 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
               <div className="w-full max-w-xs bg-muted/50 rounded-xl border border-border p-4 space-y-2 text-sm arabic mt-2">
                 {successData.name && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الاسم' : 'Name'}</span><span className="font-medium text-end">{successData.name}</span></div>}
                 {successData.mode === 'pickup' ? (
-                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'التوصيل' : 'Delivery'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-green-600">🏪 {isAr ? 'استلام من المشتل' : 'In-store Pickup'}</span></div>
+                ) : successData.mode === 'plant_only' ? (
+                  <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-orange-600">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span></div>
+                ) : successData.mode === 'delivery_plant' ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'الطريقة' : 'Method'}</span><span className="font-medium text-orange-600">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span></div>
+                    {successData.address && <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.address}</span></div>}
+                  </div>
                 ) : (
                   <div className="flex justify-between gap-2"><span className="text-muted-foreground">{isAr ? 'العنوان' : 'Address'}</span><span className="font-medium text-blue-600 text-end">📍 {successData.address}</span></div>
                 )}
@@ -3037,11 +3044,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Label className={`arabic text-sm mb-1.5 block ${shippingError ? 'text-red-600 dark:text-red-400' : ''}`}>
                   {isAr ? 'طريقة التوصيل *' : 'Delivery Method *'}
                 </Label>
-                <div className="flex gap-2 mb-2">
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   <button
                     type="button"
-                    onClick={() => { setShippingMode('pickup'); setShippingError(false); }}
-                    className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'pickup' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
+                    onClick={() => { setShippingMode('pickup'); setShippingError(false); setShippingAddress(''); }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'pickup' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
                   >
                     <span className="text-lg">🏪</span>
                     <span className="text-sm font-bold arabic text-foreground">{isAr ? 'استلام من المشتل' : 'Pickup'}</span>
@@ -3050,14 +3057,32 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                   <button
                     type="button"
                     onClick={() => { setShippingMode('delivery'); setShippingError(false); }}
-                    className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'delivery' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'delivery' ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-muted'}`}
                   >
                     <span className="text-lg">🚚</span>
-                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'توصيل' : 'Delivery'}</span>
+                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'توصيل فقط' : 'Delivery Only'}</span>
                     {shippingMode === 'delivery' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShippingMode('plant_only'); setShippingError(false); setShippingAddress(''); }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'plant_only' ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'border-border bg-background hover:bg-muted'}`}
+                  >
+                    <span className="text-lg">🌱</span>
+                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
+                    {shippingMode === 'plant_only' && <CheckCircle2 className="w-4 h-4 text-orange-500 shrink-0" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShippingMode('delivery_plant'); setShippingError(false); }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'delivery_plant' ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'border-border bg-background hover:bg-muted'}`}
+                  >
+                    <span className="text-lg">🚚🌱</span>
+                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span>
+                    {shippingMode === 'delivery_plant' && <CheckCircle2 className="w-4 h-4 text-orange-500 shrink-0" />}
+                  </button>
                 </div>
-                {shippingMode === 'delivery' && (
+                {(shippingMode === 'delivery' || shippingMode === 'delivery_plant') && (
                   <Input
                     value={shippingAddress}
                     onChange={e => { setShippingAddress(e.target.value); setShippingError(false); }}
@@ -3069,8 +3094,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 {shippingError && (
                   <p className="text-xs text-red-600 dark:text-red-400 arabic mt-1">
                     {isAr
-                      ? (shippingMode === 'delivery' ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
-                      : (shippingMode === 'delivery' ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
+                      ? ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
+                      : ((shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
                   </p>
                 )}
               </div>
@@ -3529,7 +3554,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           : q.shipping_method === 'delivery_free'
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 arabic font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
                           : q.shipping_method === 'delivery_plant'
-                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {isAr ? 'اجور شحن وزراعة' : 'Ship & Plant'}</span>
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span>
+                          : q.shipping_method === 'plant_only'
+                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
                           : null
                       }
                     </button>
@@ -3571,7 +3598,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         : editQuote.shipping_method === 'delivery_free'
                         ? <span className="text-teal-600 dark:text-teal-400 font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
                         : editQuote.shipping_method === 'delivery_plant'
-                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🌱 {isAr ? 'اجور شحن وزراعة' : 'Shipping & Planting'}</span>
+                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Planting'}</span>
+                        : editQuote.shipping_method === 'plant_only'
+                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
                         : <span className="text-orange-500 font-medium">⚠️ {isAr ? 'لم يُحدَّد — اختر من الأسفل واحفظ' : 'Not set — choose below & save'}</span>
                     }
                   </p>
@@ -3708,7 +3737,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         onClick={() => setEditQuote({ ...editQuote, shipping_method: 'delivery_plant' })}
                         className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'delivery_plant' ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/40 dark:border-orange-600 dark:text-orange-300' : 'border-border text-muted-foreground hover:border-orange-400 hover:text-orange-600'}`}
                       >
-                        🌱 {isAr ? 'شحن وزراعة' : 'Ship & Plant'}
+                        🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditQuote({ ...editQuote, shipping_method: 'plant_only', shipping_address: '' })}
+                        className={`text-[10px] px-2.5 py-1 rounded-full border font-bold arabic transition-colors ${editQuote.shipping_method === 'plant_only' ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/40 dark:border-orange-600 dark:text-orange-300' : 'border-border text-muted-foreground hover:border-orange-400 hover:text-orange-600'}`}
+                      >
+                        🌱 {isAr ? 'زراعة فقط' : 'Plant Only'}
                       </button>
                     </div>
                   </div>
@@ -3765,9 +3801,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         ? (
                           <div className="space-y-2">
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-                              <span className="text-2xl">🌱</span>
+                              <span className="text-2xl">🚚🌱</span>
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'اجور شحن وزراعة' : 'Shipping & Planting'}</p>
+                                <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'توصيل وزراعة الأشجار' : 'Delivery & Planting'}</p>
                                 <p className="text-xs text-orange-600/70 dark:text-orange-500/70 arabic">{isAr ? 'يشمل التوصيل وخدمة الزراعة' : 'Includes delivery and planting service'}</p>
                               </div>
                             </div>
@@ -3778,6 +3814,15 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                               placeholder={isAr ? 'عنوان التوصيل والزراعة (اختياري)...' : 'Delivery & planting address (optional)...'}
                               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm arabic focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
+                          </div>
+                        ) : editQuote.shipping_method === 'plant_only'
+                        ? (
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+                            <span className="text-2xl">🌱</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-orange-700 dark:text-orange-400 arabic">{isAr ? 'زراعة الأشجار فقط' : 'Planting Only'}</p>
+                              <p className="text-xs text-orange-600/70 dark:text-orange-500/70 arabic">{isAr ? 'خدمة الزراعة فقط — بدون توصيل' : 'Planting service only — no delivery'}</p>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
