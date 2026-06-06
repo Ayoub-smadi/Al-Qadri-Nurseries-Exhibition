@@ -3610,9 +3610,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                         : editQuote.shipping_method === 'delivery_free'
                         ? <span className="text-teal-600 dark:text-teal-400 font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
                         : editQuote.shipping_method === 'delivery_plant'
-                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Planting'}</span>
+                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Planting'}{editQuote.shipping_address ? ` — 📍 ${editQuote.shipping_address}` : ''}</span>
                         : editQuote.shipping_method === 'plant_only'
-                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}</span>
+                        ? <span className="text-orange-600 dark:text-orange-400 font-medium">🌱 {isAr ? 'زراعة الأشجار' : 'Planting Only'}{editQuote.shipping_address ? ` — 📍 ${editQuote.shipping_address}` : ''}</span>
                         : <span className="text-orange-500 font-medium">⚠️ {isAr ? 'لم يُحدَّد — اختر من الأسفل واحفظ' : 'Not set — choose below & save'}</span>
                     }
                   </p>
