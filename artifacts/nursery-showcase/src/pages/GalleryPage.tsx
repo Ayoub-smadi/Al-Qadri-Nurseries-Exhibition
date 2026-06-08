@@ -4030,6 +4030,39 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 }
 
 /* ── Admin Create Quote Modal ───────────────────────────── */
+function ItemImgCell({ image, alt, onUpload }: { image: string; alt: string; onUpload: (url: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  return (
+    <div className="relative w-9 h-9 mx-auto group cursor-pointer" onClick={() => fileRef.current?.click()}>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden"
+        onChange={async e => {
+          const f = e.target.files?.[0]; if (!f) return;
+          setUploading(true);
+          try { const url = await uploadImage(f); onUpload(url); }
+          catch { toast.error('فشل رفع الصورة'); }
+          finally { setUploading(false); e.target.value = ''; }
+        }} />
+      {uploading ? (
+        <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center border border-border">
+          <Loader2 className="w-4 h-4 text-primary animate-spin" />
+        </div>
+      ) : image ? (
+        <div className="relative w-9 h-9">
+          <img src={image} alt={alt} className="w-9 h-9 rounded-md object-cover border border-border" />
+          <div className="absolute inset-0 rounded-md bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Camera className="w-3.5 h-3.5 text-white" />
+          </div>
+        </div>
+      ) : (
+        <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center border border-dashed border-border group-hover:border-primary group-hover:bg-primary/5 transition-colors">
+          <ImagePlus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminCreateQuoteModal({ open, onClose, siteData, lang, onCreated }: {
   open: boolean;
   onClose: () => void;
@@ -4267,13 +4300,11 @@ function AdminCreateQuoteModal({ open, onClose, siteData, lang, onCreated }: {
                         <tr key={idx} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                           <td className="px-2 py-1.5 text-center text-muted-foreground font-medium">{idx + 1}</td>
                           <td className="px-1 py-1 text-center">
-                            {it.plantImage ? (
-                              <img src={it.plantImage} alt={it.plantNameAr} className="w-9 h-9 rounded-md object-cover mx-auto border border-border" />
-                            ) : (
-                              <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center mx-auto border border-dashed border-border">
-                                <ImagePlus className="w-4 h-4 text-muted-foreground" />
-                              </div>
-                            )}
+                            <ItemImgCell
+                              image={it.plantImage}
+                              alt={it.plantNameAr}
+                              onUpload={url => updateItem(idx, { plantImage: url })}
+                            />
                           </td>
                           <td className="px-1 py-1">
                             <input
