@@ -10,7 +10,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus,
+  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -710,6 +710,18 @@ export default function GalleryPage() {
     });
   };
 
+  const handleQuickImageUpload = (sectionId: string, photo: Photo, url: string) => {
+    updateSiteData({
+      sections: siteData.sections.map(s =>
+        s.id !== sectionId ? s : {
+          ...s,
+          photos: s.photos.map(p => p.id !== photo.id ? p : { ...p, image: url }),
+        }
+      ),
+    });
+    toast.success('تم تحديث الصورة');
+  };
+
   const handleEditPhotoOpen = (sectionId: string, photo: Photo) => {
     setEditPhotoTarget({ sectionId, photo });
     setEditPhotoUrl(photo.image);
@@ -1311,6 +1323,7 @@ export default function GalleryPage() {
             isLast={realIdx === siteData.sections.length - 1}
             onOpenLightbox={setLightboxPhoto}
             onReorderPhotos={(from, to) => handleReorderPhotos(section.id, from, to)}
+            onImageUpload={(photo, url) => handleQuickImageUpload(section.id, photo, url)}
           />
           );
         })}
@@ -2050,7 +2063,7 @@ export default function GalleryPage() {
 /* ── Section block ───────────────────────────────────── */
 const SECTION_PAGE_SIZE = 24;
 
-function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox, onReorderPhotos }: {
+function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDeletePhoto, onEditPhoto, onDeleteSection, onDownloadPDF, onMoveUp, onMoveDown, isFirst, isLast, onOpenLightbox, onReorderPhotos, onImageUpload }: {
   section: Section; lang: string; isAdmin: boolean;
   onUpdateName: (f: 'nameAr' | 'nameEn', v: string) => void;
   onAddPhoto: () => void;
@@ -2064,6 +2077,7 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
   isLast: boolean;
   onOpenLightbox: (photo: Photo) => void;
   onReorderPhotos: (fromIdx: number, toIdx: number) => void;
+  onImageUpload?: (photo: Photo, url: string) => void;
 }) {
   const isAr = lang === 'ar';
   const [visibleCount, setVisibleCount] = useState(SECTION_PAGE_SIZE);
@@ -2139,6 +2153,7 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
                     onEdit={() => onEditPhoto(photo)}
                     onDelete={() => onDeletePhoto(photo.id)}
                     onOpenLightbox={onOpenLightbox}
+                    onImageUpload={onImageUpload ? url => onImageUpload(photo, url) : undefined}
                   />
                 </div>
               ) : (
@@ -2146,6 +2161,7 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
                   onEdit={() => onEditPhoto(photo)}
                   onDelete={() => onDeletePhoto(photo.id)}
                   onOpenLightbox={onOpenLightbox}
+                  onImageUpload={onImageUpload ? url => onImageUpload(photo, url) : undefined}
                 />
               );
             })}
@@ -2182,15 +2198,18 @@ function SectionBlock({ section, lang, isAdmin, onUpdateName, onAddPhoto, onDele
 }
 
 /* ── Plant Card (with multi-image carousel) ──────────── */
-function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox }: {
+function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox, onImageUpload }: {
   photo: Photo; lang: string; isAdmin: boolean;
   onEdit: () => void; onDelete: () => void;
   onOpenLightbox: (photo: Photo) => void;
+  onImageUpload?: (url: string) => void;
 }) {
   const isAr = lang === 'ar';
   const allImages = [photo.image, ...(photo.extraImages ?? [])].filter(Boolean);
   const [imgIdx, setImgIdx] = useState(0);
   const safeIdx = Math.min(imgIdx, allImages.length - 1);
+  const [imgUploading, setImgUploading] = useState(false);
+  const imgFileRef = useRef<HTMLInputElement>(null);
 
   const prev = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx(i => (i - 1 + allImages.length) % allImages.length); };
   const next = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx(i => (i + 1) % allImages.length); };
@@ -2198,6 +2217,25 @@ function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox }: {
   return (
     <div className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card aspect-[4/5] cursor-pointer"
       onClick={() => !isAdmin && onOpenLightbox({ ...photo, image: allImages[safeIdx] ?? photo.image })}>
+
+      {/* hidden file input for quick image swap */}
+      {isAdmin && onImageUpload && (
+        <input ref={imgFileRef} type="file" accept="image/*" className="hidden"
+          onChange={async e => {
+            const f = e.target.files?.[0]; if (!f) return;
+            setImgUploading(true);
+            try {
+              const url = await uploadImage(f);
+              onImageUpload(url);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Upload failed';
+              toast.error(`فشل رفع الصورة — ${msg}`);
+            } finally {
+              setImgUploading(false);
+              e.target.value = '';
+            }
+          }} />
+      )}
 
       {/* image */}
       <img src={allImages[safeIdx] || photo.image}
@@ -2212,6 +2250,23 @@ function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox }: {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
             </svg>
           </div>
+        </div>
+      )}
+
+      {/* click-to-upload overlay (admin) */}
+      {isAdmin && onImageUpload && (
+        <div
+          onClick={e => { e.stopPropagation(); imgFileRef.current?.click(); }}
+          className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center cursor-pointer z-10">
+          {imgUploading ? (
+            <div className="opacity-100 bg-black/50 backdrop-blur-sm rounded-full p-3">
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+            </div>
+          ) : (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/50 backdrop-blur-sm rounded-full p-3">
+              <Camera className="w-6 h-6 text-white" />
+            </div>
+          )}
         </div>
       )}
 
