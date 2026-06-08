@@ -1,7 +1,12 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
+<<<<<<< HEAD
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+=======
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus } from '@/lib/storage';
+import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+>>>>>>> 0bab255 (Add a dynamic quote creation feature for administrators)
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -10,7 +15,11 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
+<<<<<<< HEAD
   FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine,
+=======
+  FileText, Trash, ArchiveRestore, Award, FilePlus,
+>>>>>>> 0bab255 (Add a dynamic quote creation feature for administrators)
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -3211,6 +3220,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [loading, setLoading] = useState(false);
   const [trashLoading, setTrashLoading] = useState(false);
   const [editQuote, setEditQuote] = useState<QuoteRequest | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
@@ -3376,6 +3386,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   if (!open) return null;
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
@@ -3385,6 +3396,14 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
             <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'طلبات عروض الأسعار' : 'Price Quote Requests'}</h2>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-full text-xs font-bold arabic bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+              title={isAr ? 'إنشاء عرض سعر جديد' : 'Create new quote'}
+            >
+              <FilePlus className="w-3.5 h-3.5" />
+              {isAr ? 'إنشاء عرض' : 'New Quote'}
+            </button>
             <button onClick={load} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors" title={isAr ? 'تحديث القائمة' : 'Refresh list'}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
             </button>
@@ -3951,6 +3970,480 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
           )}
         </div>
         )}
+      </div>
+    </div>
+    <AdminCreateQuoteModal
+      open={createOpen}
+      onClose={() => setCreateOpen(false)}
+      siteData={siteData}
+      lang={lang}
+      onCreated={() => { load(); setTab('priced'); }}
+    />
+    </>
+  );
+}
+
+/* ── Admin Create Quote Modal ───────────────────────────── */
+function AdminCreateQuoteModal({ open, onClose, siteData, lang, onCreated }: {
+  open: boolean;
+  onClose: () => void;
+  siteData: { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections: Section[] };
+  lang: string;
+  onCreated: () => void;
+}) {
+  const isAr = lang === 'ar';
+  const [customerName, setCustomerName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [notes, setNotes] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [tax, setTax] = useState(0);
+  const [shippingMethod, setShippingMethod] = useState('pickup');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [shippingFee, setShippingFee] = useState(0);
+  const [plantingFee, setPlantingFee] = useState(0);
+  const [plantSearch, setPlantSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setCustomerName(''); setPhone(''); setItems([]); setNotes('');
+      setDiscount(0); setTax(0); setShippingMethod('pickup');
+      setShippingAddress(''); setShippingFee(0); setPlantingFee(0);
+      setPlantSearch(''); setShowSearch(false);
+    }
+  }, [open]);
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setShowSearch(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const allPlants = useMemo(() => {
+    const list: { photo: Photo; section: Section }[] = [];
+    for (const sec of siteData.sections) {
+      for (const p of sec.photos) list.push({ photo: p, section: sec });
+    }
+    return list;
+  }, [siteData.sections]);
+
+  const filteredPlants = useMemo(() => {
+    if (!plantSearch.trim()) return allPlants.slice(0, 12);
+    const q = plantSearch.trim().toLowerCase();
+    return allPlants.filter(({ photo }) =>
+      photo.nameAr.includes(plantSearch.trim()) ||
+      (photo.nameEn || '').toLowerCase().includes(q)
+    ).slice(0, 12);
+  }, [allPlants, plantSearch]);
+
+  const addPlantFromSearch = (photo: Photo, section: Section) => {
+    setItems(prev => [...prev, {
+      plantId: photo.id,
+      plantNameAr: photo.nameAr,
+      plantNameEn: photo.nameEn || '',
+      plantImage: photo.image || '',
+      sectionNameAr: section.nameAr,
+      sectionNameEn: section.nameEn,
+      quantity: 1,
+      size: '',
+      price: 0,
+    }]);
+    setPlantSearch('');
+    setShowSearch(false);
+  };
+
+  const addCustomItem = () => {
+    setItems(prev => [...prev, {
+      plantId: `custom-${Date.now()}`,
+      plantNameAr: '',
+      plantNameEn: '',
+      plantImage: '',
+      sectionNameAr: '',
+      sectionNameEn: '',
+      quantity: 1,
+      size: '',
+      price: 0,
+    }]);
+  };
+
+  const updateItem = (idx: number, patch: Partial<QuoteItem>) =>
+    setItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+
+  const removeItem = (idx: number) =>
+    setItems(prev => prev.filter((_, i) => i !== idx));
+
+  const subtotal = items.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+  const discountAmt = subtotal * (discount / 100);
+  const afterDiscount = subtotal - discountAmt;
+  const taxAmt = afterDiscount * (tax / 100);
+  const grand = afterDiscount + taxAmt + shippingFee + plantingFee;
+  const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const handleSubmit = async () => {
+    if (!customerName.trim()) { toast.error(isAr ? 'اسم الزبون مطلوب' : 'Customer name required'); return; }
+    if (items.length === 0) { toast.error(isAr ? 'أضف بنداً على الأقل' : 'Add at least one item'); return; }
+    setSaving(true);
+    const id = await adminCreateQuote({
+      shippingMethod, shippingAddress, customerName, phone,
+      items, notes, shippingFee, plantingFee, discount, tax,
+    });
+    setSaving(false);
+    if (id) {
+      toast.success(isAr ? 'تم إنشاء عرض السعر بنجاح ✓' : 'Quote created successfully ✓');
+      onCreated();
+      onClose();
+    } else {
+      toast.error(isAr ? 'فشل إنشاء العرض، تحقق من الاتصال' : 'Failed to create quote');
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-5xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <FilePlus className="w-5 h-5 text-primary" />
+            <h2 className="text-base font-bold arabic text-foreground">{isAr ? 'إنشاء عرض سعر جديد' : 'Create New Quote'}</h2>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+
+          {/* Customer Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'اسم الزبون *' : 'Customer Name *'}</p>
+              <input
+                type="text" value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                dir="rtl"
+                placeholder={isAr ? 'اسم الزبون...' : 'Customer name...'}
+                className="w-full px-3 py-2 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'رقم الهاتف' : 'Phone'}</p>
+              <input
+                type="tel" value={phone}
+                onChange={e => setPhone(e.target.value)}
+                dir="ltr"
+                placeholder="+962..."
+                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* Items section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold arabic text-foreground">{isAr ? 'بنود عرض السعر' : 'Quote Items'}</p>
+              <button
+                onClick={addCustomItem}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs arabic font-medium border border-border hover:bg-muted transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {isAr ? 'إضافة بند مخصص' : 'Add Custom Item'}
+              </button>
+            </div>
+
+            {/* Plant search */}
+            <div className="relative" ref={searchBoxRef}>
+              <div className="relative">
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text" value={plantSearch}
+                  onChange={e => { setPlantSearch(e.target.value); setShowSearch(true); }}
+                  onFocus={() => setShowSearch(true)}
+                  dir="rtl"
+                  placeholder={isAr ? 'ابحث عن نبات لإضافته...' : 'Search plant to add...'}
+                  className="w-full ps-8 pe-3 py-2 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              {showSearch && filteredPlants.length > 0 && (
+                <div className="absolute z-20 top-full mt-1 w-full bg-card border border-border rounded-xl shadow-xl max-h-52 overflow-y-auto">
+                  {filteredPlants.map(({ photo, section }) => (
+                    <button
+                      key={photo.id}
+                      onMouseDown={e => { e.preventDefault(); addPlantFromSearch(photo, section); }}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted transition-colors text-start"
+                    >
+                      {photo.image && (
+                        <img src={photo.image} alt={photo.nameAr} className="w-8 h-8 rounded-md object-cover shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium arabic text-foreground truncate">{photo.nameAr}</p>
+                        <p className="text-xs text-muted-foreground arabic truncate">{section.nameAr}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Items table */}
+            {items.length > 0 ? (
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-primary text-primary-foreground">
+                        <th className="px-2 py-2 text-center w-6">#</th>
+                        <th className="px-2 py-2 text-center w-12">{isAr ? 'الصورة' : 'Img'}</th>
+                        <th className="px-2 py-2 text-right min-w-[100px]">{isAr ? 'الاسم' : 'Name'}</th>
+                        <th className="px-2 py-2 text-right min-w-[100px]">{isAr ? 'الوصف' : 'Description'}</th>
+                        <th className="px-2 py-2 text-right min-w-[80px]">{isAr ? 'القسم' : 'Section'}</th>
+                        <th className="px-2 py-2 text-center w-14">{isAr ? 'الكمية' : 'Qty'}</th>
+                        <th className="px-2 py-2 text-center w-16">{isAr ? 'الحجم' : 'Size'}</th>
+                        <th className="px-2 py-2 text-center w-20">{isAr ? 'السعر' : 'Price'}</th>
+                        <th className="px-2 py-2 text-center w-20">{isAr ? 'الإجمالي' : 'Total'}</th>
+                        <th className="px-1 py-2 w-6"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it, idx) => (
+                        <tr key={idx} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                          <td className="px-2 py-1.5 text-center text-muted-foreground font-medium">{idx + 1}</td>
+                          <td className="px-1 py-1 text-center">
+                            {it.plantImage ? (
+                              <img src={it.plantImage} alt={it.plantNameAr} className="w-9 h-9 rounded-md object-cover mx-auto border border-border" />
+                            ) : (
+                              <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center mx-auto border border-dashed border-border">
+                                <ImagePlus className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="text" value={it.plantNameAr}
+                              onChange={e => updateItem(idx, { plantNameAr: e.target.value })}
+                              dir="rtl" placeholder={isAr ? 'الاسم...' : 'Name...'}
+                              className="w-full px-2 py-1 text-xs arabic rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="text" value={it.plantNameEn}
+                              onChange={e => updateItem(idx, { plantNameEn: e.target.value })}
+                              placeholder="Description..."
+                              className="w-full px-2 py-1 text-xs rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="text" value={it.sectionNameAr}
+                              onChange={e => updateItem(idx, { sectionNameAr: e.target.value })}
+                              dir="rtl" placeholder={isAr ? 'القسم...' : 'Section...'}
+                              className="w-full px-2 py-1 text-xs arabic rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="number" min="1" value={it.quantity}
+                              onChange={e => updateItem(idx, { quantity: Math.max(1, Number(e.target.value)) })}
+                              className="w-full px-1 py-1 text-xs text-center rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="text" value={it.size || ''}
+                              onChange={e => updateItem(idx, { size: e.target.value })}
+                              dir="rtl" placeholder="-"
+                              className="w-full px-1 py-1 text-xs text-center arabic rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1">
+                            <input
+                              type="number" min="0" step="0.01"
+                              value={it.price || ''}
+                              onChange={e => updateItem(idx, { price: Number(e.target.value) })}
+                              placeholder="0"
+                              className="w-full px-1 py-1 text-xs text-center rounded border border-border bg-background outline-none focus:ring-1 focus:ring-primary/40"
+                            />
+                          </td>
+                          <td className="px-1 py-1 text-center font-bold text-primary text-xs">
+                            {fmt((it.price || 0) * it.quantity)}
+                          </td>
+                          <td className="px-1 py-1">
+                            <button
+                              onClick={() => removeItem(idx)}
+                              className="w-6 h-6 rounded-full flex items-center justify-center hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors mx-auto"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-border rounded-xl p-8 text-center">
+                <FilePlus className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm arabic text-muted-foreground">{isAr ? 'ابحث عن نبات أو أضف بنداً مخصصاً' : 'Search a plant or add a custom item'}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Fees & pricing */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'الخصم %' : 'Discount %'}</p>
+              <input
+                type="number" min="0" max="100" step="0.1"
+                value={discount || ''}
+                onChange={e => setDiscount(Number(e.target.value))}
+                placeholder="0"
+                className="w-full px-3 py-2 text-sm text-center rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'الضريبة %' : 'Tax %'}</p>
+              <input
+                type="number" min="0" max="100" step="0.1"
+                value={tax || ''}
+                onChange={e => setTax(Number(e.target.value))}
+                placeholder="0"
+                className="w-full px-3 py-2 text-sm text-center rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'رسوم الشحن' : 'Shipping Fee'}</p>
+              <input
+                type="number" min="0" step="0.01"
+                value={shippingFee || ''}
+                onChange={e => setShippingFee(Number(e.target.value))}
+                placeholder="0"
+                className="w-full px-3 py-2 text-sm text-center rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'رسوم الزراعة' : 'Planting Fee'}</p>
+              <input
+                type="number" min="0" step="0.01"
+                value={plantingFee || ''}
+                onChange={e => setPlantingFee(Number(e.target.value))}
+                placeholder="0"
+                className="w-full px-3 py-2 text-sm text-center rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+          </div>
+
+          {/* Shipping method */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold arabic text-muted-foreground">{isAr ? 'طريقة التوصيل' : 'Delivery Method'}</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'pickup', label: isAr ? '🏪 استلام من المشتل' : '🏪 Pickup' },
+                { value: 'delivery', label: isAr ? '🚗 توصيل' : '🚗 Delivery' },
+                { value: 'delivery_free', label: isAr ? '🚗 توصيل مجاني' : '🚗 Free Delivery' },
+                { value: 'delivery_plant', label: isAr ? '🌱 شحن وزراعة' : '🌱 Ship & Plant' },
+              ] as { value: string; label: string }[]).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setShippingMethod(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs arabic font-medium border transition-colors ${shippingMethod === opt.value ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {shippingMethod !== 'pickup' && (
+              <input
+                type="text" value={shippingAddress}
+                onChange={e => setShippingAddress(e.target.value)}
+                dir="rtl"
+                placeholder={isAr ? 'عنوان التوصيل...' : 'Delivery address...'}
+                className="w-full px-3 py-2 text-sm arabic rounded-lg border border-border bg-background outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            )}
+          </div>
+
+          {/* Notes */}
+          <div>
+            <p className="text-xs font-bold arabic text-muted-foreground mb-1">{isAr ? 'ملاحظات' : 'Notes'}</p>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3} dir="rtl"
+              placeholder={isAr ? 'ملاحظات للعرض...' : 'Notes for the quote...'}
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm arabic text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+
+          {/* Grand total preview */}
+          {items.length > 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground arabic">
+                <span>{isAr ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
+                <span dir="ltr">{fmt(subtotal)} د.أ</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex items-center justify-between text-xs text-red-600 arabic">
+                  <span>{isAr ? `خصم ${discount}%:` : `Discount ${discount}%:`}</span>
+                  <span dir="ltr">— {fmt(discountAmt)} د.أ</span>
+                </div>
+              )}
+              {tax > 0 && (
+                <div className="flex items-center justify-between text-xs text-amber-600 arabic">
+                  <span>{isAr ? `ضريبة ${tax}%:` : `Tax ${tax}%:`}</span>
+                  <span dir="ltr">+ {fmt(taxAmt)} د.أ</span>
+                </div>
+              )}
+              {shippingFee > 0 && (
+                <div className="flex items-center justify-between text-xs text-blue-600 arabic">
+                  <span>{isAr ? 'رسوم شحن:' : 'Shipping:'}</span>
+                  <span dir="ltr">+ {fmt(shippingFee)} د.أ</span>
+                </div>
+              )}
+              {plantingFee > 0 && (
+                <div className="flex items-center justify-between text-xs text-orange-600 arabic">
+                  <span>{isAr ? 'رسوم زراعة:' : 'Planting:'}</span>
+                  <span dir="ltr">+ {fmt(plantingFee)} د.أ</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between text-sm font-bold arabic text-primary pt-1 border-t border-primary/20">
+                <span>{isAr ? 'الإجمالي الكلي:' : 'Grand Total:'}</span>
+                <span dir="ltr">{fmt(grand)} د.أ</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-between gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm arabic font-medium border border-border hover:bg-muted transition-colors"
+          >
+            {isAr ? 'إلغاء' : 'Cancel'}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !customerName.trim() || items.length === 0}
+            className="flex items-center gap-2 px-6 py-2 rounded-xl text-sm arabic font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+            {isAr ? 'حفظ عرض السعر' : 'Save Quote'}
+          </button>
+        </div>
       </div>
     </div>
   );
