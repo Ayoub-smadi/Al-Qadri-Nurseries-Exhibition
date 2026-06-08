@@ -725,6 +725,58 @@ export async function deleteInvoice(id: string): Promise<boolean> {
   return false;
 }
 
+export async function adminCreateQuote(data: {
+  shippingMethod: string;
+  shippingAddress: string;
+  customerName: string;
+  phone: string;
+  items: QuoteItem[];
+  notes: string;
+  shippingFee: number;
+  plantingFee: number;
+  discount: number;
+  tax: number;
+}): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+  // Strip base64 images but keep URL references (e.g. /api/images/xxx)
+  const itemsForApi = data.items.map(item => ({
+    ...item,
+    plantImage: item.plantImage?.startsWith('data:') ? '' : (item.plantImage || ''),
+  }));
+  try {
+    const res = await fetch(`${getApiBase()}/quotes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, items: itemsForApi }),
+    });
+    if (res.ok) {
+      const j = await res.json() as { id?: string };
+      const id = j.id ?? null;
+      if (id) {
+        // Immediately update with pricing & status so it's saved as 'priced'
+        await updateQuote(id, {
+          items: itemsForApi,
+          discount: data.discount,
+          tax: data.tax,
+          status: 'priced',
+          notes: data.notes,
+          shippingFee: data.shippingFee,
+          plantingFee: data.plantingFee,
+          shippingMethod: data.shippingMethod,
+          shippingAddress: data.shippingAddress,
+        });
+      }
+      return id;
+    }
+    const errText = await res.text().catch(() => '');
+    console.error('[adminCreateQuote] server error', res.status, errText);
+  } catch (err) {
+    console.error('[adminCreateQuote] fetch error', err);
+  }
+  return null;
+}
+
 export function resolveImageSrc(src: string): string {
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {
