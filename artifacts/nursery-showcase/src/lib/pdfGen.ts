@@ -229,8 +229,8 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
         }
       </td>
       ${it.unavailable ? unavailCell : priceCell}
-      <td style="padding:4px;text-align:center;width:64px;">
-        ${imgSrc ? `<img src="${imgSrc}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:56px;height:56px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
+      <td style="padding:4px;text-align:center;width:90px;">
+        ${imgSrc ? `<img src="${imgSrc}" style="width:82px;height:82px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:82px;height:82px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
       </td>
     </tr>`;
   }).join('');
@@ -396,6 +396,163 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
 export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
   const { pdf, fileName } = await buildQuotePDF(quote, siteData);
   pdf.save(fileName);
+}
+
+/* ── Quote PDF — No Header (title only) ─────────────────── */
+export async function downloadQuotePDFNoHeader(quote: QuoteRequest, customTitle?: string): Promise<void> {
+  const items = quote.items as QuoteItem[];
+
+  // Pre-load plant images
+  const imgMap = new Map<string, string>();
+  for (const item of items) {
+    const src = item.plantImage || '';
+    if (src && !imgMap.has(item.plantId)) {
+      imgMap.set(item.plantId, await toDataUrl(src));
+    }
+  }
+
+  const subtotal = items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
+  const discountAmt = subtotal * (Number(quote.discount) / 100);
+  const afterDiscount = subtotal - discountAmt;
+  const taxAmt = afterDiscount * (Number(quote.tax) / 100);
+  const shippingFee = Number(quote.shipping_fee) || 0;
+  const plantingFee = Number(quote.planting_fee) || 0;
+  const grand = afterDiscount + taxAmt + shippingFee + plantingFee;
+
+  const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const quoteNum = quote.id.replace('q-', '').split('-')[0];
+  const dateStr = new Date(quote.created_at).toLocaleDateString('ar-JO');
+  const title = customTitle || 'عرض سعر';
+
+  const rowsHtml = items.map((it, i) => {
+    const imgSrc = imgMap.get(it.plantId) ?? it.plantImage;
+    const total = (it.price || 0) * it.quantity;
+    const unavailCell = `<td colspan="2" style="padding:6px 8px;text-align:center;color:#c62828;font-weight:700;background:#fff5f5;">غير متوفر حاليًا</td>`;
+    const priceCell = `<td style="padding:6px 8px;text-align:center;">${fmt(it.price || 0)}</td><td style="padding:6px 8px;text-align:center;font-weight:600;">${fmt(total)}</td>`;
+    return `<tr style="border-bottom:1px solid #ddd;${it.unavailable ? 'opacity:0.6;' : ''}">
+      <td style="padding:6px 8px;text-align:center;border-left:1px solid #e0e0e0;">${i + 1}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600;">${it.plantNameAr}</td>
+      <td style="padding:6px 8px;text-align:right;">${it.plantNameEn || ''}</td>
+      <td style="padding:6px 8px;text-align:right;">${it.sectionNameAr}</td>
+      <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
+      <td style="padding:8px 8px;text-align:center;line-height:2;">
+        ${it.availableSize
+          ? `<span style="color:#e57373;font-size:10px;font-weight:900;">✕</span> <span style="color:#aaa;font-size:11px;">${it.size || '-'}</span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
+          : (it.size || '-')
+        }
+      </td>
+      ${it.unavailable ? unavailCell : priceCell}
+      <td style="padding:4px;text-align:center;width:90px;">
+        ${imgSrc ? `<img src="${imgSrc}" style="width:82px;height:82px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:82px;height:82px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <div style="font-family:'Cairo',sans-serif;background:#fff;padding:28px 24px;width:900px;direction:rtl;color:#111;font-size:13px;">
+
+      <!-- TITLE ONLY -->
+      <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #2e7d32;">
+        <div style="font-size:24px;font-weight:900;color:#1a1a1a;">${title}</div>
+      </div>
+
+      <!-- INFO ROW -->
+      <div style="display:flex;gap:12px;margin-bottom:16px;background:#f5f9f5;border-radius:8px;padding:10px 14px;border:1px solid #c8e6c9;">
+        <div style="flex:1;text-align:right;">
+          <div style="font-size:10px;color:#888;">العميل</div>
+          <div style="font-size:13px;font-weight:700;">${quote.customer_name}</div>
+          ${quote.phone ? `<div style="font-size:11px;color:#555;direction:ltr;text-align:right;">${quote.phone}</div>` : ''}
+        </div>
+        <div style="width:1px;background:#ccc;"></div>
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:10px;color:#888;">رقم العرض</div>
+          <div style="font-size:14px;font-weight:800;color:#2e7d32;">${quoteNum}</div>
+        </div>
+        <div style="width:1px;background:#ccc;"></div>
+        <div style="flex:1;text-align:left;direction:ltr;">
+          <div style="font-size:10px;color:#888;direction:rtl;text-align:right;">التاريخ</div>
+          <div style="font-size:13px;font-weight:700;">${dateStr}</div>
+        </div>
+      </div>
+
+      <!-- TABLE -->
+      <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+        <thead>
+          <tr style="background:#2e7d32;color:#fff;">
+            <th style="padding:8px 6px;text-align:center;width:30px;">#</th>
+            <th style="padding:8px 6px;text-align:right;">الاسم</th>
+            <th style="padding:8px 6px;text-align:right;">الوصف</th>
+            <th style="padding:8px 6px;text-align:right;">القسم</th>
+            <th style="padding:8px 6px;text-align:center;">الكمية</th>
+            <th style="padding:8px 6px;text-align:center;">الحجم</th>
+            <th style="padding:8px 6px;text-align:center;">السعر</th>
+            <th style="padding:8px 6px;text-align:center;">الإجمالي</th>
+            <th style="padding:8px 6px;text-align:center;">الصورة</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot>
+          <tr style="background:#f1f8f1;font-weight:700;border-top:2px solid #2e7d32;">
+            <td colspan="7" style="padding:8px 12px;text-align:right;">المجموع الكلي</td>
+            <td style="padding:8px 12px;text-align:center;color:#2e7d32;font-size:15px;">${fmt(subtotal)} د.أ</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- DISCOUNT / TAX / SHIPPING -->
+      <div style="display:flex;gap:12px;margin-top:12px;direction:rtl;">
+        <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">نسبة الخصم (%)</div>
+          <div style="font-size:13px;font-weight:700;">${Number(quote.discount).toFixed(2)}</div>
+          <div style="font-size:11px;color:#555;">— ${fmt(discountAmt)} د.أ</div>
+        </div>
+        <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">نسبة الضريبة (%)</div>
+          <div style="font-size:13px;font-weight:700;">${Number(quote.tax).toFixed(2)}</div>
+          <div style="font-size:11px;color:#555;">+ ${fmt(taxAmt)} د.أ</div>
+        </div>
+        ${shippingFee > 0 ? `
+        <div style="flex:1;border:1px solid #1565c0;border-radius:6px;padding:8px 12px;background:#f0f4ff;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الشحن</div>
+          <div style="font-size:13px;font-weight:700;color:#1565c0;">${fmt(shippingFee)} د.أ</div>
+        </div>` : ''}
+        ${plantingFee > 0 ? `
+        <div style="flex:1;border:1px solid #e65100;border-radius:6px;padding:8px 12px;background:#fff8f0;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الزراعة</div>
+          <div style="font-size:13px;font-weight:700;color:#e65100;">${fmt(plantingFee)} د.أ</div>
+        </div>` : ''}
+        <div style="flex:2;border:2px solid #2e7d32;border-radius:6px;padding:8px 12px;background:#f1f8f1;">
+          <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>
+          <div style="font-size:18px;font-weight:800;color:#2e7d32;">${fmt(grand)} د.أ</div>
+        </div>
+      </div>
+
+      ${quote.notes ? `
+        <div style="margin-top:12px;border:1px solid #ddd;border-radius:6px;padding:10px 14px;">
+          <div style="font-size:10px;color:#888;margin-bottom:4px;">ملاحظات:</div>
+          <div style="font-size:12px;line-height:1.6;">${quote.notes}</div>
+        </div>` : ''}
+    </div>`;
+
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.innerHTML = html;
+  document.body.appendChild(div);
+  await document.fonts.ready;
+
+  const inner = div.firstElementChild as HTMLElement;
+  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  document.body.removeChild(div);
+
+  const PX_PER_MM = 3.7795275591;
+  const pageW = canvas.width / PX_PER_MM;
+  const pageH = canvas.height / PX_PER_MM;
+  const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
+  const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
+  pdf.save(`عرض_بدون_ترويسة_${safeName}_${dateTag}.pdf`);
 }
 
 export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {

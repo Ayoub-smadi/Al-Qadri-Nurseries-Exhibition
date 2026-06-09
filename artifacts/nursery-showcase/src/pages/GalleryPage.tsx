@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
-import { downloadCatalogPDF, downloadQuotePDF, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+import { downloadCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -428,6 +428,11 @@ export default function GalleryPage() {
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [restoring, setRestoring] = useState(false);
 
+  /* financial backup / restore */
+  const financialRestoreInputRef = useRef<HTMLInputElement>(null);
+  const [financialBackingUp, setFinancialBackingUp] = useState(false);
+  const [financialRestoring, setFinancialRestoring] = useState(false);
+
   /* excel import */
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const [xlsxOpen, setXlsxOpen] = useState(false);
@@ -532,6 +537,102 @@ export default function GalleryPage() {
   const openLoginModal = () => {
     setLoginOpen(true);
     checkNeedsSetup().then(needs => setIsSetupMode(needs)).catch(() => {});
+  };
+
+  /* ── financial backup: download invoices + receipts + disbursements as JSON ── */
+  const handleFinancialBackup = async () => {
+    setFinancialBackingUp(true);
+    try {
+      const [invoices, receipts, disbursements] = await Promise.all([
+        fetchInvoices(),
+        fetchReceipts(),
+        fetchDisbursements(),
+      ]);
+      const payload = {
+        version: 1,
+        date: new Date().toISOString(),
+        invoices: invoices ?? [],
+        receipts: receipts === 'unauthorized' ? [] : (receipts ?? []),
+        disbursements: disbursements === 'unauthorized' ? [] : (disbursements ?? []),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `alqadri-financial-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success(isAr ? 'تم تنزيل نسخة احتياطية للسجلات المالية' : 'Financial backup downloaded');
+    } catch {
+      toast.error(isAr ? 'فشل في تنزيل النسخة الاحتياطية' : 'Backup failed');
+    } finally {
+      setFinancialBackingUp(false);
+    }
+  };
+
+  /* ── financial restore: upload JSON backup and recreate records ── */
+  const handleFinancialRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!confirm(isAr ? 'سيتم إضافة السجلات المالية من الملف (لن يُحذف أي سجل موجود). متأكد؟' : 'Records from the file will be added (existing records are not deleted). Continue?')) return;
+    setFinancialRestoring(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as {
+        invoices?: Invoice[];
+        receipts?: Receipt[];
+        disbursements?: Disbursement[];
+      };
+      let ok = 0;
+      let fail = 0;
+      for (const inv of parsed.invoices ?? []) {
+        const res = await createInvoice({
+          customerName: inv.customer_name,
+          date: inv.date,
+          items: inv.items as InvoiceItem[],
+          notes: inv.notes ?? '',
+          status: inv.status,
+          discount: Number(inv.discount) || 0,
+          invoiceNumber: inv.number,
+        });
+        if (res && res !== 'unauthorized' && !('error' in res)) ok++; else fail++;
+      }
+      for (const r of parsed.receipts ?? []) {
+        const res = await createReceipt({
+          receivedFrom: r.received_from,
+          amount: Number(r.amount),
+          amountText: r.amount_text,
+          description: r.description,
+          paymentMethod: r.payment_method,
+          date: r.date,
+          notes: r.notes ?? '',
+          receiptNumber: r.number,
+        });
+        if (res && res !== 'unauthorized' && !('error' in res)) ok++; else fail++;
+      }
+      for (const d of parsed.disbursements ?? []) {
+        const res = await createDisbursement({
+          paidTo: d.paid_to,
+          amount: Number(d.amount),
+          amountText: d.amount_text,
+          description: d.description,
+          paymentMethod: d.payment_method,
+          date: d.date,
+          notes: d.notes ?? '',
+          disbursementNumber: d.number,
+        });
+        if (res && res !== 'unauthorized' && !('error' in res)) ok++; else fail++;
+      }
+      if (fail > 0) {
+        toast.error(isAr ? `تم استعادة ${ok} سجل، فشل ${fail}` : `Restored ${ok}, failed ${fail}`);
+      } else {
+        toast.success(isAr ? `تم استعادة ${ok} سجل مالي بنجاح` : `Restored ${ok} financial records`);
+      }
+    } catch {
+      toast.error(isAr ? 'فشل في قراءة الملف' : 'Failed to read backup file');
+    } finally {
+      setFinancialRestoring(false);
+    }
   };
 
   /* ── backup: download siteData as JSON file ── */
@@ -1526,6 +1627,10 @@ export default function GalleryPage() {
             <ToolBtn icon={<Download className="w-3.5 h-3.5" />} label={isAr ? 'نسخ احتياطي' : 'Backup'} onClick={handleBackup} />
             <ToolBtn icon={restoring ? undefined : <Upload className="w-3.5 h-3.5" />} label={isAr ? 'استرجاع' : 'Restore'} onClick={() => restoreInputRef.current?.click()} />
             <input ref={restoreInputRef} type="file" accept=".json" className="hidden" onChange={handleRestoreFile} />
+            <div className="w-px h-5 bg-border shrink-0" />
+            <ToolBtn icon={financialBackingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} label={isAr ? 'باك أب مالي' : 'Fin. Backup'} onClick={handleFinancialBackup} />
+            <ToolBtn icon={financialRestoring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} label={isAr ? 'استرجاع مالي' : 'Fin. Restore'} onClick={() => financialRestoreInputRef.current?.click()} />
+            <input ref={financialRestoreInputRef} type="file" accept=".json" className="hidden" onChange={handleFinancialRestoreFile} />
             <button onClick={() => { setSessionToken(null); setIsAdmin(false); }}
               className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-destructive hover:bg-destructive/10 transition-colors">
               <LogOut className="w-3.5 h-3.5" />
@@ -3269,6 +3374,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [createOpen, setCreateOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [noHeaderPdfingId, setNoHeaderPdfingId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3366,6 +3472,12 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setPdfingId(q.id);
     await downloadQuotePDF(q, { ...siteData, sections: siteData.sections });
     setPdfingId(null);
+  };
+
+  const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
+    setNoHeaderPdfingId(q.id);
+    await downloadQuotePDFNoHeader(q);
+    setNoHeaderPdfingId(null);
   };
 
   const updateItemPrice = (itemIdx: number, price: number) => {
@@ -3685,6 +3797,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs" title={isAr ? 'PDF بدون ترويسة (بدون لوجو وختم وفوتر)' : 'PDF without header'}>
+                    {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'بدون ترويسة' : 'No Header'}</>}
                   </Button>
                   {editQuote.phone && (
                     <Button size="sm" variant="outline" onClick={() => handleWhatsApp(editQuote)} disabled={sharingId === editQuote.id} className="text-xs bg-[#25D366]/10 border-[#25D366]/40 text-[#128C7E] hover:bg-[#25D366]/20 dark:text-[#25D366]">
