@@ -7,11 +7,26 @@ export interface PDFSectionInput {
   photos: Photo[];
 }
 
-/* Pre-load an image URL into a data URL via canvas (handles CORS) */
+/* Pre-load an image URL into a data URL — uses fetch() to avoid CORS/canvas tainting */
 async function toDataUrl(src: string): Promise<string> {
+  if (!src) return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   if (src.startsWith('data:')) return src;
+  // 1) Try fetch (works for same-origin /api/images/... and CORS-enabled URLs)
   try {
-    return await new Promise((resolve, reject) => {
+    const res = await fetch(src, { cache: 'force-cache' });
+    if (res.ok) {
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch { /* fall through to canvas method */ }
+  // 2) Fallback: canvas with crossOrigin (for external CDN images)
+  try {
+    return await new Promise<string>((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
@@ -25,7 +40,6 @@ async function toDataUrl(src: string): Promise<string> {
       img.src = src;
     });
   } catch {
-    // return a 1×1 transparent placeholder
     return 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
   }
 }
