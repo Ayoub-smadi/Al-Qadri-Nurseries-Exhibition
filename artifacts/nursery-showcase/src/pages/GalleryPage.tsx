@@ -439,7 +439,7 @@ export default function GalleryPage() {
   const [quoteRestoring, setQuoteRestoring] = useState(false);
 
   /* admin sidebar */
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   /* excel import */
   const xlsxInputRef = useRef<HTMLInputElement>(null);
@@ -1685,108 +1685,122 @@ export default function GalleryPage() {
           <input ref={financialRestoreInputRef} type="file" accept=".json" className="hidden" onChange={handleFinancialRestoreFile} />
           <input ref={quoteRestoreInputRef} type="file" accept=".json" className="hidden" onChange={handleQuoteRestoreFile} />
 
-          {/* Overlay */}
-          {sidebarOpen && (
-            <div className="no-print fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]" onClick={() => setSidebarOpen(false)} />
-          )}
-
-          {/* Sidebar panel */}
+          {/* Sidebar — fixed on physical RIGHT, always visible */}
           <div
-            className="no-print fixed top-0 end-0 h-full z-50 flex flex-col"
-            style={{
-              width: 240,
-              transform: sidebarOpen ? 'translateX(0)' : (isAr ? 'translateX(100%)' : 'translateX(100%)'),
-              transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
-            }}
+            className="no-print fixed top-0 bottom-0 z-50 flex"
+            style={{ right: 0, width: sidebarOpen ? 230 : 48, transition: 'width 0.25s ease' }}
           >
-            <div className="h-full flex flex-col bg-card border-s border-border shadow-2xl overflow-y-auto">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary/5">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+            {/* Collapse tab */}
+            <button
+              onClick={() => setSidebarOpen(o => !o)}
+              className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-12 rounded-l-xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors z-10"
+              title={sidebarOpen ? 'إخفاء' : 'إظهار'}
+            >
+              {sidebarOpen
+                ? <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                : <ChevronDown className="w-3.5 h-3.5 rotate-90" />}
+            </button>
+
+            {/* Panel */}
+            <div className="flex-1 h-full flex flex-col bg-card border-l border-border shadow-2xl overflow-hidden">
+
+              {sidebarOpen ? (
+                <>
+                  {/* Header */}
+                  <div className="shrink-0 flex items-center gap-2.5 px-4 py-3 border-b border-border"
+                    style={{ background: 'linear-gradient(135deg,#1b5e2010,#2e7d3218)' }}>
+                    <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm shrink-0">
+                      <TreePine className="w-4.5 h-4.5 text-primary-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold arabic text-foreground leading-tight">{isAr ? 'لوحة التحكم' : 'Admin Panel'}</p>
+                      <p className="text-[10px] text-muted-foreground arabic">{isAr ? 'مشاتل القادري' : 'Al-Qadri'}</p>
+                    </div>
+                    {pendingQuoteCount > 0 && (
+                      <span className="ms-auto shrink-0 min-w-[22px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {pendingQuoteCount > 99 ? '99+' : pendingQuoteCount}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Scrollable content */}
+                  <div className="flex-1 overflow-y-auto p-2.5 space-y-3">
+
+                    <SideSection label={isAr ? '📋 المحتوى' : '📋 Content'}>
+                      <SideBtn icon={<FolderPlus className="w-4 h-4" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => setAddSecOpen(true)} />
+                      <SideBtn icon={<MapPin className="w-4 h-4" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => setAddBranchOpen(true)} />
+                      <SideBtn icon={<Share2 className="w-4 h-4" />} label={isAr ? 'روابطنا' : 'Social Links'} onClick={openAddSocial} />
+                      <SideBtn icon={<Settings className="w-4 h-4" />} label={isAr ? 'التواصل' : 'Contact Info'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); }} />
+                    </SideSection>
+
+                    <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
+                      <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
+                      <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
+                      <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
+                      <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
+                    </SideSection>
+
+                    <SideSection label={isAr ? '📄 التقارير' : '📄 Reports'}>
+                      <SideBtn icon={<Award className="w-4 h-4" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => setCertOpen(true)} />
+                      <SideBtn icon={<FileDown className="w-4 h-4" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} highlight onClick={() => setPdfModalTarget('all')} />
+                      <SideBtn icon={<FileSpreadsheet className="w-4 h-4" />} label={isAr ? 'استيراد Excel' : 'Import Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
+                    </SideSection>
+
+                    <SideSection label={isAr ? '💾 النسخ الاحتياطية' : '💾 Backups'}>
+                      <SideBtn icon={<Download className="w-4 h-4" />} label={isAr ? 'باك أب النباتات' : 'Plants Backup'} onClick={handleBackup} />
+                      <SideBtn icon={restoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع النباتات' : 'Plants Restore'} onClick={() => restoreInputRef.current?.click()} />
+                      <SideBtn icon={financialBackingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} label={isAr ? 'باك أب مالي' : 'Financial Backup'} onClick={handleFinancialBackup} />
+                      <SideBtn icon={financialRestoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع مالي' : 'Financial Restore'} onClick={() => financialRestoreInputRef.current?.click()} />
+                      <SideBtn icon={quoteBacking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} label={isAr ? 'باك أب العروض' : 'Quotes Backup'} onClick={handleQuoteBackup} />
+                      <SideBtn icon={quoteRestoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع العروض' : 'Quotes Restore'} onClick={() => quoteRestoreInputRef.current?.click()} />
+                    </SideSection>
+                  </div>
+
+                  {/* Logout */}
+                  <div className="shrink-0 border-t border-border p-2.5">
+                    <button
+                      onClick={() => { setSessionToken(null); setIsAdmin(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-destructive hover:bg-destructive/10 transition-colors text-sm font-medium arabic"
+                    >
+                      <LogOut className="w-4 h-4 shrink-0" />
+                      <span>{isAr ? 'تسجيل الخروج' : 'Logout'}</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Collapsed — show icon strip */
+                <div className="flex-1 flex flex-col items-center py-4 gap-3 overflow-y-auto">
+                  <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm shrink-0">
                     <TreePine className="w-4 h-4 text-primary-foreground" />
                   </div>
-                  <span className="text-sm font-bold arabic text-foreground">{isAr ? 'لوحة التحكم' : 'Admin Panel'}</span>
+                  {pendingQuoteCount > 0 && (
+                    <button onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }}
+                      className="relative w-9 h-9 rounded-xl flex items-center justify-center hover:bg-accent transition-colors text-primary">
+                      <Inbox className="w-4.5 h-4.5" />
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {pendingQuoteCount > 99 ? '99+' : pendingQuoteCount}
+                      </span>
+                    </button>
+                  )}
+                  {[
+                    { icon: <FolderPlus className="w-4 h-4" />, action: () => setAddSecOpen(true) },
+                    { icon: <FileText className="w-4 h-4" />, action: () => setAdminInvoicesOpen(true) },
+                    { icon: <FileDown className="w-4 h-4" />, action: () => setPdfModalTarget('all') },
+                  ].map((item, i) => (
+                    <button key={i} onClick={item.action}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-accent transition-colors text-primary">
+                      {item.icon}
+                    </button>
+                  ))}
+                  <div className="flex-1" />
+                  <button onClick={() => { setSessionToken(null); setIsAdmin(false); }}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-destructive/10 transition-colors text-destructive">
+                    <LogOut className="w-4 h-4" />
+                  </button>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Sections */}
-              <div className="flex-1 p-3 space-y-4 overflow-y-auto">
-
-                {/* Content */}
-                <SideSection label={isAr ? '📋 المحتوى' : '📋 Content'}>
-                  <SideBtn icon={<FolderPlus className="w-4 h-4" />} label={isAr ? 'قسم جديد' : 'New Section'} onClick={() => { setAddSecOpen(true); setSidebarOpen(false); }} />
-                  <SideBtn icon={<MapPin className="w-4 h-4" />} label={isAr ? 'فرع جديد' : 'New Branch'} onClick={() => { setAddBranchOpen(true); setSidebarOpen(false); }} />
-                  <SideBtn icon={<Share2 className="w-4 h-4" />} label={isAr ? 'روابطنا' : 'Social Links'} onClick={() => { openAddSocial(); setSidebarOpen(false); }} />
-                  <SideBtn icon={<Settings className="w-4 h-4" />} label={isAr ? 'التواصل' : 'Contact Info'} onClick={() => { setFooterDraft({ ...siteData.footer }); setFooterOpen(true); setSidebarOpen(false); }} />
-                </SideSection>
-
-                {/* Financial */}
-                <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
-                  <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); setSidebarOpen(false); }} />
-                  <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => { setAdminInvoicesOpen(true); setSidebarOpen(false); }} />
-                  <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => { setAdminReceiptsOpen(true); setSidebarOpen(false); }} />
-                  <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => { setAdminDisbursementsOpen(true); setSidebarOpen(false); }} />
-                </SideSection>
-
-                {/* Reports */}
-                <SideSection label={isAr ? '📄 التقارير' : '📄 Reports'}>
-                  <SideBtn icon={<Award className="w-4 h-4" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => { setCertOpen(true); setSidebarOpen(false); }} />
-                  <SideBtn icon={<FileDown className="w-4 h-4" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} highlight onClick={() => { setPdfModalTarget('all'); setSidebarOpen(false); }} />
-                  <SideBtn icon={<FileSpreadsheet className="w-4 h-4" />} label={isAr ? 'استيراد Excel' : 'Import Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); setSidebarOpen(false); }} />
-                </SideSection>
-
-                {/* Backup */}
-                <SideSection label={isAr ? '💾 النسخ الاحتياطية' : '💾 Backups'}>
-                  <SideBtn icon={<Download className="w-4 h-4" />} label={isAr ? 'باك أب النباتات' : 'Plants Backup'} onClick={() => { handleBackup(); setSidebarOpen(false); }} />
-                  <SideBtn icon={restoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع النباتات' : 'Plants Restore'} onClick={() => restoreInputRef.current?.click()} />
-                  <SideBtn icon={financialBackingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} label={isAr ? 'باك أب مالي' : 'Financial Backup'} onClick={handleFinancialBackup} />
-                  <SideBtn icon={financialRestoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع مالي' : 'Financial Restore'} onClick={() => financialRestoreInputRef.current?.click()} />
-                  <SideBtn icon={quoteBacking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} label={isAr ? 'باك أب العروض' : 'Quotes Backup'} onClick={handleQuoteBackup} />
-                  <SideBtn icon={quoteRestoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} label={isAr ? 'استرجاع العروض' : 'Quotes Restore'} onClick={() => quoteRestoreInputRef.current?.click()} />
-                </SideSection>
-              </div>
-
-              {/* Footer / Logout */}
-              <div className="border-t border-border p-3">
-                <button
-                  onClick={() => { setSessionToken(null); setIsAdmin(false); setSidebarOpen(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-destructive hover:bg-destructive/10 transition-colors text-sm font-medium arabic"
-                >
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  <span>{isAr ? 'تسجيل الخروج' : 'Logout'}</span>
-                </button>
-              </div>
+              )}
             </div>
           </div>
-
-          {/* Floating toggle button */}
-          <button
-            onClick={() => setSidebarOpen(o => !o)}
-            className="no-print fixed end-0 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center justify-center gap-1 w-10 py-4 bg-primary text-primary-foreground shadow-xl rounded-s-2xl hover:bg-primary/90 transition-all active:scale-95"
-            style={{ boxShadow: '0 4px 24px rgba(46,125,50,0.35)' }}
-          >
-            {pendingQuoteCount > 0 && !sidebarOpen && (
-              <span className="absolute -top-1 -start-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                {pendingQuoteCount > 99 ? '99+' : pendingQuoteCount}
-              </span>
-            )}
-            <TreePine className="w-4 h-4" />
-            {[0, 1, 2].map(i => (
-              <span
-                key={i}
-                className="block bg-primary-foreground/80 rounded-full transition-all"
-                style={{
-                  width: sidebarOpen ? (i === 1 ? 14 : 10) : (i === 1 ? 10 : 14),
-                  height: 2,
-                  opacity: sidebarOpen && i === 1 ? 0 : 1,
-                }}
-              />
-            ))}
-          </button>
         </>
       )}
 
@@ -3677,7 +3691,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
     setNoHeaderPdfingId(q.id);
-    await downloadQuotePDFNoHeader(q);
+    await downloadQuotePDFNoHeader(q, undefined, siteData.sections);
     setNoHeaderPdfingId(null);
   };
 

@@ -413,13 +413,25 @@ export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteD
 }
 
 /* ── Quote PDF — No Header (title only) ─────────────────── */
-export async function downloadQuotePDFNoHeader(quote: QuoteRequest, customTitle?: string): Promise<void> {
+export async function downloadQuotePDFNoHeader(
+  quote: QuoteRequest,
+  customTitle?: string,
+  sections?: SiteData['sections']
+): Promise<void> {
   const items = quote.items as QuoteItem[];
 
-  // Pre-load plant images
+  // Build lookup from siteData sections (same as buildQuotePDF does)
+  const sectionImgLookup = new Map<string, string>();
+  for (const sec of (sections ?? [])) {
+    for (const p of sec.photos) {
+      if (p.image) sectionImgLookup.set(p.id, p.image);
+    }
+  }
+
+  // Pre-load plant images — prefer stored plantImage, fall back to current siteData image
   const imgMap = new Map<string, string>();
   for (const item of items) {
-    const src = item.plantImage || '';
+    const src = item.plantImage || sectionImgLookup.get(item.plantId) || '';
     if (src && !imgMap.has(item.plantId)) {
       imgMap.set(item.plantId, await toDataUrl(src));
     }
