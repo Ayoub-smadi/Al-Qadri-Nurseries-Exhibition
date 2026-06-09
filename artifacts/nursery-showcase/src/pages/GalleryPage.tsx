@@ -1709,12 +1709,15 @@ export default function GalleryPage() {
                   {/* Header */}
                   <div className="shrink-0 flex items-center gap-2.5 px-4 py-3 border-b border-border"
                     style={{ background: 'linear-gradient(135deg,#1b5e2010,#2e7d3218)' }}>
-                    <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-sm shrink-0">
-                      <TreePine className="w-4.5 h-4.5 text-primary-foreground" />
+                    <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm flex items-center justify-center bg-primary">
+                      {siteData.logo?.customUrl
+                        ? <img src={siteData.logo.customUrl} alt="logo" className="w-full h-full object-contain p-0.5" />
+                        : <TreePine className="w-4 h-4 text-primary-foreground" />
+                      }
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold arabic text-foreground leading-tight">{isAr ? 'لوحة التحكم' : 'Admin Panel'}</p>
-                      <p className="text-[10px] text-muted-foreground arabic">{isAr ? 'مشاتل القادري' : 'Al-Qadri'}</p>
+                      <p className="text-[10px] text-muted-foreground arabic">{siteData.titleAr || (isAr ? 'مشاتل القادري' : 'Al-Qadri')}</p>
                     </div>
                     {pendingQuoteCount > 0 && (
                       <span className="ms-auto shrink-0 min-w-[22px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
@@ -3590,6 +3593,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [noHeaderPdfingId, setNoHeaderPdfingId] = useState<string | null>(null);
+  const [noHeaderTitle, setNoHeaderTitle] = useState('عرض سعر');
+  const [noHeaderExtraLine, setNoHeaderExtraLine] = useState('');
+  const [noHeaderColor, setNoHeaderColor] = useState('#2e7d32');
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3691,7 +3697,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
     setNoHeaderPdfingId(q.id);
-    await downloadQuotePDFNoHeader(q, undefined, siteData.sections);
+    await downloadQuotePDFNoHeader(q, noHeaderTitle || 'عرض سعر', siteData.sections, noHeaderColor, noHeaderExtraLine || undefined);
     setNoHeaderPdfingId(null);
   };
 
@@ -4013,9 +4019,39 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs" title={isAr ? 'PDF بدون ترويسة (بدون لوجو وختم وفوتر)' : 'PDF without header'}>
-                    {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'بدون ترويسة' : 'No Header'}</>}
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    {/* No-header PDF settings */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <input
+                        type="text"
+                        value={noHeaderExtraLine}
+                        onChange={e => setNoHeaderExtraLine(e.target.value)}
+                        placeholder={isAr ? 'سطر فوق (اختياري)' : 'Line above (optional)'}
+                        className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-36 h-7"
+                      />
+                      <input
+                        type="text"
+                        value={noHeaderTitle}
+                        onChange={e => setNoHeaderTitle(e.target.value)}
+                        placeholder="عرض سعر"
+                        className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-28 h-7"
+                      />
+                      <div className="flex items-center gap-1">
+                        {(['#2e7d32','#1565c0','#6a1b9a','#e65100','#b71c1c','#1a1a1a'] as const).map(c => (
+                          <button
+                            key={c}
+                            onClick={() => setNoHeaderColor(c)}
+                            title={c}
+                            className="w-5 h-5 rounded-full border-2 transition-all"
+                            style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '1px' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs self-start" title={isAr ? 'PDF بدون ترويسة (بدون لوجو وختم وفوتر)' : 'PDF without header'}>
+                      {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'بدون ترويسة' : 'No Header'}</>}
+                    </Button>
+                  </div>
                   {editQuote.phone && (
                     <Button size="sm" variant="outline" onClick={() => handleWhatsApp(editQuote)} disabled={sharingId === editQuote.id} className="text-xs bg-[#25D366]/10 border-[#25D366]/40 text-[#128C7E] hover:bg-[#25D366]/20 dark:text-[#25D366]">
                       {sharingId === editQuote.id

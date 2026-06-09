@@ -416,7 +416,9 @@ export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteD
 export async function downloadQuotePDFNoHeader(
   quote: QuoteRequest,
   customTitle?: string,
-  sections?: SiteData['sections']
+  sections?: SiteData['sections'],
+  accentColor = '#2e7d32',
+  extraLine?: string
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
 
@@ -445,6 +447,10 @@ export async function downloadQuotePDFNoHeader(
   const plantingFee = Number(quote.planting_fee) || 0;
   const grand = afterDiscount + taxAmt + shippingFee + plantingFee;
 
+  // derive a lighter tint of accentColor for backgrounds
+  const accentLight = accentColor + '18';
+  const accentMid   = accentColor + '40';
+
   const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const quoteNum = quote.id.replace('q-', '').split('-')[0];
   const dateStr = new Date(quote.created_at).toLocaleDateString('ar-JO');
@@ -463,7 +469,7 @@ export async function downloadQuotePDFNoHeader(
       <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
       <td style="padding:8px 8px;text-align:center;line-height:2;">
         ${it.availableSize
-          ? `<span style="color:#e57373;font-size:10px;font-weight:900;">✕</span> <span style="color:#aaa;font-size:11px;">${it.size || '-'}</span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
+          ? `<span style="color:#e57373;font-size:10px;font-weight:900;">✕</span> <span style="color:#aaa;font-size:11px;">${it.size || '-'}</span><br/><span style="color:${accentColor};font-weight:800;font-size:14px;">${it.availableSize}</span>`
           : (it.size || '-')
         }
       </td>
@@ -478,12 +484,13 @@ export async function downloadQuotePDFNoHeader(
     <div style="font-family:'Cairo',sans-serif;background:#fff;padding:28px 24px;width:900px;direction:rtl;color:#111;font-size:13px;">
 
       <!-- TITLE ONLY -->
-      <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #2e7d32;">
-        <div style="font-size:24px;font-weight:900;color:#1a1a1a;">${title}</div>
+      <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid ${accentColor};">
+        ${extraLine ? `<div style="font-size:24px;font-weight:900;color:#1a1a1a;margin-bottom:4px;">${extraLine}</div>` : ''}
+        <div style="font-size:24px;font-weight:900;color:${accentColor};">${title}</div>
       </div>
 
       <!-- INFO ROW -->
-      <div style="display:flex;gap:12px;margin-bottom:16px;background:#f5f9f5;border-radius:8px;padding:10px 14px;border:1px solid #c8e6c9;">
+      <div style="display:flex;gap:12px;margin-bottom:16px;background:${accentLight};border-radius:8px;padding:10px 14px;border:1px solid ${accentMid};">
         <div style="flex:1;text-align:right;">
           <div style="font-size:10px;color:#888;">العميل</div>
           <div style="font-size:13px;font-weight:700;">${quote.customer_name}</div>
@@ -492,7 +499,7 @@ export async function downloadQuotePDFNoHeader(
         <div style="width:1px;background:#ccc;"></div>
         <div style="flex:1;text-align:center;">
           <div style="font-size:10px;color:#888;">رقم العرض</div>
-          <div style="font-size:14px;font-weight:800;color:#2e7d32;">${quoteNum}</div>
+          <div style="font-size:14px;font-weight:800;color:${accentColor};">${quoteNum}</div>
         </div>
         <div style="width:1px;background:#ccc;"></div>
         <div style="flex:1;text-align:left;direction:ltr;">
@@ -504,7 +511,7 @@ export async function downloadQuotePDFNoHeader(
       <!-- TABLE -->
       <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
         <thead>
-          <tr style="background:#2e7d32;color:#fff;">
+          <tr style="background:${accentColor};color:#fff;">
             <th style="padding:8px 6px;text-align:center;width:30px;">#</th>
             <th style="padding:8px 6px;text-align:right;">الاسم</th>
             <th style="padding:8px 6px;text-align:right;">الوصف</th>
@@ -518,9 +525,9 @@ export async function downloadQuotePDFNoHeader(
         </thead>
         <tbody>${rowsHtml}</tbody>
         <tfoot>
-          <tr style="background:#f1f8f1;font-weight:700;border-top:2px solid #2e7d32;">
+          <tr style="background:${accentLight};font-weight:700;border-top:2px solid ${accentColor};">
             <td colspan="7" style="padding:8px 12px;text-align:right;">المجموع الكلي</td>
-            <td style="padding:8px 12px;text-align:center;color:#2e7d32;font-size:15px;">${fmt(subtotal)} د.أ</td>
+            <td style="padding:8px 12px;text-align:center;color:${accentColor};font-size:15px;">${fmt(subtotal)} د.أ</td>
             <td></td>
           </tr>
         </tfoot>
@@ -548,9 +555,9 @@ export async function downloadQuotePDFNoHeader(
           <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الزراعة</div>
           <div style="font-size:13px;font-weight:700;color:#e65100;">${fmt(plantingFee)} د.أ</div>
         </div>` : ''}
-        <div style="flex:2;border:2px solid #2e7d32;border-radius:6px;padding:8px 12px;background:#f1f8f1;">
+        <div style="flex:2;border:2px solid ${accentColor};border-radius:6px;padding:8px 12px;background:${accentLight};">
           <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>
-          <div style="font-size:18px;font-weight:800;color:#2e7d32;">${fmt(grand)} د.أ</div>
+          <div style="font-size:18px;font-weight:800;color:${accentColor};">${fmt(grand)} د.أ</div>
         </div>
       </div>
 
