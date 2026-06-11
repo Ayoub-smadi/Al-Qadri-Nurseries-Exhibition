@@ -416,28 +416,11 @@ export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteD
 export async function downloadQuotePDFNoHeader(
   quote: QuoteRequest,
   customTitle?: string,
-  sections?: SiteData['sections'],
+  _sections?: SiteData['sections'],
   accentColor = '#2e7d32',
   extraLine?: string
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
-
-  // Build lookup from siteData sections (same as buildQuotePDF does)
-  const sectionImgLookup = new Map<string, string>();
-  for (const sec of (sections ?? [])) {
-    for (const p of sec.photos) {
-      if (p.image) sectionImgLookup.set(p.id, p.image);
-    }
-  }
-
-  // Pre-load plant images — prefer stored plantImage, fall back to current siteData image
-  const imgMap = new Map<string, string>();
-  for (const item of items) {
-    const src = item.plantImage || sectionImgLookup.get(item.plantId) || '';
-    if (src && !imgMap.has(item.plantId)) {
-      imgMap.set(item.plantId, await toDataUrl(src));
-    }
-  }
 
   const subtotal = items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const discountAmt = subtotal * (Number(quote.discount) / 100);
@@ -447,125 +430,116 @@ export async function downloadQuotePDFNoHeader(
   const plantingFee = Number(quote.planting_fee) || 0;
   const grand = afterDiscount + taxAmt + shippingFee + plantingFee;
 
-  // derive a lighter tint of accentColor for backgrounds
-  const accentLight = accentColor + '18';
-  const accentMid   = accentColor + '40';
-
   const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const quoteNum = quote.id.replace('q-', '').split('-')[0];
   const dateStr = new Date(quote.created_at).toLocaleDateString('ar-JO');
   const title = customTitle || 'عرض سعر';
 
+  // Alternating row colors
   const rowsHtml = items.map((it, i) => {
-    const imgSrc = imgMap.get(it.plantId) ?? it.plantImage;
     const total = (it.price || 0) * it.quantity;
-    const unavailCell = `<td colspan="2" style="padding:6px 8px;text-align:center;color:#c62828;font-weight:700;background:#fff5f5;">غير متوفر حاليًا</td>`;
-    const priceCell = `<td style="padding:6px 8px;text-align:center;">${fmt(it.price || 0)}</td><td style="padding:6px 8px;text-align:center;font-weight:600;">${fmt(total)}</td>`;
-    return `<tr style="border-bottom:1px solid #ddd;${it.unavailable ? 'opacity:0.6;' : ''}">
-      <td style="padding:6px 8px;text-align:center;border-left:1px solid #e0e0e0;">${i + 1}</td>
-      <td style="padding:6px 8px;text-align:right;font-weight:600;">${it.plantNameAr}</td>
-      <td style="padding:6px 8px;text-align:right;">${it.plantNameEn || ''}</td>
-      <td style="padding:6px 8px;text-align:right;">${it.sectionNameAr}</td>
-      <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
-      <td style="padding:8px 8px;text-align:center;line-height:2;">
-        ${it.availableSize
-          ? `<span style="color:#e57373;font-size:10px;font-weight:900;">✕</span> <span style="color:#aaa;font-size:11px;">${it.size || '-'}</span><br/><span style="color:${accentColor};font-weight:800;font-size:14px;">${it.availableSize}</span>`
-          : (it.size || '-')
-        }
-      </td>
-      ${it.unavailable ? unavailCell : priceCell}
-      <td style="padding:4px;text-align:center;width:90px;">
-        ${imgSrc ? `<img src="${imgSrc}" style="width:82px;height:82px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:82px;height:82px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
-      </td>
+    const isEven = i % 2 === 0;
+    const rowBg = it.unavailable ? '#fff5f5' : isEven ? '#fff' : '#f9fafb';
+    const sizeCell = it.availableSize
+      ? `<span style="color:#c62828;font-size:10px;text-decoration:line-through;">${it.size || ''}</span> <span style="color:${accentColor};font-weight:700;">${it.availableSize}</span>`
+      : (it.size || '—');
+    const priceCol = it.unavailable
+      ? `<td colspan="2" style="padding:10px 8px;text-align:center;color:#c62828;font-weight:700;font-size:11px;">غير متوفر</td>`
+      : `<td style="padding:10px 8px;text-align:center;color:#444;">${fmt(it.price || 0)}</td>
+         <td style="padding:10px 8px;text-align:center;font-weight:700;color:${accentColor};">${fmt(total)}</td>`;
+    return `<tr style="background:${rowBg};border-bottom:1px solid #eee;">
+      <td style="padding:10px 8px;text-align:center;color:#999;font-size:11px;width:28px;">${i + 1}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:600;font-size:13px;">${it.plantNameAr}</td>
+      <td style="padding:10px 8px;text-align:right;color:#666;font-size:11px;">${it.plantNameEn || '—'}</td>
+      <td style="padding:10px 8px;text-align:right;color:#555;font-size:11px;">${it.sectionNameAr}</td>
+      <td style="padding:10px 8px;text-align:center;font-weight:600;">${it.quantity}</td>
+      <td style="padding:10px 8px;text-align:center;font-size:11px;">${sizeCell}</td>
+      ${priceCol}
     </tr>`;
   }).join('');
 
+  const summaryRows = [
+    Number(quote.discount) > 0 ? `<tr><td style="padding:6px 16px;text-align:right;color:#666;">المجموع قبل الخصم</td><td style="padding:6px 16px;text-align:center;">${fmt(subtotal)} د.أ</td></tr>
+     <tr><td style="padding:6px 16px;text-align:right;color:#c62828;">خصم ${Number(quote.discount).toFixed(0)}%</td><td style="padding:6px 16px;text-align:center;color:#c62828;">− ${fmt(discountAmt)} د.أ</td></tr>` : '',
+    Number(quote.tax) > 0 ? `<tr><td style="padding:6px 16px;text-align:right;color:#666;">ضريبة ${Number(quote.tax).toFixed(0)}%</td><td style="padding:6px 16px;text-align:center;">+ ${fmt(taxAmt)} د.أ</td></tr>` : '',
+    shippingFee > 0 ? `<tr><td style="padding:6px 16px;text-align:right;color:#1565c0;">رسوم الشحن</td><td style="padding:6px 16px;text-align:center;color:#1565c0;">+ ${fmt(shippingFee)} د.أ</td></tr>` : '',
+    plantingFee > 0 ? `<tr><td style="padding:6px 16px;text-align:right;color:#e65100;">رسوم الزراعة</td><td style="padding:6px 16px;text-align:center;color:#e65100;">+ ${fmt(plantingFee)} د.أ</td></tr>` : '',
+  ].filter(Boolean).join('');
+
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#fff;padding:28px 24px;width:900px;direction:rtl;color:#111;font-size:13px;">
+    <div style="font-family:'Cairo',sans-serif;background:#f5f5f5;padding:32px;width:860px;direction:rtl;color:#111;font-size:13px;min-height:400px;">
 
-      <!-- TITLE ONLY -->
-      <div style="text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid ${accentColor};">
-        ${extraLine ? `<div style="font-size:24px;font-weight:900;color:#1a1a1a;margin-bottom:4px;">${extraLine}</div>` : ''}
-        <div style="font-size:24px;font-weight:900;color:${accentColor};">${title}</div>
+      <!-- CARD WRAPPER -->
+      <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+        <!-- HEADER BAND -->
+        <div style="background:${accentColor};padding:24px 28px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="text-align:right;">
+            ${extraLine ? `<div style="font-size:13px;color:rgba(255,255,255,0.75);margin-bottom:2px;">${extraLine}</div>` : ''}
+            <div style="font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.5px;">${title}</div>
+          </div>
+          <div style="text-align:left;direction:ltr;">
+            <div style="font-size:10px;color:rgba(255,255,255,0.65);margin-bottom:2px;">QUOTE NO.</div>
+            <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:1px;">#${quoteNum}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:4px;">${dateStr}</div>
+          </div>
+        </div>
+
+        <!-- CLIENT ROW -->
+        <div style="padding:16px 28px;background:#fafafa;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;">
+          <div style="font-size:11px;color:#999;">العميل:</div>
+          <div style="font-size:15px;font-weight:700;color:#111;">${quote.customer_name}</div>
+          ${quote.phone ? `<div style="font-size:12px;color:#666;direction:ltr;margin-right:8px;">${quote.phone}</div>` : ''}
+        </div>
+
+        <!-- TABLE -->
+        <div style="padding:0 0 4px 0;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f0f0f0;border-bottom:2px solid ${accentColor};">
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;width:28px;">#</th>
+                <th style="padding:10px 12px;text-align:right;font-size:11px;color:#666;font-weight:600;">اسم النبتة</th>
+                <th style="padding:10px 8px;text-align:right;font-size:11px;color:#666;font-weight:600;">الاسم الإنجليزي</th>
+                <th style="padding:10px 8px;text-align:right;font-size:11px;color:#666;font-weight:600;">القسم</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;">الكمية</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;">الحجم</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;">السعر</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;color:#666;font-weight:600;">الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+
+        <!-- SUMMARY + NOTES -->
+        <div style="display:flex;gap:0;border-top:1px solid #eee;">
+
+          <!-- NOTES (right side) -->
+          <div style="flex:1;padding:20px 28px;border-left:1px solid #eee;">
+            ${quote.notes ? `
+              <div style="font-size:10px;color:#999;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">ملاحظات</div>
+              <div style="font-size:12px;color:#444;line-height:1.8;">${quote.notes}</div>
+            ` : '<div style="height:40px;"></div>'}
+          </div>
+
+          <!-- TOTALS (left side) -->
+          <div style="width:260px;padding:16px 0;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <tbody>
+                ${Number(quote.discount) === 0 && Number(quote.tax) === 0 && shippingFee === 0 && plantingFee === 0 ? '' : `
+                <tr><td style="padding:6px 16px;text-align:right;color:#666;">المجموع</td><td style="padding:6px 16px;text-align:center;">${fmt(subtotal)} د.أ</td></tr>
+                ${summaryRows}
+                `}
+              </tbody>
+            </table>
+            <div style="margin:10px 16px 0;padding:12px 16px;background:${accentColor};border-radius:10px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:12px;color:rgba(255,255,255,0.8);font-weight:600;">الإجمالي الكلي</div>
+              <div style="font-size:18px;font-weight:900;color:#fff;">${fmt(grand)} <span style="font-size:12px;">د.أ</span></div>
+            </div>
+          </div>
+        </div>
+
       </div>
-
-      <!-- INFO ROW -->
-      <div style="display:flex;gap:12px;margin-bottom:16px;background:${accentLight};border-radius:8px;padding:10px 14px;border:1px solid ${accentMid};">
-        <div style="flex:1;text-align:right;">
-          <div style="font-size:10px;color:#888;">العميل</div>
-          <div style="font-size:13px;font-weight:700;">${quote.customer_name}</div>
-          ${quote.phone ? `<div style="font-size:11px;color:#555;direction:ltr;text-align:right;">${quote.phone}</div>` : ''}
-        </div>
-        <div style="width:1px;background:#ccc;"></div>
-        <div style="flex:1;text-align:center;">
-          <div style="font-size:10px;color:#888;">رقم العرض</div>
-          <div style="font-size:14px;font-weight:800;color:${accentColor};">${quoteNum}</div>
-        </div>
-        <div style="width:1px;background:#ccc;"></div>
-        <div style="flex:1;text-align:left;direction:ltr;">
-          <div style="font-size:10px;color:#888;direction:rtl;text-align:right;">التاريخ</div>
-          <div style="font-size:13px;font-weight:700;">${dateStr}</div>
-        </div>
-      </div>
-
-      <!-- TABLE -->
-      <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
-        <thead>
-          <tr style="background:${accentColor};color:#fff;">
-            <th style="padding:8px 6px;text-align:center;width:30px;">#</th>
-            <th style="padding:8px 6px;text-align:right;">الاسم</th>
-            <th style="padding:8px 6px;text-align:right;">الوصف</th>
-            <th style="padding:8px 6px;text-align:right;">القسم</th>
-            <th style="padding:8px 6px;text-align:center;">الكمية</th>
-            <th style="padding:8px 6px;text-align:center;">الحجم</th>
-            <th style="padding:8px 6px;text-align:center;">السعر</th>
-            <th style="padding:8px 6px;text-align:center;">الإجمالي</th>
-            <th style="padding:8px 6px;text-align:center;">الصورة</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-        <tfoot>
-          <tr style="background:${accentLight};font-weight:700;border-top:2px solid ${accentColor};">
-            <td colspan="7" style="padding:8px 12px;text-align:right;">المجموع الكلي</td>
-            <td style="padding:8px 12px;text-align:center;color:${accentColor};font-size:15px;">${fmt(subtotal)} د.أ</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-
-      <!-- DISCOUNT / TAX / SHIPPING -->
-      <div style="display:flex;gap:12px;margin-top:12px;direction:rtl;">
-        <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">نسبة الخصم (%)</div>
-          <div style="font-size:13px;font-weight:700;">${Number(quote.discount).toFixed(2)}</div>
-          <div style="font-size:11px;color:#555;">— ${fmt(discountAmt)} د.أ</div>
-        </div>
-        <div style="flex:1;border:1px solid #ddd;border-radius:6px;padding:8px 12px;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">نسبة الضريبة (%)</div>
-          <div style="font-size:13px;font-weight:700;">${Number(quote.tax).toFixed(2)}</div>
-          <div style="font-size:11px;color:#555;">+ ${fmt(taxAmt)} د.أ</div>
-        </div>
-        ${shippingFee > 0 ? `
-        <div style="flex:1;border:1px solid #1565c0;border-radius:6px;padding:8px 12px;background:#f0f4ff;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الشحن</div>
-          <div style="font-size:13px;font-weight:700;color:#1565c0;">${fmt(shippingFee)} د.أ</div>
-        </div>` : ''}
-        ${plantingFee > 0 ? `
-        <div style="flex:1;border:1px solid #e65100;border-radius:6px;padding:8px 12px;background:#fff8f0;">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">رسوم الزراعة</div>
-          <div style="font-size:13px;font-weight:700;color:#e65100;">${fmt(plantingFee)} د.أ</div>
-        </div>` : ''}
-        <div style="flex:2;border:2px solid ${accentColor};border-radius:6px;padding:8px 12px;background:${accentLight};">
-          <div style="font-size:10px;color:#888;margin-bottom:2px;">الإجمالي الكلي</div>
-          <div style="font-size:18px;font-weight:800;color:${accentColor};">${fmt(grand)} د.أ</div>
-        </div>
-      </div>
-
-      ${quote.notes ? `
-        <div style="margin-top:12px;border:1px solid #ddd;border-radius:6px;padding:10px 14px;">
-          <div style="font-size:10px;color:#888;margin-bottom:4px;">ملاحظات:</div>
-          <div style="font-size:12px;line-height:1.6;">${quote.notes}</div>
-        </div>` : ''}
     </div>`;
 
   const div = document.createElement('div');
@@ -575,7 +549,7 @@ export async function downloadQuotePDFNoHeader(
   await document.fonts.ready;
 
   const inner = div.firstElementChild as HTMLElement;
-  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#f5f5f5', logging: false });
   document.body.removeChild(div);
 
   const PX_PER_MM = 3.7795275591;
