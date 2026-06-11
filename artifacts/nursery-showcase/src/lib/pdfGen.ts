@@ -149,11 +149,22 @@ export async function downloadCatalogPDF(
 
   const inner = container.firstElementChild as HTMLElement;
 
-  // Measure card positions BEFORE html2canvas so we can find safe page-break points
-  // (html2canvas renders the full content as one tall image and slices it mechanically,
-  //  which cuts photos in half at page boundaries unless we choose cut points carefully)
-  const innerRect = inner.getBoundingClientRect();
+  // Measure card positions BEFORE html2canvas so we can find safe page-break points.
+  // IMPORTANT: use offsetTop/offsetHeight, NOT getBoundingClientRect() — for a
+  // position:fixed element at left:-9999px the browser may clip getBoundingClientRect()
+  // to the viewport height, making the scale calculation wildly wrong.
   const cards = Array.from(inner.querySelectorAll('[data-card]')) as HTMLElement[];
+
+  // Helper: sum offsetTop up the chain until we reach `inner`
+  function cardBottomCssPx(card: HTMLElement): number {
+    let top = 0;
+    let el: HTMLElement | null = card;
+    while (el && el !== inner) {
+      top += el.offsetTop;
+      el = el.offsetParent as HTMLElement | null;
+    }
+    return top + card.offsetHeight;
+  }
 
   const canvas = await html2canvas(inner, {
     scale: 2,
@@ -162,6 +173,9 @@ export async function downloadCatalogPDF(
     backgroundColor: '#ffffff',
     logging: false,
   });
+
+  // Measure inner height AFTER html2canvas (forces full layout) but BEFORE removeChild
+  const innerCssPx = inner.offsetHeight;
 
   document.body.removeChild(container);
 
@@ -173,12 +187,12 @@ export async function downloadCatalogPDF(
   const ratio = pageW / canvas.width;
   const fullH = canvas.height * ratio;
 
-  // Convert each card's bottom edge to mm (from top of content)
-  // cssToMm: CSS pixels → mm  (canvas px = CSS px × scale, so CSS px = canvas px / scale)
-  const scale = canvas.height / innerRect.height;
-  const cssToMm = ratio * scale;  // CSS px → canvas px → mm
+  // canvas.height = innerCssPx × renderScale  (html2canvas scale:2 → renderScale≈2)
+  const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
+  const cssToMm = ratio * renderScale;   // CSS px → canvas px → mm
+
   const safeCutsMm = cards
-    .map(c => (c.getBoundingClientRect().bottom - innerRect.top) * cssToMm)
+    .map(c => cardBottomCssPx(c) * cssToMm)
     .sort((a, b) => a - b);
 
   let drawn = 0; // mm
