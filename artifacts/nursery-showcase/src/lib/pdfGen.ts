@@ -81,7 +81,7 @@ async function buildPrintContainer(
       const altName = isAr ? p.nameEn : p.nameAr;
       const src = photoDataUrls.get(p.id) ?? p.image;
       return `
-        <div style="break-inside:avoid;page-break-inside:avoid;">
+        <div data-card style="break-inside:avoid;page-break-inside:avoid;">
           <div style="width:100%;aspect-ratio:4/5;overflow:hidden;border-radius:10px;background:#f3f0eb;">
             <img src="${src}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block;" />
           </div>
@@ -149,6 +149,12 @@ export async function downloadCatalogPDF(
 
   const inner = container.firstElementChild as HTMLElement;
 
+  // Measure card positions BEFORE html2canvas so we can find safe page-break points
+  // (html2canvas renders the full content as one tall image and slices it mechanically,
+  //  which cuts photos in half at page boundaries unless we choose cut points carefully)
+  const innerRect = inner.getBoundingClientRect();
+  const cards = Array.from(inner.querySelectorAll('[data-card]')) as HTMLElement[];
+
   const canvas = await html2canvas(inner, {
     scale: 2,
     useCORS: true,
@@ -163,26 +169,41 @@ export async function downloadCatalogPDF(
   const pageW = pdf.internal.pageSize.getWidth();   // 210
   const pageH = pdf.internal.pageSize.getHeight();  // 297
 
+  // ratio: canvas pixels → mm
   const ratio = pageW / canvas.width;
   const fullH = canvas.height * ratio;
-  let drawn = 0;
+
+  // Convert each card's bottom edge to mm (from top of content)
+  // cssToMm: CSS pixels → mm  (canvas px = CSS px × scale, so CSS px = canvas px / scale)
+  const scale = canvas.height / innerRect.height;
+  const cssToMm = ratio * scale;  // CSS px → canvas px → mm
+  const safeCutsMm = cards
+    .map(c => (c.getBoundingClientRect().bottom - innerRect.top) * cssToMm)
+    .sort((a, b) => a - b);
+
+  let drawn = 0; // mm
 
   while (drawn < fullH) {
     if (drawn > 0) pdf.addPage();
 
-    const sliceH = Math.min(pageH, fullH - drawn);
-    const srcY = drawn / ratio;
-    const srcH = sliceH / ratio;
+    const idealCut = Math.min(drawn + pageH, fullH);
+
+    // Find the largest card bottom that fits within this page (avoids splitting a card)
+    const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
+    const cutAt = suitable.length > 0 ? Math.max(...suitable) : idealCut;
+
+    const sliceH = cutAt - drawn;   // mm
+    const srcY   = drawn / ratio;   // canvas px
+    const srcH   = sliceH / ratio;  // canvas px
 
     const slice = document.createElement('canvas');
-    slice.width = canvas.width;
+    slice.width  = canvas.width;
     slice.height = Math.ceil(srcH);
     slice.getContext('2d')!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
 
-    const imgData = slice.toDataURL('image/jpeg', 0.92);
-    pdf.addImage(imgData, 'JPEG', 0, 0, pageW, sliceH);
+    pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, sliceH);
 
-    drawn += pageH;
+    drawn = cutAt;
   }
 
   pdf.save(filename);
