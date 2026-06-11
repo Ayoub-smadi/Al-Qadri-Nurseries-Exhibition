@@ -555,13 +555,24 @@ export async function downloadQuotePDFNoHeader(
     </div>`;
 
   const div = document.createElement('div');
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  div.style.cssText = 'position:fixed;left:-9999px;top:-9999px;z-index:-1;';
   div.innerHTML = html;
   document.body.appendChild(div);
   await document.fonts.ready;
 
   const inner = div.firstElementChild as HTMLElement;
-  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  const canvas = await html2canvas(inner, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#fff',
+    logging: false,
+    onclone: (_doc: Document, el: HTMLElement) => {
+      el.style.position = 'fixed';
+      el.style.left = '0';
+      el.style.top = '0';
+    },
+  });
   document.body.removeChild(div);
 
   const PX_PER_MM = 3.7795275591;
