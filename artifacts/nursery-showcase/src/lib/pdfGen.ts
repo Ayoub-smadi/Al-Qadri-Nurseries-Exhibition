@@ -417,15 +417,14 @@ export async function downloadQuotePDFNoHeader(
   quote: QuoteRequest,
   customTitle?: string,
   _sections?: SiteData['sections'],
-  _accentColor = '#2e7d32',
+  accentColor = '#2e7d32',
   extraLine?: string
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
 
-  // Fixed 3-color palette
-  const GREEN = '#2e7d32';
-  const BLUE  = '#1565c0';
-  const BLACK = '#111111';
+  const C     = accentColor;              // main accent
+  const CSOFT = accentColor + '18';       // very light tint for alternating rows
+  const CMID  = accentColor + '33';       // medium tint for borders
 
   const subtotal = items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const discountAmt = subtotal * (Number(quote.discount) / 100);
@@ -442,21 +441,21 @@ export async function downloadQuotePDFNoHeader(
 
   const rowsHtml = items.map((it, i) => {
     const total = (it.price || 0) * it.quantity;
-    const rowBg = it.unavailable ? '#fafafa' : i % 2 === 0 ? '#fff' : '#f0f4f0';
+    const rowBg = it.unavailable ? '#f9f9f9' : i % 2 === 0 ? '#fff' : CSOFT;
     const sizeCell = it.availableSize
-      ? `<span style="color:#bbb;font-size:10px;text-decoration:line-through;">${it.size || ''}</span> <span style="color:${GREEN};font-weight:700;">${it.availableSize}</span>`
+      ? `<span style="color:#bbb;font-size:10px;text-decoration:line-through;">${it.size || ''}</span> <span style="color:${C};font-weight:700;">${it.availableSize}</span>`
       : (it.size || '—');
     const priceCol = it.unavailable
       ? `<td colspan="2" style="padding:10px 8px;text-align:center;color:#bbb;font-size:11px;font-style:italic;">غير متوفر</td>`
       : `<td style="padding:10px 8px;text-align:center;color:#555;font-size:12px;">${fmt(it.price || 0)}</td>
-         <td style="padding:10px 8px;text-align:center;font-weight:800;color:${BLUE};font-size:13px;">${fmt(total)}</td>`;
-    return `<tr style="background:${rowBg};border-bottom:1px solid #e4ece4;">
-      <td style="padding:10px 6px;text-align:center;color:#bbb;font-size:11px;width:24px;border-left:3px solid ${i % 2 === 0 ? GREEN : BLUE};">${i + 1}</td>
-      <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:13px;color:${BLACK};">${it.plantNameAr}</td>
+         <td style="padding:10px 10px;text-align:center;font-weight:900;color:${C};font-size:14px;">${fmt(total)}</td>`;
+    return `<tr style="background:${rowBg};border-bottom:1px solid ${CMID};">
+      <td style="padding:10px 8px;text-align:center;color:#bbb;font-size:11px;width:28px;">${i + 1}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:13px;color:#111;">${it.plantNameAr}</td>
       <td style="padding:10px 8px;text-align:right;color:#777;font-size:11px;">${it.plantNameEn || '—'}</td>
-      <td style="padding:10px 8px;text-align:right;color:#555;font-size:11px;">${it.sectionNameAr}</td>
-      <td style="padding:10px 8px;text-align:center;font-weight:700;color:${BLACK};">${it.quantity}</td>
-      <td style="padding:10px 8px;text-align:center;font-size:11px;color:#444;">${sizeCell}</td>
+      <td style="padding:10px 8px;text-align:right;color:#666;font-size:11px;">${it.sectionNameAr}</td>
+      <td style="padding:10px 8px;text-align:center;font-weight:700;color:#111;font-size:13px;">${it.quantity}</td>
+      <td style="padding:10px 8px;text-align:center;font-size:11px;color:#555;">${sizeCell}</td>
       ${priceCol}
     </tr>`;
   }).join('');
@@ -464,95 +463,93 @@ export async function downloadQuotePDFNoHeader(
   const hasSummaryRows = Number(quote.discount) > 0 || Number(quote.tax) > 0 || shippingFee > 0 || plantingFee > 0;
   const summaryRows = [
     Number(quote.discount) > 0 ? `
-      <tr><td style="padding:5px 14px;text-align:right;color:#666;font-size:11px;">المجموع</td><td style="padding:5px 14px;text-align:left;font-size:11px;direction:ltr;">${fmt(subtotal)} د.أ</td></tr>
-      <tr><td style="padding:5px 14px;text-align:right;color:#888;font-size:11px;">خصم ${Number(quote.discount).toFixed(0)}%</td><td style="padding:5px 14px;text-align:left;color:#888;font-size:11px;direction:ltr;">− ${fmt(discountAmt)} د.أ</td></tr>` : '',
-    Number(quote.tax) > 0 ? `<tr><td style="padding:5px 14px;text-align:right;color:#666;font-size:11px;">ضريبة ${Number(quote.tax).toFixed(0)}%</td><td style="padding:5px 14px;text-align:left;font-size:11px;direction:ltr;">+ ${fmt(taxAmt)} د.أ</td></tr>` : '',
-    shippingFee > 0 ? `<tr><td style="padding:5px 14px;text-align:right;color:#666;font-size:11px;">رسوم الشحن</td><td style="padding:5px 14px;text-align:left;font-size:11px;direction:ltr;">+ ${fmt(shippingFee)} د.أ</td></tr>` : '',
-    plantingFee > 0 ? `<tr><td style="padding:5px 14px;text-align:right;color:#666;font-size:11px;">رسوم الزراعة</td><td style="padding:5px 14px;text-align:left;font-size:11px;direction:ltr;">+ ${fmt(plantingFee)} د.أ</td></tr>` : '',
+      <tr><td style="padding:4px 16px;text-align:right;color:#666;font-size:11px;">المجموع</td><td style="padding:4px 16px;text-align:center;font-size:11px;">${fmt(subtotal)} د.أ</td></tr>
+      <tr><td style="padding:4px 16px;text-align:right;color:#999;font-size:11px;">خصم ${Number(quote.discount).toFixed(0)}%</td><td style="padding:4px 16px;text-align:center;color:#999;font-size:11px;">− ${fmt(discountAmt)} د.أ</td></tr>` : '',
+    Number(quote.tax) > 0 ? `<tr><td style="padding:4px 16px;text-align:right;color:#666;font-size:11px;">ضريبة ${Number(quote.tax).toFixed(0)}%</td><td style="padding:4px 16px;text-align:center;font-size:11px;">+ ${fmt(taxAmt)} د.أ</td></tr>` : '',
+    shippingFee > 0 ? `<tr><td style="padding:4px 16px;text-align:right;color:#666;font-size:11px;">رسوم الشحن</td><td style="padding:4px 16px;text-align:center;font-size:11px;">+ ${fmt(shippingFee)} د.أ</td></tr>` : '',
+    plantingFee > 0 ? `<tr><td style="padding:4px 16px;text-align:right;color:#666;font-size:11px;">رسوم الزراعة</td><td style="padding:4px 16px;text-align:center;font-size:11px;">+ ${fmt(plantingFee)} د.أ</td></tr>` : '',
   ].filter(Boolean).join('');
 
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#f7f8f7;padding:28px;width:860px;direction:rtl;color:${BLACK};font-size:13px;">
-      <div style="background:#fff;border:1px solid #dde8dd;border-radius:4px;overflow:hidden;">
+    <div style="font-family:'Cairo',sans-serif;background:#f4f4f4;padding:30px;width:860px;direction:rtl;color:#111;font-size:13px;">
+      <div style="background:#fff;overflow:hidden;box-shadow:0 1px 8px rgba(0,0,0,0.1);">
 
-        <!-- HEADER: two-panel split -->
-        <div style="display:flex;height:90px;">
-          <!-- Right panel: title (GREEN) -->
-          <div style="flex:1;background:${GREEN};padding:20px 28px;display:flex;flex-direction:column;justify-content:center;">
-            ${extraLine ? `<div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:3px;">${extraLine}</div>` : ''}
-            <div style="font-size:27px;font-weight:900;color:#fff;letter-spacing:-0.5px;">${title}</div>
+        <!-- HEADER -->
+        <div style="background:${C};padding:0;display:flex;align-items:stretch;min-height:80px;">
+          <!-- Title block -->
+          <div style="flex:1;padding:22px 30px;display:flex;flex-direction:column;justify-content:center;">
+            ${extraLine ? `<div style="font-size:12px;color:rgba(255,255,255,0.65);margin-bottom:4px;letter-spacing:0.3px;">${extraLine}</div>` : ''}
+            <div style="font-size:30px;font-weight:900;color:#fff;letter-spacing:-1px;line-height:1;">${title}</div>
           </div>
-          <!-- Left panel: meta (BLACK) -->
-          <div style="width:240px;background:${BLACK};padding:16px 24px;display:flex;flex-direction:column;justify-content:center;gap:6px;direction:ltr;">
-            <div style="display:flex;align-items:baseline;gap:6px;">
-              <span style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;">No.</span>
-              <span style="font-size:20px;font-weight:900;color:${GREEN};">#${quoteNum}</span>
-            </div>
-            <div style="font-size:12px;color:#ccc;">${dateStr}</div>
+          <!-- Divider -->
+          <div style="width:1px;background:rgba(255,255,255,0.2);margin:16px 0;"></div>
+          <!-- Meta block -->
+          <div style="width:200px;padding:22px 24px;display:flex;flex-direction:column;justify-content:center;gap:4px;direction:ltr;">
+            <div style="font-size:10px;color:rgba(255,255,255,0.55);letter-spacing:1.5px;text-transform:uppercase;">Quote</div>
+            <div style="font-size:24px;font-weight:900;color:#fff;letter-spacing:1px;">#${quoteNum}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.7);">${dateStr}</div>
           </div>
         </div>
 
-        <!-- CLIENT BAR -->
-        <div style="background:#f0f4f0;border-top:1px solid #dde8dd;border-bottom:3px solid ${BLUE};padding:10px 24px;display:flex;align-items:center;gap:20px;">
-          <span style="font-size:10px;color:#999;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">العميل</span>
-          <span style="font-size:15px;font-weight:800;color:${BLACK};">${quote.customer_name}</span>
-          ${quote.phone ? `<span style="font-size:12px;color:#555;direction:ltr;border-right:1px solid #ccc;padding-right:20px;">${quote.phone}</span>` : ''}
+        <!-- CLIENT STRIP -->
+        <div style="background:${CSOFT};border-bottom:1px solid ${CMID};padding:12px 28px;display:flex;align-items:center;gap:18px;">
+          <div style="width:3px;height:28px;background:${C};border-radius:2px;"></div>
+          <div>
+            <div style="font-size:10px;color:#999;letter-spacing:0.5px;margin-bottom:2px;">العميل</div>
+            <div style="font-size:15px;font-weight:800;color:#111;">${quote.customer_name}${quote.phone ? `<span style="font-size:12px;font-weight:400;color:#666;margin-right:14px;direction:ltr;">${quote.phone}</span>` : ''}</div>
+          </div>
         </div>
 
         <!-- TABLE -->
         <table style="width:100%;border-collapse:collapse;">
           <thead>
-            <tr style="background:${BLUE};">
-              <th style="padding:9px 6px;text-align:center;color:rgba(255,255,255,0.7);font-size:10px;font-weight:600;width:24px;">#</th>
-              <th style="padding:9px 12px;text-align:right;color:#fff;font-size:11px;font-weight:700;">اسم النبتة</th>
-              <th style="padding:9px 8px;text-align:right;color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;">الاسم الإنجليزي</th>
-              <th style="padding:9px 8px;text-align:right;color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;">القسم</th>
-              <th style="padding:9px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الكمية</th>
-              <th style="padding:9px 8px;text-align:center;color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;">الحجم</th>
-              <th style="padding:9px 8px;text-align:center;color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;">السعر</th>
-              <th style="padding:9px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الإجمالي</th>
+            <tr style="border-bottom:3px solid ${C};background:#fafafa;">
+              <th style="padding:10px 8px;text-align:center;font-size:10px;color:#bbb;font-weight:500;width:28px;">#</th>
+              <th style="padding:10px 12px;text-align:right;font-size:11px;color:#333;font-weight:700;">اسم النبتة</th>
+              <th style="padding:10px 8px;text-align:right;font-size:10px;color:#666;font-weight:600;">الاسم الإنجليزي</th>
+              <th style="padding:10px 8px;text-align:right;font-size:10px;color:#666;font-weight:600;">القسم</th>
+              <th style="padding:10px 8px;text-align:center;font-size:11px;color:#333;font-weight:700;">الكمية</th>
+              <th style="padding:10px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;">الحجم</th>
+              <th style="padding:10px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;">السعر</th>
+              <th style="padding:10px 10px;text-align:center;font-size:11px;color:${C};font-weight:800;">الإجمالي</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
 
         <!-- FOOTER -->
-        <div style="display:flex;border-top:2px solid #dde8dd;">
+        <div style="display:flex;border-top:1px solid ${CMID};">
 
           <!-- NOTES -->
-          <div style="flex:1;padding:18px 24px;">
+          <div style="flex:1;padding:20px 28px;">
             ${quote.notes ? `
-              <div style="font-size:10px;color:${GREEN};font-weight:700;letter-spacing:0.5px;margin-bottom:5px;text-transform:uppercase;">ملاحظات</div>
-              <div style="font-size:12px;color:#444;line-height:2;">${quote.notes}</div>
-            ` : '<div style="height:32px;"></div>'}
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <div style="width:12px;height:2px;background:${C};border-radius:1px;"></div>
+                <span style="font-size:10px;color:${C};font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">ملاحظات</span>
+              </div>
+              <div style="font-size:12px;color:#444;line-height:2.1;">${quote.notes}</div>
+            ` : '<div style="height:28px;"></div>'}
           </div>
 
           <!-- TOTALS -->
-          <div style="width:250px;border-right:1px solid #e4ece4;padding:14px 0;">
+          <div style="width:256px;border-right:1px solid ${CMID};padding:16px 0 0;">
             ${hasSummaryRows ? `
-              <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">${summaryRows}</table>
-              <div style="height:1px;background:#e4ece4;margin:0 14px 8px;"></div>
+              <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">${summaryRows}</table>
+              <div style="height:1px;background:${CMID};margin:0 16px 12px;"></div>
             ` : ''}
-            <!-- GRAND TOTAL BOX -->
-            <div style="margin:0 14px;border:2px solid ${GREEN};border-radius:3px;overflow:hidden;">
-              <div style="background:${GREEN};padding:5px 14px;">
-                <span style="font-size:10px;color:rgba(255,255,255,0.8);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">الإجمالي الكلي</span>
-              </div>
-              <div style="padding:10px 14px;background:#fff;display:flex;align-items:baseline;justify-content:space-between;">
-                <span style="font-size:11px;color:#888;">د.أ</span>
-                <span style="font-size:22px;font-weight:900;color:${BLACK};">${fmt(grand)}</span>
+            <div style="margin:0 16px 16px;background:${C};padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-size:11px;color:rgba(255,255,255,0.75);font-weight:600;">الإجمالي الكلي</div>
+              <div>
+                <span style="font-size:22px;font-weight:900;color:#fff;">${fmt(grand)}</span>
+                <span style="font-size:10px;color:rgba(255,255,255,0.7);margin-right:4px;">د.أ</span>
               </div>
             </div>
           </div>
 
         </div>
 
-        <!-- BOTTOM ACCENT BAR: green | blue | black -->
-        <div style="display:flex;height:6px;">
-          <div style="flex:2;background:${GREEN};"></div>
-          <div style="flex:2;background:${BLUE};"></div>
-          <div style="flex:1;background:${BLACK};"></div>
-        </div>
+        <!-- ACCENT LINE at bottom -->
+        <div style="height:4px;background:${C};"></div>
 
       </div>
     </div>`;

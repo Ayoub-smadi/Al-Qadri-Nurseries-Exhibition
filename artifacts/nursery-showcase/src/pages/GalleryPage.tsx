@@ -4055,13 +4055,17 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-36 h-7"
                   />
                   <div className="flex items-center gap-1">
-                    {(['#2e7d32','#1565c0','#6a1b9a','#e65100','#b71c1c','#1a1a1a'] as const).map(c => (
+                    {([
+                      { color: '#2e7d32', label: 'أخضر' },
+                      { color: '#1565c0', label: 'أزرق' },
+                      { color: '#1a1a1a', label: 'أسود' },
+                    ] as const).map(({ color: c, label }) => (
                       <button
                         key={c}
                         onClick={() => setNoHeaderColor(c)}
-                        title={c}
-                        className="w-4 h-4 rounded-full border-2 transition-all"
-                        style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '1px' }}
+                        title={label}
+                        className="w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center"
+                        style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '2px' }}
                       />
                     ))}
                   </div>
