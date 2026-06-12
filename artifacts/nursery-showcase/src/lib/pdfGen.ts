@@ -99,7 +99,7 @@ async function buildPrintContainer(
           </div>
           <div style="flex:1;height:1px;background:#d4b896;"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
           ${photosHtml}
         </div>
       </div>`;
