@@ -522,32 +522,28 @@ export async function downloadQuotePDFNoHeader(
       <!-- TOP ACCENT STRIPE -->
       <div style="height:7px;background:${C};"></div>
 
-      <!-- HEADER: meta (LEFT) first in DOM, title (RIGHT) last in DOM -->
-      <div style="padding:26px 32px 18px;display:flex;justify-content:space-between;align-items:flex-end;">
+      <!-- HEADER: meta (LEFT) first in DOM, title+client (RIGHT) last in DOM -->
+      <div style="padding:26px 32px 18px;display:flex;justify-content:space-between;align-items:center;">
         <!-- LEFT: quote # and date -->
-        <div style="text-align:left;">
-          <div class="ar" style="font-size:9px;color:#bbb;letter-spacing:1px;margin-bottom:5px;">رقم العرض</div>
-          <div style="font-size:34px;font-weight:900;color:${C};line-height:1;">#${quoteNum}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:5px;">${dateStr}</div>
+        <div style="text-align:left;flex-shrink:0;">
+          <div class="ar" style="font-size:9px;color:#bbb;margin-bottom:5px;">رقم العرض</div>
+          <div style="font-size:38px;font-weight:900;color:${C};line-height:1;">#${quoteNum}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:6px;">${dateStr}</div>
         </div>
-        <!-- RIGHT: custom title and extra line -->
+        <!-- RIGHT: title + client name stacked -->
         <div style="text-align:right;">
-          ${extraLine ? `<div class="ar-right" style="font-size:12px;color:#aaa;margin-bottom:6px;">${extraLine}</div>` : ''}
-          <div class="ar-right" style="font-size:36px;font-weight:900;color:#111;line-height:1;">${title}</div>
+          ${extraLine ? `<div class="ar-right" style="font-size:12px;color:#aaa;margin-bottom:4px;">${extraLine}</div>` : ''}
+          <div class="ar-right" style="font-size:38px;font-weight:900;color:#111;line-height:1.1;">${title}</div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eee;">
+            <div class="ar-right" style="font-size:9px;color:#bbb;margin-bottom:3px;">العميل</div>
+            <div class="ar-right" style="font-size:18px;font-weight:800;color:#333;">${quote.customer_name}</div>
+            ${quote.phone ? `<div style="font-size:12px;color:#999;margin-top:2px;">${quote.phone}</div>` : ''}
+          </div>
         </div>
       </div>
 
       <!-- THIN DIVIDER -->
       <div style="height:1px;background:${C};opacity:0.2;margin:0 32px;"></div>
-
-      <!-- CLIENT ROW: phone (LEFT) first, name (RIGHT) last -->
-      <div style="margin:14px 32px;padding:12px 18px;background:#f7f7f7;border-right:4px solid ${C};display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:12px;color:#777;">${quote.phone || ''}</div>
-        <div style="text-align:right;">
-          <div class="ar-right" style="font-size:9px;color:#bbb;margin-bottom:3px;">العميل</div>
-          <div class="ar-right" style="font-size:16px;font-weight:800;color:#111;">${quote.customer_name}</div>
-        </div>
-      </div>
 
       <!-- TABLE -->
       <table style="width:100%;border-collapse:collapse;margin-top:4px;">
