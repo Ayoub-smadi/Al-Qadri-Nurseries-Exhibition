@@ -149,25 +149,13 @@ export async function downloadCatalogPDF(
 
   const inner = container.firstElementChild as HTMLElement;
 
-  // Set position:relative on inner so it becomes the offsetParent for all descendants.
-  // Without this, grid/block children's offsetParent jumps over static ancestors straight
-  // to the fixed container, making offsetTop traversal stop at the wrong element.
-  inner.style.position = 'relative';
-
-  // Collect all photo cards and compute each card's bottom edge in CSS pixels
-  // relative to the top of `inner` — used to pick safe page-break points.
+  // Measure card positions BEFORE html2canvas using getBoundingClientRect.
+  // container is position:fixed;top:0 so inner.getBoundingClientRect().top ≈ 0,
+  // meaning card.getBoundingClientRect().bottom is the card bottom in CSS px from
+  // inner's top — no offsetParent traversal needed, works correctly with CSS Grid.
+  const innerTop = inner.getBoundingClientRect().top;
   const cards = Array.from(inner.querySelectorAll('[data-card]')) as HTMLElement[];
-
-  function cardBottomCssPx(card: HTMLElement): number {
-    let top = 0;
-    let el: HTMLElement | null = card;
-    // Walk offsetParent chain; with inner being position:relative it IS in the chain
-    while (el && el !== inner) {
-      top += el.offsetTop;
-      el = el.offsetParent as HTMLElement | null;
-    }
-    return top + card.offsetHeight;
-  }
+  const cardBottomsCssPx = cards.map(c => c.getBoundingClientRect().bottom - innerTop);
 
   const canvas = await html2canvas(inner, {
     scale: 2,
@@ -177,26 +165,24 @@ export async function downloadCatalogPDF(
     logging: false,
   });
 
-  // Read inner height BEFORE removeChild (position:relative doesn't change its height)
-  const innerCssPx = inner.offsetHeight;
-
+  const innerCssPx = inner.offsetHeight;   // actual content height (not clipped)
   document.body.removeChild(container);
 
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();   // 210
   const pageH = pdf.internal.pageSize.getHeight();  // 297
 
-  // ratio: mm per canvas pixel
+  // ratio: mm per canvas pixel (based on width, which is exact)
   const ratio = pageW / canvas.width;
   const fullH  = canvas.height * ratio;  // total content height in mm
 
-  // renderScale ≈ 2 (html2canvas scale option);  cssToMm converts CSS px → mm
+  // cssToMm: converts a CSS-pixel measurement to mm
+  // renderScale ≈ 2 (html2canvas scale:2), but derived from actual canvas/CSS heights
   const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
   const cssToMm = ratio * renderScale;
 
-  // Safe cut points: bottom edge of every card row (in mm from content top)
-  const safeCutsMm = cards
-    .map(c => cardBottomCssPx(c) * cssToMm)
+  // Safe cut points: bottom edge of every card (in mm). Duplicates are fine — sort removes them.
+  const safeCutsMm = [...new Set(cardBottomsCssPx.map(b => Math.round(b * cssToMm)))]
     .sort((a, b) => a - b);
 
   let drawn = 0; // mm
