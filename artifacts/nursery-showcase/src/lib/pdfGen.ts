@@ -490,19 +490,19 @@ export async function downloadQuotePDFNoHeader(
     if (it.unavailable) {
       return `<tr style="background:${rowBg};border-bottom:1px solid #f0f0f0;opacity:0.65;">
         <td style="padding:9px 8px;text-align:center;color:#ccc;font-size:11px;width:30px;">${i + 1}</td>
-        <td style="padding:9px 12px;text-align:right;font-weight:700;font-size:13px;color:#bbb;">${it.plantNameAr}</td>
-        <td style="padding:9px 8px;text-align:right;color:#bbb;font-size:11px;">${it.plantNameEn || ''}</td>
-        <td style="padding:9px 8px;text-align:right;color:#bbb;font-size:11px;">${it.sectionNameAr}</td>
+        <td class="ar-right" style="padding:9px 12px;font-weight:700;font-size:13px;color:#bbb;">${it.plantNameAr}</td>
+        <td class="ar-right" style="padding:9px 8px;color:#bbb;font-size:11px;">${it.plantNameEn || ''}</td>
+        <td class="ar-right" style="padding:9px 8px;color:#bbb;font-size:11px;">${it.sectionNameAr}</td>
         <td style="padding:9px 8px;text-align:center;color:#bbb;font-weight:700;">${it.quantity}</td>
         <td style="padding:9px 8px;text-align:center;font-size:11px;color:#bbb;">${sizeCell}</td>
-        <td colspan="2" style="padding:9px 8px;text-align:center;color:#bbb;font-style:italic;font-size:11px;">غير متوفر</td>
+        <td class="ar" colspan="2" style="padding:9px 8px;text-align:center;color:#bbb;font-style:italic;font-size:11px;">غير متوفر</td>
       </tr>`;
     }
     return `<tr style="background:${rowBg};border-bottom:1px solid #f0f0f0;">
       <td style="padding:9px 8px;text-align:center;color:#ccc;font-size:11px;width:30px;">${i + 1}</td>
-      <td style="padding:9px 12px;text-align:right;font-weight:700;font-size:13px;color:#111;">${it.plantNameAr}</td>
-      <td style="padding:9px 8px;text-align:right;color:#888;font-size:11px;">${it.plantNameEn || ''}</td>
-      <td style="padding:9px 8px;text-align:right;color:#777;font-size:11px;">${it.sectionNameAr}</td>
+      <td class="ar-right" style="padding:9px 12px;font-weight:700;font-size:13px;color:#111;">${it.plantNameAr}</td>
+      <td class="ar-right" style="padding:9px 8px;color:#888;font-size:11px;">${it.plantNameEn || ''}</td>
+      <td class="ar-right" style="padding:9px 8px;color:#777;font-size:11px;">${it.sectionNameAr}</td>
       <td style="padding:9px 8px;text-align:center;font-weight:700;color:#111;">${it.quantity}</td>
       <td style="padding:9px 8px;text-align:center;font-size:11px;color:#666;">${sizeCell}</td>
       <td style="padding:9px 8px;text-align:center;color:#666;font-size:12px;">${fmt(it.price || 0)}</td>
@@ -520,12 +520,18 @@ export async function downloadQuotePDFNoHeader(
     plantingFee > 0 ? `<tr><td style="padding:4px 0;text-align:right;color:#777;font-size:11px;">رسوم الزراعة</td><td style="padding:4px 0;text-align:left;font-size:11px;">+ ${fmt(plantingFee)} د.أ</td></tr>` : '',
   ].filter(Boolean).join('');
 
-  // LAYOUT STRATEGY: direction:rtl on outer container (for Arabic text flow in cells).
-  // html2canvas ignores direction:rtl for flex order, so it renders children LTR.
-  // Therefore: put LEFT-side content FIRST in DOM, RIGHT-side content LAST.
-  // This matches how the main quote PDF (buildQuotePDF) works — proven approach.
+  // LAYOUT: html2canvas ignores direction:rtl for flex/table order and renders LTR.
+  // Fix: use dir="rtl" HTML *attribute* + unicode-bidi:bidi-override on each Arabic text
+  // node via the embedded <style> + class="ar". This is identical to how buildQuotePDF
+  // achieves correct Arabic shaping — the class is meaningless without a stylesheet,
+  // so we embed one here.
+  // Left-side content goes FIRST in the DOM (html2canvas places it on the left).
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#fff;width:860px;direction:rtl;color:#111;font-size:13px;">
+    <style>
+      .ar { direction: rtl; unicode-bidi: bidi-override; }
+      .ar-right { direction: rtl; unicode-bidi: bidi-override; text-align: right; }
+    </style>
+    <div dir="rtl" style="font-family:'Cairo',sans-serif;background:#fff;width:860px;direction:rtl;color:#111;font-size:13px;">
 
       <!-- TOP ACCENT STRIPE -->
       <div style="height:7px;background:${C};"></div>
@@ -534,14 +540,14 @@ export async function downloadQuotePDFNoHeader(
       <div style="padding:26px 32px 18px;display:flex;justify-content:space-between;align-items:flex-end;">
         <!-- LEFT: quote # and date -->
         <div style="text-align:left;">
-          <div style="font-size:9px;color:#bbb;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;">رقم العرض</div>
+          <div class="ar" style="font-size:9px;color:#bbb;letter-spacing:1px;margin-bottom:5px;">رقم العرض</div>
           <div style="font-size:34px;font-weight:900;color:${C};line-height:1;">#${quoteNum}</div>
           <div style="font-size:11px;color:#aaa;margin-top:5px;">${dateStr}</div>
         </div>
         <!-- RIGHT: custom title and extra line -->
         <div style="text-align:right;">
-          ${extraLine ? `<div style="font-size:12px;color:#aaa;margin-bottom:6px;">${extraLine}</div>` : ''}
-          <div style="font-size:36px;font-weight:900;color:#111;line-height:1;">${title}</div>
+          ${extraLine ? `<div class="ar-right" style="font-size:12px;color:#aaa;margin-bottom:6px;">${extraLine}</div>` : ''}
+          <div class="ar-right" style="font-size:36px;font-weight:900;color:#111;line-height:1;">${title}</div>
         </div>
       </div>
 
@@ -550,12 +556,10 @@ export async function downloadQuotePDFNoHeader(
 
       <!-- CLIENT ROW: phone (LEFT) first, name (RIGHT) last -->
       <div style="margin:14px 32px;padding:12px 18px;background:#f7f7f7;border-right:4px solid ${C};display:flex;justify-content:space-between;align-items:center;">
-        <!-- LEFT: phone -->
         <div style="font-size:12px;color:#777;">${quote.phone || ''}</div>
-        <!-- RIGHT: client name + label -->
         <div style="text-align:right;">
-          <div style="font-size:9px;color:#bbb;margin-bottom:3px;letter-spacing:0.5px;">العميل</div>
-          <div style="font-size:16px;font-weight:800;color:#111;">${quote.customer_name}</div>
+          <div class="ar-right" style="font-size:9px;color:#bbb;margin-bottom:3px;">العميل</div>
+          <div class="ar-right" style="font-size:16px;font-weight:800;color:#111;">${quote.customer_name}</div>
         </div>
       </div>
 
@@ -564,13 +568,13 @@ export async function downloadQuotePDFNoHeader(
         <thead>
           <tr style="background:${C};">
             <th style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.5);font-size:10px;width:30px;">#</th>
-            <th style="padding:10px 12px;text-align:right;color:#fff;font-size:11px;font-weight:700;">اسم النبتة</th>
-            <th style="padding:10px 8px;text-align:right;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الاسم الإنجليزي</th>
-            <th style="padding:10px 8px;text-align:right;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">القسم</th>
-            <th style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الكمية</th>
-            <th style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الحجم</th>
-            <th style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">السعر</th>
-            <th style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:800;">الإجمالي</th>
+            <th class="ar-right" style="padding:10px 12px;color:#fff;font-size:11px;font-weight:700;">اسم النبتة</th>
+            <th class="ar-right" style="padding:10px 8px;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الاسم الإنجليزي</th>
+            <th class="ar-right" style="padding:10px 8px;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">القسم</th>
+            <th class="ar" style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الكمية</th>
+            <th class="ar" style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الحجم</th>
+            <th class="ar" style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">السعر</th>
+            <th class="ar" style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:800;">الإجمالي</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
@@ -586,7 +590,7 @@ export async function downloadQuotePDFNoHeader(
             <div style="height:1px;background:#eee;margin-bottom:12px;"></div>
           ` : ''}
           <div style="background:${C};padding:14px 18px;">
-            <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.75);margin-bottom:4px;">الإجمالي الكلي</div>
+            <div class="ar-right" style="font-size:10px;color:rgba(255,255,255,0.75);margin-bottom:4px;">الإجمالي الكلي</div>
             <div style="text-align:right;font-size:24px;font-weight:900;color:#fff;line-height:1;">${fmt(grand)} <span style="font-size:11px;opacity:0.8;">د.أ</span></div>
           </div>
         </div>
@@ -594,8 +598,8 @@ export async function downloadQuotePDFNoHeader(
         <!-- RIGHT: notes -->
         <div style="flex:1;padding:18px 28px;text-align:right;border-right:1px solid #f0f0f0;">
           ${quote.notes ? `
-            <div style="font-size:9px;color:${C};font-weight:700;letter-spacing:0.5px;margin-bottom:6px;">ملاحظات</div>
-            <div style="font-size:12px;color:#555;line-height:2.2;">${quote.notes}</div>
+            <div class="ar-right" style="font-size:9px;color:${C};font-weight:700;margin-bottom:6px;">ملاحظات</div>
+            <div class="ar-right" style="font-size:12px;color:#555;line-height:2.2;">${quote.notes}</div>
           ` : ''}
         </div>
 
@@ -606,14 +610,22 @@ export async function downloadQuotePDFNoHeader(
 
     </div>`;
 
-  // Same rendering approach as buildQuotePDF: top:0 (not top:-9999px), no onclone needed
   const div = document.createElement('div');
   div.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
   div.innerHTML = html;
   document.body.appendChild(div);
+
+  // Explicitly load all needed Cairo weights before rendering
+  await Promise.allSettled([
+    document.fonts.load('400 13px Cairo'),
+    document.fonts.load('700 13px Cairo'),
+    document.fonts.load('800 13px Cairo'),
+    document.fonts.load('900 13px Cairo'),
+  ]);
   await document.fonts.ready;
 
-  const inner = div.firstElementChild as HTMLElement;
+  // inner is the <div dir="rtl"> (first element after the <style> tag)
+  const inner = div.querySelector('[dir="rtl"]') as HTMLElement;
   const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
   document.body.removeChild(div);
 
