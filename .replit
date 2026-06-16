@@ -85,3 +85,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 PORT = "8080"
+FRONTEND_PORT = "5000"
