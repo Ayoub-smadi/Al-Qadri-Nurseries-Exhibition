@@ -107,76 +107,44 @@ async function apiParseText(text: string) {
   return res.json() as Promise<{ items: Array<{ name: string; description: string; category: string; quantity: number; price: number; total: number }> }>;
 }
 
-async function loadImageAsDataUrl(src: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
-      c.getContext('2d')!.drawImage(img, 0, 0);
-      resolve(c.toDataURL('image/png'));
-    };
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-async function exportToPDF(elementId: string, filename: string) {
+async function exportToPDF(elementId: string, filename: string, stampDataUrl: string | null) {
   const element = document.getElementById(elementId);
-  if (!element) return;
+  if (!element) { toast.error('لم يتم العثور على المستند'); return; }
   try {
-    const clone = element.cloneNode(true) as HTMLElement;
-    clone.style.position = 'fixed';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.width = element.offsetWidth + 'px';
-    clone.style.background = '#ffffff';
-    clone.style.zIndex = '-1';
-
-    clone.querySelectorAll<HTMLInputElement>('input').forEach(inp => {
-      const span = document.createElement('span');
-      span.textContent = inp.value;
-      span.style.cssText = window.getComputedStyle(inp).cssText;
-      span.style.display = 'inline-block';
-      span.style.border = 'none';
-      span.style.outline = 'none';
-      span.style.background = 'transparent';
-      inp.replaceWith(span);
-    });
-    clone.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(ta => {
-      const div = document.createElement('div');
-      div.textContent = ta.value;
-      div.style.cssText = window.getComputedStyle(ta).cssText;
-      div.style.border = 'none';
-      div.style.outline = 'none';
-      div.style.background = 'transparent';
-      div.style.whiteSpace = 'pre-wrap';
-      ta.replaceWith(div);
-    });
-    clone.querySelectorAll<HTMLButtonElement>('button').forEach(btn => btn.remove());
-    clone.querySelectorAll<HTMLElement>('[data-pdf-hide]').forEach(el => el.remove());
-
-    const stampImgs = clone.querySelectorAll<HTMLImageElement>('img[data-stamp]');
-    if (stampImgs.length > 0) {
-      try {
-        const stampDataUrl = await loadImageAsDataUrl('/stamp.png');
-        stampImgs.forEach(img => { img.src = stampDataUrl; });
-      } catch { /* skip stamp if fails */ }
-    }
-
-    document.body.appendChild(clone);
-    await new Promise(r => setTimeout(r, 200));
-
-    const canvas = await html2canvas(clone, {
+    const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
       allowTaint: false,
+      imageTimeout: 15000,
+      onclone: (_clonedDoc, clonedEl) => {
+        clonedEl.querySelectorAll<HTMLInputElement>('input:not([type="file"])').forEach(inp => {
+          const span = _clonedDoc.createElement('span');
+          span.textContent = inp.value;
+          span.style.display = 'inline-block';
+          span.style.fontWeight = inp.style.fontWeight || '';
+          span.style.textAlign = inp.style.textAlign || 'inherit';
+          inp.parentNode?.replaceChild(span, inp);
+        });
+        clonedEl.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(ta => {
+          const div = _clonedDoc.createElement('div');
+          div.textContent = ta.value;
+          div.style.whiteSpace = 'pre-wrap';
+          div.style.fontSize = '12px';
+          ta.parentNode?.replaceChild(div, ta);
+        });
+        clonedEl.querySelectorAll<HTMLButtonElement>('button').forEach(btn => btn.remove());
+        clonedEl.querySelectorAll<HTMLElement>('label').forEach(lbl => {
+          if (lbl.querySelector('input[type="file"]')) lbl.remove();
+        });
+        if (stampDataUrl) {
+          clonedEl.querySelectorAll<HTMLImageElement>('img[data-stamp]').forEach(img => {
+            img.src = stampDataUrl;
+          });
+        }
+      },
     });
-    document.body.removeChild(clone);
-
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfW = pdf.internal.pageSize.getWidth();
@@ -203,7 +171,7 @@ async function exportToPDF(elementId: string, filename: string) {
     pdf.save(`${filename}.pdf`);
   } catch (e) {
     console.error('PDF export error:', e);
-    toast.error('فشل تصدير PDF');
+    toast.error(`فشل تصدير PDF: ${(e as Error).message?.slice(0, 60) ?? 'خطأ غير معروف'}`);
   }
 }
 
@@ -267,7 +235,20 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
   const [saving, setSaving] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
   const docId = useRef(`aq-quotation-doc-${Date.now()}`).current;
+
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d')!.drawImage(img, 0, 0);
+      setStampDataUrl(c.toDataURL('image/png'));
+    };
+    img.src = '/stamp.png';
+  }, []);
 
   const saveDraft = useCallback(() => {
     if (isEdit) return;
@@ -337,8 +318,8 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
       setItems([...filtered, ...newItems]);
       setPasteText('');
       toast.success(`✅ تمت إضافة ${newItems.length} عناصر إلى الجدول`);
-    } catch {
-      toast.error('خطأ في التحليل — تأكد أن الجلسة نشطة');
+    } catch (err) {
+      toast.error(`خطأ في التحليل: ${(err as Error).message ?? 'فشل الاتصال بالخادم'}`);
     } finally { setParsing(false); }
   };
 
@@ -424,7 +405,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
             <MessageCircle className="w-4 h-4" />
           </button>
           <button
-            onClick={() => exportToPDF(docId, `عرض-سعر-${details.quotationNumber}`)}
+            onClick={() => exportToPDF(docId, `عرض-سعر-${details.quotationNumber}`, stampDataUrl)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 transition-all text-xs font-semibold"
             title="تصدير PDF"
           >
@@ -637,7 +618,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
               />
               <img
                 data-stamp="1"
-                src="/stamp.png"
+                src={stampDataUrl ?? '/stamp.png'}
                 alt="ختم المؤسسة"
                 className="w-44 h-44 object-contain drop-shadow-sm"
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
