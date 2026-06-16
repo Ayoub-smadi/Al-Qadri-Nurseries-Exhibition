@@ -443,13 +443,19 @@ export async function downloadQuotePDFNoHeader(
   customTitle?: string,
   _sections?: SiteData['sections'],
   accentColor = '#2e7d32',
-  extraLine?: string
+  extraLine?: string,
+  stampUrl?: string,
+  signatoryName?: string,
+  brandName?: string
 ): Promise<void> {
   const items = quote.items as QuoteItem[];
 
   const C     = accentColor;              // main accent
   const CSOFT = accentColor + '18';       // very light tint for alternating rows
   const CMID  = accentColor + '33';       // medium tint for borders
+
+  // Pre-load stamp if provided
+  const stampDataUrl = stampUrl ? await toDataUrl(stampUrl).catch(() => '') : '';
 
   const subtotal = items.reduce((s, it) => it.unavailable ? s : s + (it.price || 0) * it.quantity, 0);
   const discountAmt = subtotal * (Number(quote.discount) / 100);
@@ -587,6 +593,15 @@ export async function downloadQuotePDFNoHeader(
 
       </div>
 
+      <!-- SIGNATURE BLOCK -->
+      ${(stampDataUrl || signatoryName) ? `
+      <div style="display:flex;justify-content:flex-start;padding:14px 32px 10px;border-top:1px solid #eee;">
+        <div style="text-align:center;">
+          ${signatoryName ? `<div style="font-size:13px;font-weight:700;color:#333;margin-bottom:6px;">${signatoryName}</div>` : ''}
+          ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:100px;height:100px;object-fit:contain;display:block;" />` : ''}
+        </div>
+      </div>` : ''}
+
       <!-- BOTTOM ACCENT STRIPE -->
       <div style="height:4px;background:${C};"></div>
 
@@ -617,8 +632,9 @@ export async function downloadQuotePDFNoHeader(
   const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
   const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const safeBrand = brandName ? brandName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') + '_' : '';
   const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
-  pdf.save(`عرض_بدون_ترويسة_${safeName}_${dateTag}.pdf`);
+  pdf.save(`${safeBrand}عرض_${safeName}_${dateTag}.pdf`);
 }
 
 export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {

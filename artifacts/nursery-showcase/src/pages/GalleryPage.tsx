@@ -3596,6 +3596,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [noHeaderTitle, setNoHeaderTitle] = useState('عرض سعر');
   const [noHeaderExtraLine, setNoHeaderExtraLine] = useState('');
   const [noHeaderColor, setNoHeaderColor] = useState('#2e7d32');
+  const [noHeaderBrand, setNoHeaderBrand] = useState<'qadri' | 'andalus'>('qadri');
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3697,7 +3698,17 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
     setNoHeaderPdfingId(q.id);
-    await downloadQuotePDFNoHeader(q, noHeaderTitle || 'عرض سعر', siteData.sections, noHeaderColor, noHeaderExtraLine || undefined);
+    const isAndalus = noHeaderBrand === 'andalus';
+    await downloadQuotePDFNoHeader(
+      q,
+      noHeaderTitle || 'عرض سعر',
+      siteData.sections,
+      isAndalus ? '#1a6b3c' : noHeaderColor,
+      noHeaderExtraLine || undefined,
+      isAndalus ? '/stamp-andalus.png' : undefined,
+      isAndalus ? 'م. ايوب عبدالرحمن' : undefined,
+      isAndalus ? 'مشتل الأندلس الزراعي' : undefined
+    );
     setNoHeaderPdfingId(null);
   };
 
@@ -4040,6 +4051,17 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
                   </Button>
                   <div className="w-px h-5 bg-border" />
+                  {/* Brand toggle */}
+                  <div className="flex items-center rounded-md overflow-hidden border border-border h-7 text-xs arabic">
+                    <button
+                      onClick={() => setNoHeaderBrand('qadri')}
+                      className={`px-2 h-full transition-colors ${noHeaderBrand === 'qadri' ? 'bg-green-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >القادري</button>
+                    <button
+                      onClick={() => setNoHeaderBrand('andalus')}
+                      className={`px-2 h-full transition-colors border-r border-border ${noHeaderBrand === 'andalus' ? 'bg-emerald-800 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >الأندلس</button>
+                  </div>
                   <input
                     type="text"
                     value={noHeaderTitle}
@@ -4054,22 +4076,24 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     placeholder={isAr ? 'سطر فوق (اختياري)' : 'Line above (optional)'}
                     className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-36 h-7"
                   />
-                  <div className="flex items-center gap-1">
-                    {([
-                      { color: '#2e7d32', label: 'أخضر' },
-                      { color: '#1565c0', label: 'أزرق' },
-                      { color: '#1a1a1a', label: 'أسود' },
-                    ] as const).map(({ color: c, label }) => (
-                      <button
-                        key={c}
-                        onClick={() => setNoHeaderColor(c)}
-                        title={label}
-                        className="w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center"
-                        style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '2px' }}
-                      />
-                    ))}
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7" title={isAr ? 'PDF بدون ترويسة (بدون لوجو وختم وفوتر)' : 'PDF without header'}>
+                  {noHeaderBrand === 'qadri' && (
+                    <div className="flex items-center gap-1">
+                      {([
+                        { color: '#2e7d32', label: 'أخضر' },
+                        { color: '#1565c0', label: 'أزرق' },
+                        { color: '#1a1a1a', label: 'أسود' },
+                      ] as const).map(({ color: c, label }) => (
+                        <button
+                          key={c}
+                          onClick={() => setNoHeaderColor(c)}
+                          title={label}
+                          className="w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center"
+                          style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '2px' }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7" title={isAr ? 'PDF بدون ترويسة' : 'PDF without header'}>
                     {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'بدون ترويسة' : 'No Header'}</>}
                   </Button>
                 </div>
