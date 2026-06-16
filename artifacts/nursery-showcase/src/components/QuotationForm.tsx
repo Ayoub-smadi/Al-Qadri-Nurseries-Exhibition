@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { loadSavedToken } from '@/lib/storage';
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
-  Phone, Mail, Globe, RotateCcw, MessageCircle, Printer,
+  Phone, Mail, Globe, RotateCcw, MessageCircle,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -148,30 +148,6 @@ async function exportToPDF(elementId: string, filename: string) {
   }
 }
 
-function handlePrint(elementId: string, details: Details) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) { toast.error('السماح بالنوافذ المنبثقة مطلوب للطباعة'); return; }
-  const html = `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="UTF-8">
-<title>عرض سعر رقم ${details.quotationNumber}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: white; }
-  @page { margin: 10mm; }
-</style>
-</head>
-<body>
-${element.outerHTML}
-</body>
-</html>`;
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.onload = () => { printWindow.focus(); printWindow.print(); printWindow.close(); };
-}
 
 export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationFormProps) {
   const isEdit = !!editQuotation;
@@ -390,17 +366,11 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
           </button>
           <button
             onClick={() => exportToPDF(docId, `عرض-سعر-${details.quotationNumber}`)}
-            className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 transition-all text-xs font-semibold"
             title="تصدير PDF"
           >
             <FileText className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handlePrint(docId, details)}
-            className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all"
-            title="طباعة"
-          >
-            <Printer className="w-4 h-4" />
+            PDF
           </button>
           <button
             onClick={handleSave}
