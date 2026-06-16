@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { loadSavedToken } from '@/lib/storage';
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
-  Phone, Mail, Globe, RotateCcw, MessageCircle,
+  Phone, Mail, Globe, RotateCcw, MessageCircle, Printer,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -25,6 +25,25 @@ type Details = {
   companyNameEn: string; companyLocationEn: string;
   date: string; notes: string; phone: string; email: string; website: string;
   closingText: string; signerTitle: string; footerCompany: string;
+};
+
+export type AdminQuotationRow = {
+  id: string;
+  quotation_number: string;
+  customer_name: string;
+  date: string;
+  notes: string;
+  grand_total: number;
+  discount_value: number;
+  tax_rate: number;
+  details: Details;
+  created_at: string;
+  deleted_at: string | null;
+  items: Array<{
+    id: string; quotation_id: string; name: string; description: string;
+    category: string; quantity: number; unit: string; price: number;
+    total: number; image_url: string | null; sort_order: number;
+  }>;
 };
 
 const defaultDetails = (): Details => ({
@@ -57,12 +76,16 @@ const DRAFT_KEY = 'aq_admin_draft_quotation';
 
 interface QuotationFormProps {
   onClose: () => void;
+  editQuotation?: AdminQuotationRow;
+  onSaved?: () => void;
 }
 
-async function apiCreateQuotation(data: Record<string, unknown>) {
+async function apiSaveQuotation(data: Record<string, unknown>, editId?: string) {
   const token = loadSavedToken();
-  const res = await fetch('/api/admin-quotations', {
-    method: 'POST',
+  const url = editId ? `/api/admin-quotations/${editId}` : '/api/admin-quotations';
+  const method = editId ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(data),
   });
@@ -84,7 +107,7 @@ async function apiParseText(text: string) {
   return res.json() as Promise<{ items: Array<{ name: string; description: string; category: string; quantity: number; price: number; total: number }> }>;
 }
 
-async function exportToPDF(elementId: string, filename: string, details: Details) {
+async function exportToPDF(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
   if (!element) return;
   try {
@@ -125,26 +148,96 @@ async function exportToPDF(elementId: string, filename: string, details: Details
   }
 }
 
-export function QuotationForm({ onClose }: QuotationFormProps) {
+function handlePrint(elementId: string, details: Details) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) { toast.error('السماح بالنوافذ المنبثقة مطلوب للطباعة'); return; }
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>عرض سعر رقم ${details.quotationNumber}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: white; }
+  @page { margin: 10mm; }
+</style>
+</head>
+<body>
+${element.outerHTML}
+</body>
+</html>`;
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.onload = () => { printWindow.focus(); printWindow.print(); printWindow.close(); };
+}
+
+export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationFormProps) {
+  const isEdit = !!editQuotation;
+
+  const initFromEdit = useCallback((): { items: Item[]; details: Details; headers: Headers; discountValue: number; taxRate: number } | null => {
+    if (!editQuotation) return null;
+    const d = editQuotation.details ?? {};
+    const details: Details = {
+      quotationNumber: editQuotation.quotation_number ?? defaultDetails().quotationNumber,
+      customerName: editQuotation.customer_name ?? '',
+      companyNameAr: d.companyNameAr ?? defaultDetails().companyNameAr,
+      companyLocationAr: d.companyLocationAr ?? defaultDetails().companyLocationAr,
+      companyNameEn: d.companyNameEn ?? defaultDetails().companyNameEn,
+      companyLocationEn: d.companyLocationEn ?? defaultDetails().companyLocationEn,
+      date: editQuotation.date ?? format(new Date(), 'yyyy-MM-dd'),
+      notes: editQuotation.notes ?? '',
+      phone: d.phone ?? defaultDetails().phone,
+      email: d.email ?? defaultDetails().email,
+      website: d.website ?? defaultDetails().website,
+      closingText: d.closingText ?? defaultDetails().closingText,
+      signerTitle: d.signerTitle ?? defaultDetails().signerTitle,
+      footerCompany: d.footerCompany ?? defaultDetails().footerCompany,
+    };
+    const items: Item[] = (editQuotation.items ?? []).map(it => ({
+      id: it.id,
+      name: it.name,
+      description: it.description,
+      category: it.category,
+      quantity: Number(it.quantity),
+      unit: it.unit,
+      price: Number(it.price),
+      total: Number(it.total),
+      imageUrl: it.image_url ?? undefined,
+    }));
+    return {
+      details,
+      items: items.length > 0 ? items : defaultItems(),
+      headers: defaultHeaders(),
+      discountValue: Number(editQuotation.discount_value) ?? 0,
+      taxRate: Number(editQuotation.tax_rate) ?? 0,
+    };
+  }, [editQuotation]);
+
   const loadDraft = () => {
+    if (isEdit) return null;
     try { const r = sessionStorage.getItem(DRAFT_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
   };
   const draft = loadDraft();
+  const editInit = initFromEdit();
 
-  const [items, setItems] = useState<Item[]>(draft?.items ?? defaultItems());
-  const [details, setDetails] = useState<Details>(draft?.details ?? defaultDetails());
-  const [headers, setHeaders] = useState<Headers>(draft?.headers ?? defaultHeaders());
+  const [items, setItems] = useState<Item[]>(editInit?.items ?? draft?.items ?? defaultItems());
+  const [details, setDetails] = useState<Details>(editInit?.details ?? draft?.details ?? defaultDetails());
+  const [headers, setHeaders] = useState<Headers>(editInit?.headers ?? draft?.headers ?? defaultHeaders());
   const [logoBase64, setLogoBase64] = useState<string | null>(draft?.logoBase64 ?? null);
   const [pasteText, setPasteText] = useState('');
-  const [discountValue, setDiscountValue] = useState<number>(draft?.discountValue ?? 0);
-  const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? 0);
+  const [discountValue, setDiscountValue] = useState<number>(editInit?.discountValue ?? draft?.discountValue ?? 0);
+  const [taxRate, setTaxRate] = useState<number>(editInit?.taxRate ?? draft?.taxRate ?? 0);
   const [saving, setSaving] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const docId = useRef(`aq-quotation-doc-${Date.now()}`).current;
 
   const saveDraft = useCallback(() => {
+    if (isEdit) return;
     try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ items, details, headers, logoBase64, discountValue, taxRate })); } catch { /* ignore */ }
-  }, [items, details, headers, logoBase64, discountValue, taxRate]);
+  }, [items, details, headers, logoBase64, discountValue, taxRate, isEdit]);
 
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
@@ -191,6 +284,10 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
     setParsing(true);
     try {
       const data = await apiParseText(pasteText);
+      if (!data.items || data.items.length === 0) {
+        toast.error('لم يتم التعرف على أي عناصر. جرب نمط: اسم المنتج كمية سعر');
+        return;
+      }
       const newItems = data.items.map(i => ({
         id: Date.now().toString() + Math.random(),
         name: i.name || 'عنصر غير معروف',
@@ -204,9 +301,9 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
       const filtered = items.filter(i => i.name.trim() !== '' || i.price > 0);
       setItems([...filtered, ...newItems]);
       setPasteText('');
-      toast.success(`تمت إضافة ${newItems.length} عناصر إلى الجدول`);
+      toast.success(`✅ تمت إضافة ${newItems.length} عناصر إلى الجدول`);
     } catch {
-      toast.error('خطأ في التحليل');
+      toast.error('خطأ في التحليل — تأكد أن الجلسة نشطة');
     } finally { setParsing(false); }
   };
 
@@ -225,7 +322,7 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
     if (validItems.length === 0) { toast.error('مطلوب إضافة عناصر'); return; }
     setSaving(true);
     try {
-      await apiCreateQuotation({
+      await apiSaveQuotation({
         quotationNumber: details.quotationNumber,
         customerName: details.customerName,
         date: details.date,
@@ -243,10 +340,11 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
           total: Math.max(0, i.total),
           imageUrl: i.imageUrl || null,
         })),
-      });
-      toast.success('✅ تم حفظ عرض السعر بنجاح');
+      }, isEdit ? editQuotation!.id : undefined);
+      toast.success(isEdit ? '✅ تم تحديث عرض السعر بنجاح' : '✅ تم حفظ عرض السعر بنجاح');
       setSavedSuccess(true);
-      setTimeout(() => { clearDraft(); }, 2000);
+      onSaved?.();
+      if (!isEdit) setTimeout(() => { clearDraft(); }, 2000);
     } catch (e) {
       toast.error((e as Error).message || 'خطأ في الحفظ');
     } finally { setSaving(false); }
@@ -254,7 +352,7 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
 
   const hdrCls = 'bg-transparent border-none focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-white/30 rounded px-1 text-center text-xs font-bold text-white w-full';
 
-  if (savedSuccess) {
+  if (savedSuccess && !isEdit) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 p-8">
         <div className="text-5xl">✅</div>
@@ -278,29 +376,38 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
       {/* Top Toolbar */}
       <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 bg-background/95 backdrop-blur border-b border-border px-1 py-2">
         <div>
-          <h2 className="text-base font-bold text-foreground">إنشاء عرض سعر جديد</h2>
+          <h2 className="text-base font-bold text-foreground">{isEdit ? `تعديل عرض سعر #${editQuotation!.quotation_number}` : 'إنشاء عرض سعر جديد'}</h2>
           <p className="text-muted-foreground text-xs">أدخل البيانات أو الصق النص لتحويله تلقائياً</p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={clearDraft} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-500 transition-all" title="مسح وبدء من جديد">
-            <RotateCcw className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {!isEdit && (
+            <button onClick={clearDraft} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-500 transition-all" title="مسح وبدء من جديد">
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
           <button onClick={handleWhatsApp} className="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 transition-all" title="إرسال واتساب">
             <MessageCircle className="w-4 h-4" />
           </button>
           <button
-            onClick={() => exportToPDF('aq-quotation-document', `عرض-سعر-${details.quotationNumber}`, details)}
+            onClick={() => exportToPDF(docId, `عرض-سعر-${details.quotationNumber}`)}
             className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 transition-all"
             title="تصدير PDF"
           >
             <FileText className="w-4 h-4" />
           </button>
           <button
+            onClick={() => handlePrint(docId, details)}
+            className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-all"
+            title="طباعة"
+          >
+            <Printer className="w-4 h-4" />
+          </button>
+          <button
             onClick={handleSave}
             disabled={saving}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all disabled:opacity-50 text-sm"
           >
-            {saving ? 'جاري الحفظ...' : 'حفظ العرض'}
+            {saving ? 'جاري الحفظ...' : isEdit ? 'حفظ التعديلات' : 'حفظ العرض'}
             <Save className="w-4 h-4" />
           </button>
         </div>
@@ -312,13 +419,13 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
           <Wand2 className="w-4 h-4" />
           <span className="text-sm font-bold">التحليل الذكي للنصوص</span>
         </div>
-        <p className="text-muted-foreground text-xs">الصق النص على هذا النمط: <strong className="text-foreground">الكمية / الاسم / الوصف / القسم / السعر</strong></p>
+        <p className="text-muted-foreground text-xs">الصق النص على أي نمط: <strong className="text-foreground">اسم المنتج كمية سعر</strong> — أو بالشرطة: <strong className="text-foreground">الكمية / الاسم / الوصف / القسم / السعر</strong></p>
         <div className="relative">
           <textarea
             value={pasteText}
             onChange={e => setPasteText(e.target.value)}
-            placeholder={'مثال:\nشاشة سامسونج 5 حبات بسعر 1500\nكيبورد لوجيتك 2 قطعة سعر 300'}
-            className="w-full h-20 p-2 rounded-lg bg-background border border-border resize-none text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder={'مثال:\nشاشة سامسونج 5 حبات بسعر 1500\nكيبورد لوجيتك 2 قطعة سعر 300\n\nأو:\n5 / شاشة سامسونج / شاشة 24 بوصة / شاشات / 1500'}
+            className="w-full h-24 p-2 rounded-lg bg-background border border-border resize-none text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={handleParseText}
@@ -332,12 +439,12 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
       </div>
 
       {/* Document */}
-      <div id="aq-quotation-document" className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm p-4 space-y-3">
+      <div id={docId} className="bg-white text-black border border-slate-200 rounded-xl shadow-sm p-4 space-y-3" style={{ fontFamily: 'Arial, sans-serif' }}>
 
         {/* Header */}
-        <div className="pb-4 border-b-2 border-slate-200 dark:border-slate-700">
+        <div className="pb-4 border-b-2 border-slate-200">
           <div className="flex items-start gap-4">
-            <div className="shrink-0 relative group w-24 h-24 border border-slate-200 dark:border-slate-700 rounded overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+            <div className="shrink-0 relative group w-24 h-24 border border-slate-200 rounded overflow-hidden flex items-center justify-center bg-slate-50">
               {logoBase64
                 ? <img src={logoBase64} alt="logo" className="w-full h-full object-contain p-1" />
                 : <span className="text-[10px] text-slate-400 text-center px-1">انقر لتحميل الشعار</span>
@@ -346,37 +453,37 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
             </div>
             <div className="flex-1 grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <input value={details.companyNameAr} onChange={e => setDetails({ ...details, companyNameAr: e.target.value })} className="text-base font-bold bg-transparent border-b border-slate-300 dark:border-slate-600 focus:border-primary outline-none w-full text-right px-1" placeholder="اسم الشركة عربي" />
-                <input value={details.companyLocationAr} onChange={e => setDetails({ ...details, companyLocationAr: e.target.value })} className="text-xs text-slate-600 dark:text-slate-400 bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-primary outline-none w-full text-right px-1" placeholder="الموقع" />
+                <input value={details.companyNameAr} onChange={e => setDetails({ ...details, companyNameAr: e.target.value })} className="text-base font-bold bg-transparent border-b border-slate-300 focus:border-primary outline-none w-full text-right px-1" placeholder="اسم الشركة عربي" />
+                <input value={details.companyLocationAr} onChange={e => setDetails({ ...details, companyLocationAr: e.target.value })} className="text-xs text-slate-600 bg-transparent border-b border-slate-200 focus:border-primary outline-none w-full text-right px-1" placeholder="الموقع" />
               </div>
               <div className="space-y-1">
-                <input value={details.companyNameEn} onChange={e => setDetails({ ...details, companyNameEn: e.target.value })} className="text-base font-bold bg-transparent border-b border-slate-300 dark:border-slate-600 focus:border-primary outline-none w-full text-left px-1" placeholder="Company Name EN" dir="ltr" />
-                <input value={details.companyLocationEn} onChange={e => setDetails({ ...details, companyLocationEn: e.target.value })} className="text-xs text-slate-500 bg-transparent border-b border-slate-200 dark:border-slate-700 focus:border-primary outline-none w-full text-left px-1" placeholder="Location EN" dir="ltr" />
+                <input value={details.companyNameEn} onChange={e => setDetails({ ...details, companyNameEn: e.target.value })} className="text-base font-bold bg-transparent border-b border-slate-300 focus:border-primary outline-none w-full text-left px-1" placeholder="Company Name EN" dir="ltr" />
+                <input value={details.companyLocationEn} onChange={e => setDetails({ ...details, companyLocationEn: e.target.value })} className="text-xs text-slate-500 bg-transparent border-b border-slate-200 focus:border-primary outline-none w-full text-left px-1" placeholder="Location EN" dir="ltr" />
               </div>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-end gap-4">
-            <div className="bg-slate-900 dark:bg-slate-950 text-white rounded-lg px-4 py-2 text-center min-w-[140px]">
+            <div className="bg-slate-900 text-white rounded-lg px-4 py-2 text-center min-w-[140px]">
               <p className="text-[10px] font-bold opacity-70 mb-1">عرض سعر رقم</p>
               <input value={details.quotationNumber} onChange={e => setDetails({ ...details, quotationNumber: e.target.value })} className="bg-transparent border-none focus:outline-none text-sm font-black text-white text-center w-full" />
             </div>
             <div className="space-y-1 flex-1 min-w-[120px]">
               <label className="text-[10px] font-bold text-slate-500 block">التاريخ</label>
-              <input type="date" value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} className="bg-transparent border-b-2 border-slate-300 dark:border-slate-600 focus:border-primary outline-none text-xs font-semibold w-full" />
+              <input type="date" value={details.date} onChange={e => setDetails({ ...details, date: e.target.value })} className="bg-transparent border-b-2 border-slate-300 focus:border-primary outline-none text-xs font-semibold w-full" />
             </div>
             <div className="space-y-1 flex-1 min-w-[140px]">
               <label className="text-[10px] font-bold text-slate-500 block">العميل</label>
-              <input value={details.customerName} onChange={e => setDetails({ ...details, customerName: e.target.value })} className="bg-transparent border-b-2 border-slate-300 dark:border-slate-600 focus:border-primary outline-none text-xs font-semibold w-full" placeholder="اسم العميل *" />
+              <input value={details.customerName} onChange={e => setDetails({ ...details, customerName: e.target.value })} className="bg-transparent border-b-2 border-slate-300 focus:border-primary outline-none text-xs font-semibold w-full" placeholder="اسم العميل *" />
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+        <div className="overflow-x-auto rounded-lg border border-slate-200">
           <table className="w-full text-right text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-900 dark:bg-slate-950 text-white">
+              <tr className="bg-slate-900 text-white">
                 <th className="p-2 text-center w-6"><input value={headers.index} onChange={e => setHeaders({ ...headers, index: e.target.value })} className={hdrCls} style={{ width: '2rem' }} /></th>
                 <th className="p-2"><input value={headers.name} onChange={e => setHeaders({ ...headers, name: e.target.value })} className={hdrCls} /></th>
                 <th className="p-2"><input value={headers.description} onChange={e => setHeaders({ ...headers, description: e.target.value })} className={hdrCls} /></th>
@@ -390,30 +497,30 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={item.id} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/50 group">
+                <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50 group">
                   <td className="p-1.5 text-center text-slate-500 font-semibold">{index + 1}</td>
                   <td className="p-1.5">
-                    <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 dark:focus:bg-slate-900 px-1.5 py-1 rounded text-xs transition-colors font-medium" placeholder="الاسم" />
+                    <input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 px-1.5 py-1 rounded text-xs transition-colors font-medium text-black" placeholder="الاسم" />
                   </td>
                   <td className="p-1.5">
-                    <input value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 dark:focus:bg-slate-900 px-1.5 py-1 rounded text-xs transition-colors" placeholder="الوصف" />
+                    <input value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 px-1.5 py-1 rounded text-xs transition-colors text-black" placeholder="الوصف" />
                   </td>
                   <td className="p-1.5">
-                    <input value={item.category} onChange={e => updateItem(item.id, 'category', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 dark:focus:bg-slate-900 px-1.5 py-1 rounded text-xs transition-colors" placeholder="القسم" />
+                    <input value={item.category} onChange={e => updateItem(item.id, 'category', e.target.value)} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 px-1.5 py-1 rounded text-xs transition-colors text-black" placeholder="القسم" />
                   </td>
                   <td className="p-1.5 text-center">
-                    <input type="number" min="1" dir="ltr" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} style={{ textAlign: 'center' }} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 dark:focus:bg-slate-900 px-1.5 py-1 rounded text-xs font-bold transition-colors" />
+                    <input type="number" min="1" dir="ltr" value={item.quantity || ''} onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)} style={{ textAlign: 'center' }} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 px-1.5 py-1 rounded text-xs font-bold transition-colors text-black" />
                   </td>
                   <td className="p-1.5 text-center">
-                    <input type="number" min="0" step="0.01" dir="ltr" value={item.price || ''} onChange={e => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)} style={{ textAlign: 'center' }} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 dark:focus:bg-slate-900 px-1.5 py-1 rounded text-xs font-bold transition-colors" />
+                    <input type="number" min="0" step="0.01" dir="ltr" value={item.price || ''} onChange={e => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)} style={{ textAlign: 'center' }} className="w-full bg-transparent border border-transparent hover:border-slate-300 focus:border-primary focus:bg-blue-50 px-1.5 py-1 rounded text-xs font-bold transition-colors text-black" />
                   </td>
-                  <td className="p-1.5 text-center font-bold text-slate-900 dark:text-slate-50 bg-slate-100 dark:bg-slate-800/50 rounded text-xs">{fmt(item.total)}</td>
+                  <td className="p-1.5 text-center font-bold text-slate-900 bg-slate-100 rounded text-xs">{fmt(item.total)}</td>
                   <td className="p-1 text-center">
-                    <label className="relative cursor-pointer block w-20 h-20 mx-auto rounded overflow-hidden border border-slate-200 dark:border-slate-700 hover:border-primary transition-colors" title="انقر لرفع صورة">
+                    <label className="relative cursor-pointer block w-16 h-16 mx-auto rounded overflow-hidden border border-slate-200 hover:border-primary transition-colors" title="انقر لرفع صورة">
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleItemImageUpload(item.id, e)} />
                       {item.imageUrl
                         ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900"><Plus className="w-3.5 h-3.5 text-slate-300" /></div>
+                        : <div className="w-full h-full flex items-center justify-center bg-slate-50"><Plus className="w-3.5 h-3.5 text-slate-300" /></div>
                       }
                     </label>
                   </td>
@@ -428,20 +535,20 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
             <tfoot>
               {(discountAmount > 0 || taxAmount > 0) && (
                 <>
-                  <tr className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-                    <td colSpan={7} className="p-2 text-right text-xs text-slate-600 dark:text-slate-400 pr-4">المجموع الفرعي</td>
-                    <td className="p-1.5 text-center text-xs font-semibold">{fmt(subtotal)}</td>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td colSpan={7} className="p-2 text-right text-xs text-slate-600 pr-4">المجموع الفرعي</td>
+                    <td className="p-1.5 text-center text-xs font-semibold text-black">{fmt(subtotal)}</td>
                     <td /><td />
                   </tr>
                   {discountAmount > 0 && (
-                    <tr className="bg-green-50 dark:bg-green-900/10">
+                    <tr className="bg-green-50">
                       <td colSpan={7} className="p-2 text-right text-xs text-green-700 pr-4">خصم ({discountValue}%)</td>
                       <td className="p-1.5 text-center text-xs text-green-700 font-semibold">- {fmt(discountAmount)}</td>
                       <td /><td />
                     </tr>
                   )}
                   {taxAmount > 0 && (
-                    <tr className="bg-orange-50 dark:bg-orange-900/10">
+                    <tr className="bg-orange-50">
                       <td colSpan={7} className="p-2 text-right text-xs text-orange-700 pr-4">ضريبة ({taxRate}%)</td>
                       <td className="p-1.5 text-center text-xs text-orange-700 font-semibold">+ {fmt(taxAmount)}</td>
                       <td /><td />
@@ -449,7 +556,7 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
                   )}
                 </>
               )}
-              <tr className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-900 dark:bg-slate-950 text-white">
+              <tr className="border-t-2 border-slate-300 bg-slate-900 text-white">
                 <td colSpan={7} className="p-2 text-right font-black text-xs pr-4">المجموع الكلي</td>
                 <td className="p-1.5 text-center font-black text-sm bg-primary/20 text-white">{fmt(grandTotal)} <span className="text-xs font-bold opacity-80">د.أ</span></td>
                 <td className="bg-slate-900" /><td className="bg-slate-900" />
@@ -463,40 +570,66 @@ export function QuotationForm({ onClose }: QuotationFormProps) {
         </button>
 
         {/* Discount & Tax */}
-        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-3 space-y-2">
-          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">الخصم والضريبة</h3>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+          <h3 className="text-xs font-bold text-slate-700">الخصم والضريبة</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">نسبة الخصم (%)</label>
-              <input type="number" min="0" max="100" step="0.1" value={discountValue || ''} onChange={e => setDiscountValue(parseFloat(e.target.value) || 0)} className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary" placeholder="0" />
+              <label className="text-xs text-slate-500 font-medium">نسبة الخصم (%)</label>
+              <input type="number" min="0" max="100" step="0.1" value={discountValue || ''} onChange={e => setDiscountValue(parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary text-black" placeholder="0" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">نسبة الضريبة (%)</label>
-              <input type="number" min="0" max="100" step="0.1" value={taxRate || ''} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} className="w-full bg-background border border-border rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary" placeholder="0" />
+              <label className="text-xs text-slate-500 font-medium">نسبة الضريبة (%)</label>
+              <input type="number" min="0" max="100" step="0.1" value={taxRate || ''} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-primary text-black" placeholder="0" />
             </div>
           </div>
         </div>
 
         {/* Notes */}
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">ملاحظات:</label>
-          <textarea value={details.notes} onChange={e => setDetails({ ...details, notes: e.target.value })} className="w-full h-12 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded focus:border-primary resize-none text-xs" placeholder="شروط الدفع، مدة التوريد، إلخ..." />
+          <label className="text-xs font-bold text-slate-700 block">ملاحظات:</label>
+          <textarea value={details.notes} onChange={e => setDetails({ ...details, notes: e.target.value })} className="w-full h-12 p-2 bg-slate-50 border border-slate-200 rounded focus:border-primary resize-none text-xs text-black" placeholder="شروط الدفع، مدة التوريد، إلخ..." />
+        </div>
+
+        {/* Closing + Stamp */}
+        <div className="pt-4 border-t border-slate-200 space-y-3">
+          <div className="text-center">
+            <input
+              value={details.closingText}
+              onChange={e => setDetails({ ...details, closingText: e.target.value })}
+              className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-sm text-slate-700 text-center w-full"
+            />
+          </div>
+          <div className="flex items-start gap-8 justify-between pt-2">
+            <div className="space-y-2 text-right">
+              <input
+                value={details.signerTitle}
+                onChange={e => setDetails({ ...details, signerTitle: e.target.value })}
+                className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-xs font-bold text-slate-800 w-full text-right"
+              />
+              <img
+                src="/stamp.png"
+                alt="ختم المؤسسة"
+                className="w-28 h-28 object-contain"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-center gap-4 text-slate-600 dark:text-slate-400 text-[10px]" dir="ltr">
+        <div className="pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-center gap-4 text-slate-600 text-[10px]" dir="ltr">
             <div className="flex items-center gap-1">
               <Phone className="w-3 h-3" />
-              <input value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="bg-transparent border-none focus:outline-none font-semibold w-28" dir="ltr" />
+              <input value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="bg-transparent border-none focus:outline-none font-semibold w-28 text-black" dir="ltr" />
             </div>
             <div className="flex items-center gap-1">
               <Mail className="w-3 h-3" />
-              <input value={details.email} onChange={e => setDetails({ ...details, email: e.target.value })} className="bg-transparent border-none focus:outline-none w-36" dir="ltr" />
+              <input value={details.email} onChange={e => setDetails({ ...details, email: e.target.value })} className="bg-transparent border-none focus:outline-none w-36 text-black" dir="ltr" />
             </div>
             <div className="flex items-center gap-1">
               <Globe className="w-3 h-3" />
-              <input value={details.website} onChange={e => setDetails({ ...details, website: e.target.value })} className="bg-transparent border-none focus:outline-none w-36" dir="ltr" />
+              <input value={details.website} onChange={e => setDetails({ ...details, website: e.target.value })} className="bg-transparent border-none focus:outline-none w-36 text-black" dir="ltr" />
             </div>
           </div>
         </div>

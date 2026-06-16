@@ -594,12 +594,13 @@ router.delete("/images/:id", async (req, res) => {
 router.get("/admin-quotations", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
+  const trash = req.query.trash === 'true';
   try {
     const rows = await pool.query(
       `SELECT aq.*, json_agg(aqi.* ORDER BY aqi.sort_order) FILTER (WHERE aqi.id IS NOT NULL) AS items
        FROM admin_quotations aq
        LEFT JOIN admin_quotation_items aqi ON aqi.quotation_id = aq.id
-       WHERE aq.deleted_at IS NULL
+       WHERE ${trash ? 'aq.deleted_at IS NOT NULL' : 'aq.deleted_at IS NULL'}
        GROUP BY aq.id
        ORDER BY aq.created_at DESC`
     );
@@ -648,11 +649,64 @@ router.post("/admin-quotations", async (req, res) => {
   } finally { client.release(); }
 });
 
-router.delete("/admin-quotations/:id", async (req, res) => {
+router.put("/admin-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body as {
+    quotationNumber?: string; customerName?: string; date?: string; notes?: string;
+    grandTotal?: number; discountValue?: number; taxRate?: number; details?: unknown; items?: unknown[];
+  };
+  if (!customerName || !quotationNumber) {
+    res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" }); return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `UPDATE admin_quotations SET quotation_number=$1, customer_name=$2, date=$3, notes=$4, grand_total=$5, discount_value=$6, tax_rate=$7, details=$8 WHERE id=$9`,
+      [quotationNumber, customerName, date ?? new Date().toISOString().slice(0, 10),
+       notes ?? '', grandTotal ?? 0, discountValue ?? 0, taxRate ?? 0, JSON.stringify(details ?? {}), req.params.id]
+    );
+    await client.query(`DELETE FROM admin_quotation_items WHERE quotation_id=$1`, [req.params.id]);
+    const itemsArr = Array.isArray(items) ? items : [];
+    for (let i = 0; i < itemsArr.length; i++) {
+      const item = itemsArr[i] as Record<string, unknown>;
+      const itemId = `aqi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${i}`;
+      await client.query(
+        `INSERT INTO admin_quotation_items (id, quotation_id, name, description, category, quantity, unit, price, total, image_url, sort_order)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [itemId, req.params.id, item.name ?? '', item.description ?? '', item.category ?? '',
+         item.quantity ?? 1, item.unit ?? 'وحدة', item.price ?? 0, item.total ?? 0, item.imageUrl ?? null, i]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    logger.error({ e }, 'Failed to update admin quotation');
+    res.status(500).json({ error: "Failed to update quotation" });
+  } finally { client.release(); }
+});
+
+router.post("/admin-quotations/:id/restore", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   try {
-    await pool.query(`UPDATE admin_quotations SET deleted_at = NOW() WHERE id = $1`, [req.params.id]);
+    await pool.query(`UPDATE admin_quotations SET deleted_at = NULL WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to restore quotation" }); }
+});
+
+router.delete("/admin-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const permanent = req.query.permanent === 'true';
+  try {
+    if (permanent) {
+      await pool.query(`DELETE FROM admin_quotations WHERE id = $1`, [req.params.id]);
+    } else {
+      await pool.query(`UPDATE admin_quotations SET deleted_at = NOW() WHERE id = $1`, [req.params.id]);
+    }
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete quotation" }); }
 });
