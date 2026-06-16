@@ -260,13 +260,13 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       <td style="padding:6px 8px;text-align:right;font-weight:600;" class="ar">${it.plantNameAr}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.plantNameEn || ''}</td>
       <td style="padding:6px 8px;text-align:right;" class="ar">${it.sectionNameAr}</td>
-      <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
       <td style="padding:8px 8px;text-align:center;line-height:2;">
         ${it.availableSize
           ? `<span style="color:#e57373;font-size:10px;font-weight:900;">✕</span> <span style="color:#aaa;font-size:11px;">${it.size || '-'}</span><br/><span style="color:#2e7d32;font-weight:800;font-size:14px;">${it.availableSize}</span>`
           : (it.size || '-')
         }
       </td>
+      <td style="padding:6px 8px;text-align:center;">${it.quantity}</td>
       ${it.unavailable ? unavailCell : priceCell}
       <td style="padding:4px;text-align:center;width:90px;">
         ${imgSrc ? `<img src="${imgSrc}" style="width:82px;height:82px;object-fit:cover;border-radius:6px;display:block;margin:auto;" />` : '<div style="width:82px;height:82px;background:#f0f0f0;border-radius:6px;display:inline-block;"></div>'}
@@ -319,8 +319,8 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
             <th style="padding:8px 6px;text-align:right;">الاسم</th>
             <th style="padding:8px 6px;text-align:right;">الوصف</th>
             <th style="padding:8px 6px;text-align:right;">القسم</th>
-            <th style="padding:8px 6px;text-align:center;">الكمية</th>
             <th style="padding:8px 6px;text-align:center;">الحجم</th>
+            <th style="padding:8px 6px;text-align:center;">الكمية</th>
             <th style="padding:8px 6px;text-align:center;">السعر</th>
             <th style="padding:8px 6px;text-align:center;">الإجمالي</th>
             <th style="padding:8px 6px;text-align:center;">الصورة</th>
@@ -479,8 +479,8 @@ export async function downloadQuotePDFNoHeader(
         <td class="ar-right" style="padding:9px 12px;font-weight:700;font-size:13px;color:#bbb;">${it.plantNameAr}</td>
         <td class="ar-right" style="padding:9px 8px;color:#bbb;font-size:11px;">${it.plantNameEn || ''}</td>
         <td class="ar-right" style="padding:9px 8px;color:#bbb;font-size:11px;">${it.sectionNameAr}</td>
-        <td style="padding:9px 8px;text-align:center;color:#bbb;font-weight:700;">${it.quantity}</td>
         <td style="padding:9px 8px;text-align:center;font-size:11px;color:#bbb;">${sizeCell}</td>
+        <td style="padding:9px 8px;text-align:center;color:#bbb;font-weight:700;">${it.quantity}</td>
         <td class="ar" colspan="2" style="padding:9px 8px;text-align:center;color:#bbb;font-style:italic;font-size:11px;">غير متوفر</td>
       </tr>`;
     }
@@ -489,8 +489,8 @@ export async function downloadQuotePDFNoHeader(
       <td class="ar-right" style="padding:9px 12px;font-weight:700;font-size:13px;color:#111;">${it.plantNameAr}</td>
       <td class="ar-right" style="padding:9px 8px;color:#888;font-size:11px;">${it.plantNameEn || ''}</td>
       <td class="ar-right" style="padding:9px 8px;color:#777;font-size:11px;">${it.sectionNameAr}</td>
-      <td style="padding:9px 8px;text-align:center;font-weight:700;color:#111;">${it.quantity}</td>
       <td style="padding:9px 8px;text-align:center;font-size:11px;color:#666;">${sizeCell}</td>
+      <td style="padding:9px 8px;text-align:center;font-weight:700;color:#111;">${it.quantity}</td>
       <td style="padding:9px 8px;text-align:center;color:#666;font-size:12px;">${fmt(it.price || 0)}</td>
       <td style="padding:9px 14px;text-align:center;font-weight:900;color:${C};font-size:14px;">${fmt(total)}</td>
     </tr>`;
@@ -553,8 +553,8 @@ export async function downloadQuotePDFNoHeader(
             <th class="ar-right" style="padding:10px 12px;color:#fff;font-size:11px;font-weight:700;">اسم النبتة</th>
             <th class="ar-right" style="padding:10px 8px;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الاسم الإنجليزي</th>
             <th class="ar-right" style="padding:10px 8px;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">القسم</th>
-            <th class="ar" style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الكمية</th>
             <th class="ar" style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">الحجم</th>
+            <th class="ar" style="padding:10px 8px;text-align:center;color:#fff;font-size:11px;font-weight:700;">الكمية</th>
             <th class="ar" style="padding:10px 8px;text-align:center;color:rgba(255,255,255,0.65);font-size:10px;font-weight:600;">السعر</th>
             <th class="ar" style="padding:10px 14px;text-align:center;color:#fff;font-size:11px;font-weight:800;">الإجمالي</th>
           </tr>
@@ -1244,9 +1244,9 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
         <div style="font-size:15px;line-height:2.2;color:#222;text-align:justify;">
           <p style="margin-bottom:16px;">
             تشهد <strong>مؤسسة القادري الزراعية</strong> بأن الموظف
-            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.employeeName}&nbsp;</strong>،
+            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.employeeName}&nbsp;</strong>${data.nationalId ? `،
             حامل الرقم الوطني
-            <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>،
+            <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>` : ''}،
             قد عمل لدينا في وظيفة
             <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.jobTitle}&nbsp;</strong>
             خلال الفترة الممتدة من

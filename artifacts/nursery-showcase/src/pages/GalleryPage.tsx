@@ -1629,9 +1629,9 @@ export default function GalleryPage() {
                 return (
                   <div key={link.id} className="relative group/social flex flex-col items-center gap-2">
                     <a
-                      href={link.url || '#'}
+                      href={link.url ? (link.url.startsWith('http') ? link.url : `https://${link.url}`) : '#'}
                       target={link.url ? '_blank' : undefined}
-                      rel="noreferrer"
+                      rel="noreferrer noopener"
                       onClick={e => { if (!link.url) e.preventDefault(); }}
                       className="block transition-transform duration-200 hover:scale-110 hover:-translate-y-0.5 drop-shadow-md hover:drop-shadow-xl"
                       title={isAr ? cfg.labelAr : cfg.labelEn}
@@ -4908,7 +4908,7 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const handleGenerate = async () => {
-    if (!form.employeeName.trim() || !form.nationalId.trim() || !form.jobTitle.trim() || !form.startDate.trim() || !form.endDate.trim()) {
+    if (!form.employeeName.trim() || !form.jobTitle.trim() || !form.startDate.trim() || !form.endDate.trim()) {
       toast.error(isAr ? 'يرجى تعبئة جميع الحقول' : 'Please fill in all fields');
       return;
     }
@@ -4946,8 +4946,8 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
               <Input value={form.employeeName} onChange={set('employeeName')} dir="rtl" className="arabic text-right" placeholder="الاسم الرباعي..." />
             </div>
             <div>
-              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">الرقم الوطني *</Label>
-              <Input value={form.nationalId} onChange={set('nationalId')} dir="ltr" className="text-left" placeholder="xxxxxxxxxx" />
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">الرقم الوطني</Label>
+              <Input value={form.nationalId} onChange={set('nationalId')} dir="ltr" className="text-left" placeholder="xxxxxxxxxx (اختياري)" />
             </div>
             <div>
               <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">المسمى الوظيفي *</Label>
