@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
+import { QuotationForm } from '@/components/QuotationForm';
 import { downloadCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -440,6 +441,7 @@ export default function GalleryPage() {
 
   /* admin sidebar */
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [quotationFormOpen, setQuotationFormOpen] = useState(false);
 
   /* excel import */
   const xlsxInputRef = useRef<HTMLInputElement>(null);
@@ -1738,6 +1740,7 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
+                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'إنشاء عرض سعر' : 'New Quotation'} highlight onClick={() => setQuotationFormOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
                       <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
@@ -2260,6 +2263,18 @@ export default function GalleryPage() {
           titleEn={siteData.titleEn}
           logoUrl={siteData.logo.customUrl}
         />
+      )}
+
+      {/* Admin Quotation Form Dialog */}
+      {isAdmin && quotationFormOpen && (
+        <Dialog open={quotationFormOpen} onOpenChange={setQuotationFormOpen}>
+          <DialogContent className="max-w-5xl w-full max-h-[90vh] overflow-y-auto p-4" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-right arabic">إنشاء عرض سعر</DialogTitle>
+            </DialogHeader>
+            <QuotationForm onClose={() => setQuotationFormOpen(false)} />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Quote Request Modal */}

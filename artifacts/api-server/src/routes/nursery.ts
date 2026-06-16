@@ -34,6 +34,8 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
       await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
     } catch (e) {
       console.error("DB init error:", (e as Error).message);
     } finally {
@@ -585,6 +587,143 @@ router.delete("/images/:id", async (req, res) => {
     await pool.query(`DELETE FROM images WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete image" }); }
+});
+
+/* ── Admin Quotations (عروض الأسعار المنشأة من الأدمن) ─────────────── */
+
+router.get("/admin-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    const rows = await pool.query(
+      `SELECT aq.*, json_agg(aqi.* ORDER BY aqi.sort_order) FILTER (WHERE aqi.id IS NOT NULL) AS items
+       FROM admin_quotations aq
+       LEFT JOIN admin_quotation_items aqi ON aqi.quotation_id = aq.id
+       WHERE aq.deleted_at IS NULL
+       GROUP BY aq.id
+       ORDER BY aq.created_at DESC`
+    );
+    res.json({ quotations: rows.rows });
+  } catch { res.status(500).json({ error: "Failed to load quotations" }); }
+});
+
+router.post("/admin-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body as {
+    quotationNumber?: string; customerName?: string; date?: string; notes?: string;
+    grandTotal?: number; discountValue?: number; taxRate?: number; details?: unknown; items?: unknown[];
+  };
+  if (!customerName || !quotationNumber) {
+    res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" }); return;
+  }
+  const id = `aq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO admin_quotations (id, quotation_number, customer_name, date, notes, grand_total, discount_value, tax_rate, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, quotationNumber, customerName, date ?? new Date().toISOString().slice(0, 10),
+       notes ?? '', grandTotal ?? 0, discountValue ?? 0, taxRate ?? 0, JSON.stringify(details ?? {})]
+    );
+    const itemsArr = Array.isArray(items) ? items : [];
+    for (let i = 0; i < itemsArr.length; i++) {
+      const item = itemsArr[i] as Record<string, unknown>;
+      const itemId = `aqi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${i}`;
+      await client.query(
+        `INSERT INTO admin_quotation_items (id, quotation_id, name, description, category, quantity, unit, price, total, image_url, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [itemId, id, item.name ?? '', item.description ?? '', item.category ?? '',
+         item.quantity ?? 1, item.unit ?? 'وحدة', item.price ?? 0, item.total ?? 0,
+         item.imageUrl ?? null, i]
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ id, ok: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    logger.error({ e }, 'Failed to create admin quotation');
+    res.status(500).json({ error: "Failed to save quotation" });
+  } finally { client.release(); }
+});
+
+router.delete("/admin-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await pool.query(`UPDATE admin_quotations SET deleted_at = NOW() WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete quotation" }); }
+});
+
+/* ── Smart text parser ───────────────────────────────────────────────── */
+
+router.post("/parse-text", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { text } = req.body as { text?: string };
+  if (!text) { res.status(400).json({ error: "text required" }); return; }
+  const numberPattern = /(\d+(?:[.,]\d+)?)/g;
+  const lines = text.split('\n').filter(l => l.trim() !== '');
+  const items = lines.map(line => {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) return null;
+    if (trimmedLine.includes('\t')) {
+      const cols = trimmedLine.split('\t').map(c => c.trim());
+      if (cols[0] === '#' || cols[0] === 'م' || cols[0] === 'الرقم') return null;
+      let name = '', description = '', category = '', qty = 1, price = 0;
+      if (cols.length >= 6) {
+        name = cols[1] || ''; description = cols[2] || ''; category = cols[3] || '';
+        const qm = cols[4].match(numberPattern); if (qm) qty = parseFloat(qm[0].replace(',', '.'));
+        const pm = cols[5].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      } else if (cols.length === 5) {
+        const firstIsNum = /^\d+$/.test(cols[0]);
+        if (firstIsNum) {
+          name = cols[1] || ''; description = cols[2] || '';
+          const qm = cols[3].match(numberPattern); if (qm) qty = parseFloat(qm[0].replace(',', '.'));
+          const pm = cols[4].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+        } else {
+          name = cols[0] || ''; description = cols[1] || ''; category = cols[2] || '';
+          const qm = cols[3].match(numberPattern); if (qm) qty = parseFloat(qm[0].replace(',', '.'));
+          const pm = cols[4].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+        }
+      } else if (cols.length === 4) {
+        name = cols[0] || ''; description = cols[1] || '';
+        const qm = cols[2].match(numberPattern); if (qm) qty = parseFloat(qm[0].replace(',', '.'));
+        const pm = cols[3].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      } else if (cols.length >= 2) {
+        name = cols[0] || '';
+        const pm = cols[cols.length - 1].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      }
+      if (!name) return null;
+      return { name: name.trim(), description: description.trim(), category: category.trim(), quantity: Math.max(qty, 1), price: Math.max(price, 0), total: Math.max(qty, 1) * Math.max(price, 0) };
+    }
+    const slashParts = trimmedLine.split('/').map(p => p.trim()).filter(p => p);
+    if (slashParts.length >= 3) {
+      let qty = 1; const qtyMatch = slashParts[0].match(numberPattern); if (qtyMatch) qty = parseFloat(qtyMatch[0].replace(',', '.'));
+      const name = slashParts[1] || 'عنصر غير معروف';
+      let description = '', category = '', price = 0;
+      if (slashParts.length >= 5) {
+        description = slashParts[2] || ''; category = slashParts[3] || '';
+        const pm = slashParts[4].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      } else if (slashParts.length === 4) {
+        description = slashParts[2] || '';
+        const pm = slashParts[3].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      } else {
+        const pm = slashParts[2].match(numberPattern); if (pm) price = parseFloat(pm[0].replace(',', '.'));
+      }
+      return { name: name.trim() || 'عنصر غير معروف', description: description.trim(), category: category.trim(), quantity: Math.max(qty, 1), price: Math.max(price, 0), total: Math.max(qty, 1) * Math.max(price, 0) };
+    }
+    const numbers = trimmedLine.match(numberPattern) || [];
+    const normalizedNumbers = numbers.map(n => parseFloat(n.replace(',', '.')));
+    const nameText = trimmedLine.replace(numberPattern, '').trim();
+    let qty = 1, price = 0;
+    if (normalizedNumbers.length >= 2) { price = normalizedNumbers[normalizedNumbers.length - 1]; qty = normalizedNumbers[normalizedNumbers.length - 2]; }
+    else if (normalizedNumbers.length === 1) { price = normalizedNumbers[0]; qty = 1; }
+    const name = nameText || `منتج #${normalizedNumbers.join('-') || 'unknown'}`;
+    return { name: name.trim() || 'عنصر غير معروف', description: '', category: '', quantity: Math.max(qty, 1), price: Math.max(price, 0), total: Math.max(qty, 1) * Math.max(price, 0) };
+  }).filter(item => item !== null);
+  res.json({ items });
 });
 
 export default router;
