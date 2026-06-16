@@ -714,7 +714,6 @@ router.delete("/admin-quotations/:id", async (req, res) => {
 /* ── Smart text parser ───────────────────────────────────────────────── */
 
 router.post("/parse-text", async (req, res) => {
-  if (!requireSession(req, res)) return;
   const { text } = req.body as { text?: string };
   if (!text) { res.status(400).json({ error: "text required" }); return; }
   const numberPattern = /(\d+(?:[.,]\d+)?)/g;

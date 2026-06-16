@@ -107,17 +107,76 @@ async function apiParseText(text: string) {
   return res.json() as Promise<{ items: Array<{ name: string; description: string; category: string; quantity: number; price: number; total: number }> }>;
 }
 
+async function loadImageAsDataUrl(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d')!.drawImage(img, 0, 0);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 async function exportToPDF(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
   if (!element) return;
   try {
-    const canvas = await html2canvas(element, {
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.position = 'fixed';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.width = element.offsetWidth + 'px';
+    clone.style.background = '#ffffff';
+    clone.style.zIndex = '-1';
+
+    clone.querySelectorAll<HTMLInputElement>('input').forEach(inp => {
+      const span = document.createElement('span');
+      span.textContent = inp.value;
+      span.style.cssText = window.getComputedStyle(inp).cssText;
+      span.style.display = 'inline-block';
+      span.style.border = 'none';
+      span.style.outline = 'none';
+      span.style.background = 'transparent';
+      inp.replaceWith(span);
+    });
+    clone.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(ta => {
+      const div = document.createElement('div');
+      div.textContent = ta.value;
+      div.style.cssText = window.getComputedStyle(ta).cssText;
+      div.style.border = 'none';
+      div.style.outline = 'none';
+      div.style.background = 'transparent';
+      div.style.whiteSpace = 'pre-wrap';
+      ta.replaceWith(div);
+    });
+    clone.querySelectorAll<HTMLButtonElement>('button').forEach(btn => btn.remove());
+    clone.querySelectorAll<HTMLElement>('[data-pdf-hide]').forEach(el => el.remove());
+
+    const stampImgs = clone.querySelectorAll<HTMLImageElement>('img[data-stamp]');
+    if (stampImgs.length > 0) {
+      try {
+        const stampDataUrl = await loadImageAsDataUrl('/stamp.png');
+        stampImgs.forEach(img => { img.src = stampDataUrl; });
+      } catch { /* skip stamp if fails */ }
+    }
+
+    document.body.appendChild(clone);
+    await new Promise(r => setTimeout(r, 200));
+
+    const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      allowTaint: true,
+      allowTaint: false,
     });
+    document.body.removeChild(clone);
+
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfW = pdf.internal.pageSize.getWidth();
@@ -561,7 +620,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
         </div>
 
         {/* Closing + Stamp */}
-        <div className="pt-4 border-t border-slate-200 space-y-3">
+        <div className="pt-4 border-t border-slate-200 space-y-4">
           <div className="text-center">
             <input
               value={details.closingText}
@@ -569,17 +628,18 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
               className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-sm text-slate-700 text-center w-full"
             />
           </div>
-          <div className="flex items-start gap-8 justify-between pt-2">
-            <div className="space-y-2 text-right">
+          <div className="flex justify-start pt-1">
+            <div className="flex flex-col items-center gap-2 min-w-[160px]">
               <input
                 value={details.signerTitle}
                 onChange={e => setDetails({ ...details, signerTitle: e.target.value })}
-                className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-xs font-bold text-slate-800 w-full text-right"
+                className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-xs font-bold text-slate-800 text-center w-full"
               />
               <img
+                data-stamp="1"
                 src="/stamp.png"
                 alt="ختم المؤسسة"
-                className="w-28 h-28 object-contain"
+                className="w-44 h-44 object-contain drop-shadow-sm"
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />
             </div>
