@@ -581,7 +581,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
                   </td>
                   <td className="p-1.5 text-center font-bold text-slate-900 bg-slate-100 rounded text-xs">{fmt(item.total)}</td>
                   <td className="p-1 text-center">
-                    <label className="relative cursor-pointer block w-16 h-16 mx-auto rounded overflow-hidden border border-slate-200 hover:border-primary transition-colors" title="انقر لرفع صورة">
+                    <label className="relative cursor-pointer block w-24 h-24 mx-auto rounded overflow-hidden border border-slate-200 hover:border-primary transition-colors" title="انقر لرفع صورة">
                       <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => handleItemImageUpload(item.id, e)} />
                       {item.imageUrl
                         ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -664,7 +664,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
               className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-sm text-slate-700 text-center w-full"
             />
           </div>
-          <div className="flex justify-start pt-1">
+          <div className="flex justify-end pt-1">
             <div className="flex flex-col items-center gap-2 min-w-[160px]">
               <input
                 value={details.signerTitle}
@@ -675,7 +675,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
                 data-stamp="1"
                 src={stampDataUrl ?? '/stamp.png'}
                 alt="ختم المؤسسة"
-                className="w-44 h-44 object-contain drop-shadow-sm"
+                className="w-48 h-48 object-contain drop-shadow-sm"
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
               />
             </div>
