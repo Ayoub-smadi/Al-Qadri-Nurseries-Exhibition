@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { loadSavedToken } from '@/lib/storage';
+import { useApp } from '@/lib/context';
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
   Phone, Mail, Globe, RotateCcw, MessageCircle,
@@ -86,26 +87,60 @@ async function apiSaveQuotation(data: Record<string, unknown>, editId?: string) 
   const method = editId ? 'PUT' : 'POST';
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
     body: JSON.stringify(data),
   });
+  if (res.status === 401 || res.status === 403) throw new Error('__SESSION_EXPIRED__');
   if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error || 'فشل الحفظ');
+    const body = await res.text().catch(() => '');
+    let msg = 'فشل الحفظ';
+    try { msg = (JSON.parse(body) as { error?: string }).error || msg; } catch { /* not json */ }
+    throw new Error(msg);
   }
   return res.json();
 }
 
 async function apiParseText(text: string) {
-  const token = loadSavedToken();
   const res = await fetch('/api/parse-text', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  if (!res.ok) throw new Error('فشل التحليل');
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(body.slice(0, 80) || `خطأ ${res.status}`);
+  }
   return res.json() as Promise<{ items: Array<{ name: string; description: string; category: string; quantity: number; price: number; total: number }> }>;
 }
+
+const SAFE_COLORS_CSS = `
+  *{box-sizing:border-box}
+  body,html{background:#fff;color:#1e293b;font-family:Arial,sans-serif}
+  .bg-slate-900,.bg-\\[\\#0f172a\\],thead tr{background-color:#0f172a!important}
+  .bg-slate-800{background-color:#1e293b!important}
+  .bg-slate-50{background-color:#f8fafc!important}
+  .bg-slate-100{background-color:#f1f5f9!important}
+  .bg-green-50{background-color:#f0fdf4!important}
+  .bg-orange-50{background-color:#fff7ed!important}
+  .bg-white{background-color:#ffffff!important}
+  .bg-primary\\/20{background-color:rgba(22,163,74,0.15)!important}
+  .text-white{color:#ffffff!important}
+  .text-black{color:#000000!important}
+  .text-slate-900{color:#0f172a!important}
+  .text-slate-800{color:#1e293b!important}
+  .text-slate-700{color:#334155!important}
+  .text-slate-600{color:#475569!important}
+  .text-slate-500{color:#64748b!important}
+  .text-slate-400{color:#94a3b8!important}
+  .text-green-700{color:#15803d!important}
+  .text-orange-700{color:#c2410c!important}
+  .border-slate-200{border-color:#e2e8f0!important}
+  .border-slate-300{border-color:#cbd5e1!important}
+  .border-slate-900{border-color:#0f172a!important}
+  .rounded-xl,.rounded-lg,.rounded{border-radius:8px}
+  .rounded-2xl{border-radius:12px}
+  .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,0.05)}
+`;
 
 async function exportToPDF(elementId: string, filename: string, stampDataUrl: string | null) {
   const element = document.getElementById(elementId);
@@ -119,25 +154,38 @@ async function exportToPDF(elementId: string, filename: string, stampDataUrl: st
       allowTaint: false,
       imageTimeout: 15000,
       onclone: (_clonedDoc, clonedEl) => {
+        // Strip oklch() colors from all <style> tags so html2canvas doesn't choke
+        _clonedDoc.querySelectorAll('style').forEach(s => {
+          if (s.textContent?.includes('oklch')) {
+            s.textContent = s.textContent.replace(/oklch\([^)]*\)/g, 'transparent');
+          }
+        });
+        // Inject safe hex-only overrides
+        const safeStyle = _clonedDoc.createElement('style');
+        safeStyle.textContent = SAFE_COLORS_CSS;
+        _clonedDoc.head.appendChild(safeStyle);
+
+        // Replace inputs with plain text spans
         clonedEl.querySelectorAll<HTMLInputElement>('input:not([type="file"])').forEach(inp => {
           const span = _clonedDoc.createElement('span');
           span.textContent = inp.value;
           span.style.display = 'inline-block';
-          span.style.fontWeight = inp.style.fontWeight || '';
-          span.style.textAlign = inp.style.textAlign || 'inherit';
           inp.parentNode?.replaceChild(span, inp);
         });
+        // Replace textareas with divs
         clonedEl.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(ta => {
           const div = _clonedDoc.createElement('div');
           div.textContent = ta.value;
           div.style.whiteSpace = 'pre-wrap';
-          div.style.fontSize = '12px';
+          div.style.fontSize = '11px';
           ta.parentNode?.replaceChild(div, ta);
         });
+        // Remove buttons and file inputs
         clonedEl.querySelectorAll<HTMLButtonElement>('button').forEach(btn => btn.remove());
         clonedEl.querySelectorAll<HTMLElement>('label').forEach(lbl => {
           if (lbl.querySelector('input[type="file"]')) lbl.remove();
         });
+        // Embed stamp as base64
         if (stampDataUrl) {
           clonedEl.querySelectorAll<HTMLImageElement>('img[data-stamp]').forEach(img => {
             img.src = stampDataUrl;
@@ -178,6 +226,7 @@ async function exportToPDF(elementId: string, filename: string, stampDataUrl: st
 
 export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationFormProps) {
   const isEdit = !!editQuotation;
+  const { setSessionExpired } = useApp();
 
   const initFromEdit = useCallback((): { items: Item[]; details: Details; headers: Headers; discountValue: number; taxRate: number } | null => {
     if (!editQuotation) return null;
@@ -362,7 +411,13 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
       onSaved?.();
       if (!isEdit) setTimeout(() => { clearDraft(); }, 2000);
     } catch (e) {
-      toast.error((e as Error).message || 'خطأ في الحفظ');
+      const msg = (e as Error).message;
+      if (msg === '__SESSION_EXPIRED__') {
+        toast.error('انتهت الجلسة — يرجى تسجيل الدخول مجدداً');
+        setSessionExpired(true);
+      } else {
+        toast.error(msg || 'خطأ في الحفظ');
+      }
     } finally { setSaving(false); }
   };
 
