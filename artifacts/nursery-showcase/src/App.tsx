@@ -1,15 +1,43 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Toaster } from "sonner";
 import { AppProvider } from "@/lib/context";
 import GalleryPage from "@/pages/GalleryPage";
+import CreateQuotationPage from "@/pages/CreateQuotationPage";
+import QuotationHistoryPage from "@/pages/QuotationHistoryPage";
 
 const queryClient = new QueryClient();
+
+function navigate(to: string) {
+  window.history.pushState(null, "", to);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+export { navigate };
+
+function usePathname() {
+  const [path, setPath] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const handler = () => setPath(window.location.pathname);
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+  return path;
+}
+
+function RouterView() {
+  const path = usePathname();
+
+  if (path === "/create-quotation") return <CreateQuotationPage />;
+  if (path === "/quotation-history") return <QuotationHistoryPage />;
+  return <GalleryPage />;
+}
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <GalleryPage />
+        <RouterView />
         <Toaster richColors position="top-center" />
       </AppProvider>
     </QueryClientProvider>

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
@@ -1742,7 +1743,7 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
-                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'إنشاء عرض سعر' : 'New Quotation'} highlight onClick={() => setQuotationFormOpen(true)} />
+                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'إنشاء عرض سعر' : 'New Quotation'} highlight onClick={() => navigate('/create-quotation')} />
                       <SideBtn icon={<ArchiveRestore className="w-4 h-4" />} label={isAr ? 'سجل العروض' : 'Quotations'} onClick={() => setAdminQuotationsListOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
