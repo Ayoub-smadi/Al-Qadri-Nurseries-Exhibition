@@ -1,12 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+declare const __REPLIT_DEV_DOMAIN__: string;
+
+function getApiBase(): string {
+  try {
+    const domain = __REPLIT_DEV_DOMAIN__;
+    if (domain) return `https://${domain}/api`;
+  } catch { /* not defined in production build */ }
+  return "/api";
+}
+
 const QUOTATIONS_KEY = ["/api/quotations"];
 
 export function useQuotations() {
   return useQuery({
     queryKey: QUOTATIONS_KEY,
     queryFn: async () => {
-      const res = await fetch("/api/quotations", { credentials: "include" });
+      const res = await fetch(`${getApiBase()}/quotations`);
       if (!res.ok) throw new Error("Failed to fetch quotations");
       return res.json();
     },
@@ -17,7 +27,7 @@ export function useQuotation(id: number) {
   return useQuery({
     queryKey: ["/api/quotations", id],
     queryFn: async () => {
-      const res = await fetch(`/api/quotations/${id}`, { credentials: "include" });
+      const res = await fetch(`${getApiBase()}/quotations/${id}`);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error("Failed to fetch quotation");
       return res.json();
@@ -30,11 +40,10 @@ export function useCreateQuotation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch("/api/quotations", {
+      const res = await fetch(`${getApiBase()}/quotations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -52,11 +61,10 @@ export function useUpdateQuotation(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
-      const res = await fetch(`/api/quotations/${id}`, {
+      const res = await fetch(`${getApiBase()}/quotations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -75,9 +83,8 @@ export function useDeleteQuotation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/quotations/${id}`, {
+      const res = await fetch(`${getApiBase()}/quotations/${id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to delete quotation");
     },
@@ -90,11 +97,10 @@ export function useDeleteQuotation() {
 export function useParseText() {
   return useMutation({
     mutationFn: async (data: { text: string }) => {
-      const res = await fetch("/api/parse-text", {
+      const res = await fetch(`${getApiBase()}/parse-text`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to parse text");
       return res.json();
