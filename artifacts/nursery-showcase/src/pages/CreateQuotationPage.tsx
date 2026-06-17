@@ -99,6 +99,7 @@ export default function CreateQuotationPage() {
   const [pickerQty, setPickerQty] = useState<number>(1);
   const [pickerPrice, setPickerPrice] = useState<number>(0);
   const [pickerSize, setPickerSize] = useState<string>("");
+  const tableRef = useRef<HTMLDivElement>(null);
 
   const sections = siteData?.sections ?? [];
   const selectedSection = sections.find(s => s.id === pickerSection);
@@ -211,6 +212,10 @@ export default function CreateQuotationPage() {
     if (!pasteText.trim()) return;
     parseMutation.mutate({ text: pasteText }, {
       onSuccess: (data) => {
+        if (!data?.items?.length) {
+          toast.error("لم يتم التعرف على أي عناصر — جرب نمط: الكمية / الاسم / السعر");
+          return;
+        }
         const newItems = data.items.map((i: any) => ({
           id: Date.now().toString() + Math.random(),
           name: i.name || "عنصر غير معروف", description: i.description || "",
@@ -220,9 +225,12 @@ export default function CreateQuotationPage() {
         const filtered = items.filter(i => i.name.trim() !== "" || i.price > 0);
         setItems([...filtered, ...newItems]);
         setPasteText("");
-        toast.success(`تم التحليل — تمت إضافة ${newItems.length} عناصر`);
+        toast.success(`✅ تمت إضافة ${newItems.length} عناصر للجدول`);
+        setTimeout(() => {
+          tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
       },
-      onError: () => toast.error("خطأ في التحليل"),
+      onError: () => toast.error("خطأ في الاتصال بالخادم — تأكد من الاتصال وحاول مجدداً"),
     });
   };
 
@@ -468,7 +476,7 @@ export default function CreateQuotationPage() {
         )}
 
         {/* ── Document ── */}
-        <div id="quotation-document" className="bg-white border border-slate-200 shadow-lg rounded-xl p-5 sm:p-6 space-y-3">
+        <div ref={tableRef} id="quotation-document" className="bg-white border border-slate-200 shadow-lg rounded-xl p-5 sm:p-6 space-y-3">
 
           {/* Header */}
           <div className="pb-4 border-b-2 border-slate-200">
