@@ -7,7 +7,7 @@ import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
   Phone, Mail, Globe, RotateCcw, MessageCircle,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 type Item = {

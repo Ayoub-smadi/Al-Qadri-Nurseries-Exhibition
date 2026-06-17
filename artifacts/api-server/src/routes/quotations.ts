@@ -97,7 +97,7 @@ router.post("/quotations", async (req, res) => {
   try {
     await dbReady;
     const { quotationNumber, customerName, date, notes, grandTotal, items = [] } = req.body;
-    if (!quotationNumber || !customerName || !grandTotal) {
+    if (!quotationNumber || !customerName || grandTotal === undefined || grandTotal === null || grandTotal === '') {
       return res.status(400).json({ message: "Missing required fields" });
     }
     const { rows: [newQ] } = await pool.query(
