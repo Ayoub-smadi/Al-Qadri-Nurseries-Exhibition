@@ -8,7 +8,6 @@ import {
 import { useCreateQuotation, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
-import { exportToPDF } from "@/lib/quotation-export";
 import { format } from "date-fns";
 import logoImage from "@assets/لقطة_شاشة_2026-03-08_080127_1773036971718.png";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
@@ -90,7 +89,6 @@ export default function CreateQuotationPage() {
   const [discountValue, setDiscountValue] = useState<number>(draft?.discountValue ?? 0);
   const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? 0);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
 
   /* ─── Plant picker state ─────────────────────────────── */
   const [pickerSection, setPickerSection] = useState<string>("");
@@ -295,18 +293,29 @@ export default function CreateQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ─── PDF export ─────────────────────────────────────── */
-  const handlePDF = async () => {
-    setPdfLoading(true);
-    toast.info("جاري توليد PDF...");
-    try {
-      await exportToPDF("quotation-document", `Quote-${details.quotationNumber}`, items, details, logoBase64 || logoImage);
-      toast.success("تم تصدير PDF بنجاح ✅");
-    } catch {
-      toast.error("فشل تصدير PDF");
-    } finally {
-      setPdfLoading(false);
+  /* ─── PDF export via browser print ──────────────────── */
+  const handlePDF = () => {
+    const styleId = "__qprint__";
+    let style = document.getElementById(styleId) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = styleId;
+      document.head.appendChild(style);
     }
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden !important; }
+        #quotation-document,
+        #quotation-document * { visibility: visible !important; }
+        #quotation-document { position: fixed !important; inset: 0 !important; width: 100% !important; background: white !important; z-index: 99999; padding: 8mm; box-sizing: border-box; }
+        .no-print { display: none !important; }
+        input, textarea { border: none !important; background: transparent !important; box-shadow: none !important; outline: none !important; }
+        input::placeholder, textarea::placeholder { color: transparent !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+    `;
+    window.print();
+    setTimeout(() => style?.remove(), 2000);
   };
 
   /* ─── Save / Update ──────────────────────────────────── */
@@ -415,9 +424,9 @@ export default function CreateQuotationPage() {
           <button onClick={handleWhatsApp} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all" title="إرسال واتساب">
             <MessageCircle className="w-4 h-4" />
           </button>
-          <button onClick={handlePDF} disabled={pdfLoading}
-            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all disabled:opacity-50" title="تصدير PDF">
-            {pdfLoading ? <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}
+          <button onClick={handlePDF}
+            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="طباعة / حفظ PDF">
+            <FileText className="w-4 h-4" />
           </button>
           <button onClick={handleSave} disabled={isSaving}
             className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-800 transition-all disabled:opacity-50 text-sm">
