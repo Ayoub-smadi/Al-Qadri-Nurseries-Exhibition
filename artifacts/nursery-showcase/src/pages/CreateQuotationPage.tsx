@@ -208,30 +208,40 @@ export default function CreateQuotationPage() {
   };
 
   /* ─── Smart parse ────────────────────────────────────── */
-  const handleParseText = () => {
-    if (!pasteText.trim()) return;
-    parseMutation.mutate({ text: pasteText }, {
-      onSuccess: (data) => {
-        if (!data?.items?.length) {
-          toast.error("لم يتم التعرف على أي عناصر — جرب نمط: الكمية / الاسم / السعر");
-          return;
-        }
-        const newItems = data.items.map((i: any) => ({
-          id: Date.now().toString() + Math.random(),
-          name: i.name || "عنصر غير معروف", description: i.description || "",
-          category: i.category || "", quantity: i.quantity || 1, unit: "وحدة",
-          price: i.price || 0, total: (i.quantity || 1) * (i.price || 0)
-        }));
-        const filtered = items.filter(i => i.name.trim() !== "" || i.price > 0);
-        setItems([...filtered, ...newItems]);
-        setPasteText("");
-        toast.success(`✅ تمت إضافة ${newItems.length} عناصر للجدول`);
-        setTimeout(() => {
-          tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
-      },
+  const applyParsedItems = (data: any) => {
+    if (!data?.items?.length) {
+      toast.error("لم يتم التعرف على أي عناصر — جرب نمط: الكمية / الاسم / السعر");
+      return;
+    }
+    const newItems = data.items.map((i: any) => ({
+      id: Date.now().toString() + Math.random(),
+      name: i.name || "عنصر غير معروف", description: i.description || "",
+      category: i.category || "", quantity: i.quantity || 1, unit: "وحدة",
+      price: i.price || 0, total: (i.quantity || 1) * (i.price || 0)
+    }));
+    setItems(prev => {
+      const filtered = prev.filter(i => i.name.trim() !== "" || i.price > 0);
+      return [...filtered, ...newItems];
+    });
+    setPasteText("");
+    toast.success(`✅ تمت إضافة ${newItems.length} عناصر للجدول`);
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  };
+
+  const handleParseText = (textOverride?: string) => {
+    const text = (textOverride ?? pasteText).trim();
+    if (!text) return;
+    parseMutation.mutate({ text }, {
+      onSuccess: applyParsedItems,
       onError: () => toast.error("خطأ في الاتصال بالخادم — تأكد من الاتصال وحاول مجدداً"),
     });
+  };
+
+  const handlePasteInTextarea = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    if (!pasted.trim()) return;
+    // Auto-analyze after paste completes
+    setTimeout(() => handleParseText(pasted.trim()), 150);
   };
 
   /* ─── WhatsApp ───────────────────────────────────────── */
@@ -389,13 +399,21 @@ export default function CreateQuotationPage() {
           </p>
           <div className="relative">
             <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)}
-              placeholder={"مثال:\nشاشة سامسونج 5 حبات بسعر 1500\nكيبورد لوجيتك 2 قطعة سعر 300"}
+              onPaste={handlePasteInTextarea}
+              placeholder={"الصق النص هنا وسيتم تحليله تلقائياً:\nجوري 50 حبة بسعر 3\nأثل 20 قطعة سعر 25"}
               className="w-full h-20 p-2 rounded-lg border border-slate-200 resize-none text-xs focus:outline-none focus:border-green-400" />
-            <button onClick={handleParseText} disabled={parseMutation.isPending || !pasteText.trim()}
-              className="absolute bottom-2 left-2 flex items-center gap-1 px-3 py-1 rounded-lg bg-green-100 text-green-700 font-bold hover:bg-green-200 transition-all disabled:opacity-50 text-xs">
-              {parseMutation.isPending ? "جاري التحليل..." : "حلل النص"}
-              <CheckCircle2 className="w-3 h-3" />
-            </button>
+            {parseMutation.isPending ? (
+              <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-3 py-1 rounded-lg bg-green-50 text-green-600 text-xs font-bold">
+                <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                جاري التحليل...
+              </div>
+            ) : pasteText.trim() ? (
+              <button onClick={() => handleParseText()} disabled={parseMutation.isPending}
+                className="absolute bottom-2 left-2 flex items-center gap-1 px-3 py-1 rounded-lg bg-green-100 text-green-700 font-bold hover:bg-green-200 transition-all text-xs">
+                <CheckCircle2 className="w-3 h-3" />
+                حلل النص
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -423,53 +441,44 @@ export default function CreateQuotationPage() {
                 </div>
               </div>
 
-              {/* Plant select */}
-              <div className="relative">
-                <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">النبات</label>
+              {/* Plant select — auto-adds to table on selection */}
+              <div className="relative sm:col-span-2">
+                <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">النبات (اختر ليُضاف فوراً)</label>
                 <div className="relative">
-                  <select value={pickerPlant} onChange={e => setPickerPlant(e.target.value)} disabled={!pickerSection}
+                  <select value={pickerPlant}
+                    onChange={e => {
+                      const plantId = e.target.value;
+                      if (!plantId) return;
+                      const plant = plants.find(p => p.id === plantId);
+                      if (!plant) return;
+                      const newItem: Item = {
+                        id: Date.now().toString() + Math.random(),
+                        name: plant.nameAr,
+                        description: (plant as any).descriptionAr ?? (plant as any).descriptionEn ?? "",
+                        category: selectedSection?.nameAr ?? "",
+                        quantity: 1,
+                        unit: "وحدة",
+                        price: 0,
+                        total: 0,
+                        imageUrl: (plant as any).image ?? undefined,
+                      };
+                      setItems(prev => {
+                        const hasEmpty = prev.length === 1 && !prev[0].name.trim() && prev[0].price === 0;
+                        return hasEmpty ? [newItem] : [...prev, newItem];
+                      });
+                      setPickerPlant("");
+                      toast.success(`✅ تمت إضافة "${plant.nameAr}" — عدّل الكمية والسعر في الجدول`);
+                      setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                    }}
+                    disabled={!pickerSection}
                     className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-medium focus:outline-none focus:border-emerald-400 pr-6 disabled:opacity-50">
-                    <option value="">— اختر النبات —</option>
+                    <option value="">— اختر نبات ليُضاف للجدول —</option>
                     {plants.map(p => (
                       <option key={p.id} value={p.id}>{p.nameAr}</option>
                     ))}
                   </select>
                   <ChevronDown className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                 </div>
-              </div>
-
-              {/* Size / Quantity / Price row */}
-              <div className="grid grid-cols-3 gap-1.5">
-                <div>
-                  <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">الحجم</label>
-                  <input value={pickerSize} onChange={e => setPickerSize(e.target.value)} placeholder="صغير/كبير..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-emerald-400" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">الكمية</label>
-                  <input type="number" min="1" value={pickerQty || ""} onChange={e => setPickerQty(parseFloat(e.target.value) || 1)} placeholder="1"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-emerald-400 text-center" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">السعر</label>
-                  <input type="number" min="0" step="0.01" value={pickerPrice || ""} onChange={e => setPickerPrice(parseFloat(e.target.value) || 0)} placeholder="0"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs focus:outline-none focus:border-emerald-400 text-center" />
-                </div>
-              </div>
-
-              {/* Preview + Add button */}
-              <div className="flex items-end gap-2">
-                {pickerPlant && (() => {
-                  const pl = plants.find(p => p.id === pickerPlant);
-                  return pl?.image ? (
-                    <img src={pl.image} alt={pl.nameAr} className="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
-                  ) : null;
-                })()}
-                <button onClick={handleAddPlant} disabled={!pickerPlant}
-                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors disabled:opacity-40">
-                  <Plus className="w-3.5 h-3.5" />
-                  إضافة للجدول
-                </button>
               </div>
             </div>
           </div>

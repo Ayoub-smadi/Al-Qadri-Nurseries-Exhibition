@@ -1743,6 +1743,8 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
+                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'إنشاء عرض سعر' : 'New Quotation'} highlight onClick={() => navigate('/create-quotation')} />
+                      <SideBtn icon={<ArchiveRestore className="w-4 h-4" />} label={isAr ? 'سجل العروض' : 'Quotations'} onClick={() => navigate('/quotation-history')} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
                       <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
@@ -4087,10 +4089,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       className={`px-2 h-full transition-colors border-r border-border ${noHeaderBrand === 'andalus' ? 'bg-emerald-800 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
                     >الأندلس</button>
                   </div>
-                  <button
-                    onClick={() => setQuotationFormOpen(true)}
-                    className="px-2 h-7 text-xs arabic border border-border rounded-md bg-background text-muted-foreground hover:bg-muted transition-colors"
-                  >نموذج قديم</button>
                   <input
                     type="text"
                     value={noHeaderTitle}
