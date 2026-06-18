@@ -1,12 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-declare const __REPLIT_DEV_DOMAIN__: string;
-
 function getApiBase(): string {
-  try {
-    const domain = __REPLIT_DEV_DOMAIN__;
-    if (domain) return `https://${domain}/api`;
-  } catch { /* not defined in production build */ }
   return "/api";
 }
 

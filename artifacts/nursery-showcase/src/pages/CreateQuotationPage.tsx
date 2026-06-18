@@ -5,7 +5,7 @@ import {
   Phone, Mail, Globe, RotateCcw, MessageCircle, ArrowRight,
   Leaf, ChevronDown
 } from "lucide-react";
-import { useCreateQuotation, useParseText, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
+import { useCreateQuotation, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { exportToPDF } from "@/lib/quotation-export";
@@ -72,7 +72,6 @@ export default function CreateQuotationPage() {
 
   const { siteData } = useApp();
   const createMutation = useCreateQuotation();
-  const parseMutation = useParseText();
   const { data: existingQuotation, isLoading: loadingEdit } = useQuotation(editId ?? 0);
   const updateMutation = useUpdateQuotation(editId ?? 0);
 
@@ -207,40 +206,82 @@ export default function CreateQuotationPage() {
     if (file) { const r = new FileReader(); r.onloadend = () => updateItem(itemId, "imageUrl", r.result as string); r.readAsDataURL(file); }
   };
 
-  /* ─── Smart parse ────────────────────────────────────── */
-  const applyParsedItems = (data: any) => {
-    if (!data?.items?.length) {
-      toast.error("لم يتم التعرف على أي عناصر — جرب نمط: الكمية / الاسم / السعر");
+  /* ─── Local text parser (no API call needed) ─────────── */
+  const parseTextLocally = (raw: string): Item[] => {
+    const NUM = /\d+(?:[.,]\d+)*/g;
+    const parseNum = (s: string) => { const m = s.match(/\d+(?:[.,]\d+)*/); return m ? parseFloat(m[0].replace(",", ".")) : null; };
+
+    return raw
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .map(line => {
+        let name = "", desc = "", cat = "", qty = 1, price = 0;
+
+        // Slash-separated: qty/name[/desc[/cat[/price]]]
+        const slashParts = line.split("/").map(p => p.trim()).filter(p => p);
+        if (slashParts.length >= 3) {
+          const n0 = parseNum(slashParts[0]);
+          qty = n0 ?? 1;
+          name = slashParts[1] || "عنصر";
+          if (slashParts.length >= 5) {
+            desc = slashParts[2]; cat = slashParts[3];
+            price = parseNum(slashParts[4]) ?? 0;
+          } else if (slashParts.length === 4) {
+            desc = slashParts[2]; price = parseNum(slashParts[3]) ?? 0;
+          } else {
+            price = parseNum(slashParts[2]) ?? 0;
+          }
+          if (!name.trim()) return null;
+          qty = Math.max(qty, 1); price = Math.max(price, 0);
+          return { id: Date.now().toString() + Math.random(), name, description: desc, category: cat, quantity: qty, unit: "وحدة", price, total: qty * price };
+        }
+
+        // Free text — extract all numbers
+        const nums = (line.match(NUM) || []).map(n => parseFloat(n.replace(",", ".")));
+        const nameText = line
+          .replace(NUM, "")
+          .replace(/بسعر|سعر|قطعة|حبات|حبة|وحدة|×|x/gi, " ")
+          .replace(/\s+/g, " ").trim();
+        if (nums.length >= 2) { qty = nums[nums.length - 2]; price = nums[nums.length - 1]; }
+        else if (nums.length === 1) { price = nums[0]; }
+        qty = Math.max(qty, 1); price = Math.max(price, 0);
+        return { id: Date.now().toString() + Math.random(), name: nameText || "عنصر", description: "", category: "", quantity: qty, unit: "وحدة", price, total: qty * price };
+      })
+      .filter((i): i is Item => i !== null);
+  };
+
+  /* ─── Smart parse handlers ────────────────────────────── */
+  const [parsing, setParsing] = useState(false);
+
+  const applyParsedItems = (text: string) => {
+    const newItems = parseTextLocally(text);
+    if (!newItems.length) {
+      toast.error("لم يُتعرف على أي عناصر — جرب نمط: الكمية / الاسم / السعر");
       return;
     }
-    const newItems = data.items.map((i: any) => ({
-      id: Date.now().toString() + Math.random(),
-      name: i.name || "عنصر غير معروف", description: i.description || "",
-      category: i.category || "", quantity: i.quantity || 1, unit: "وحدة",
-      price: i.price || 0, total: (i.quantity || 1) * (i.price || 0)
-    }));
     setItems(prev => {
       const filtered = prev.filter(i => i.name.trim() !== "" || i.price > 0);
       return [...filtered, ...newItems];
     });
     setPasteText("");
-    toast.success(`✅ تمت إضافة ${newItems.length} عناصر للجدول`);
+    toast.success(`✅ تمت إضافة ${newItems.length} ${newItems.length === 1 ? "عنصر" : "عناصر"} للجدول`);
     setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
   };
 
   const handleParseText = (textOverride?: string) => {
     const text = (textOverride ?? pasteText).trim();
     if (!text) return;
-    parseMutation.mutate({ text }, {
-      onSuccess: applyParsedItems,
-      onError: () => toast.error("خطأ في الاتصال بالخادم — تأكد من الاتصال وحاول مجدداً"),
-    });
+    setParsing(true);
+    setTimeout(() => {
+      applyParsedItems(text);
+      setParsing(false);
+    }, 50);
   };
 
   const handlePasteInTextarea = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const pasted = e.clipboardData.getData("text");
     if (!pasted.trim()) return;
-    // Auto-analyze after paste completes
     setTimeout(() => handleParseText(pasted.trim()), 150);
   };
 
@@ -402,13 +443,13 @@ export default function CreateQuotationPage() {
               onPaste={handlePasteInTextarea}
               placeholder={"الصق النص هنا وسيتم تحليله تلقائياً:\nجوري 50 حبة بسعر 3\nأثل 20 قطعة سعر 25"}
               className="w-full h-20 p-2 rounded-lg border border-slate-200 resize-none text-xs focus:outline-none focus:border-green-400" />
-            {parseMutation.isPending ? (
+            {parsing ? (
               <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-3 py-1 rounded-lg bg-green-50 text-green-600 text-xs font-bold">
                 <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                 جاري التحليل...
               </div>
             ) : pasteText.trim() ? (
-              <button onClick={() => handleParseText()} disabled={parseMutation.isPending}
+              <button onClick={() => handleParseText()} disabled={parsing}
                 className="absolute bottom-2 left-2 flex items-center gap-1 px-3 py-1 rounded-lg bg-green-100 text-green-700 font-bold hover:bg-green-200 transition-all text-xs">
                 <CheckCircle2 className="w-3 h-3" />
                 حلل النص
