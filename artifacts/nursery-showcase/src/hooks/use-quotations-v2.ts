@@ -3,10 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 declare const __REPLIT_DEV_DOMAIN__: string;
 
 function getApiBase(): string {
-  try {
-    const domain = __REPLIT_DEV_DOMAIN__;
-    if (domain) return `https://${domain}/api`;
-  } catch { /* SSR / production */ }
+  // Use relative URL — the Vite proxy forwards /api → localhost:8080
+  // This avoids the double-proxy issue (browser → Replit edge → Vite → API)
+  // that causes POST bodies to be rejected.
   return "/api";
 }
 

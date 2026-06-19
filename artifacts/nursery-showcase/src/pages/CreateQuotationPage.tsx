@@ -414,36 +414,24 @@ export default function CreateQuotationPage() {
         </div>
       </div>`;
 
-    /* Render offscreen: visible at top-left but hidden via visibility */
+    /* Render offscreen — position:fixed left:-9999px keeps it off-screen
+       WITHOUT visibility:hidden (which makes html2canvas render blank) */
     const wrapper = document.createElement("div");
-    wrapper.style.cssText = [
-      "position:fixed", "top:0", "left:0",
-      "width:794px", "visibility:hidden",
-      "pointer-events:none", "z-index:-9999",
-      "overflow:visible",
-    ].join(";");
+    wrapper.style.cssText = "position:fixed;left:-9999px;top:0;z-index:-1;";
     wrapper.innerHTML = html;
     document.body.appendChild(wrapper);
 
     try {
       await document.fonts.ready;
-      /* Small delay so browser paints the element */
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 80));
 
       const inner = wrapper.firstElementChild as HTMLElement;
       const canvas = await html2canvas(inner, {
         scale: 2,
         useCORS: true,
-        allowTaint: false,
+        allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
-        windowWidth: 794,
-        scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        width: inner.offsetWidth || 794,
-        height: inner.offsetHeight,
       });
 
       /* Map canvas pixels → A4 proportional mm (210mm wide) */
@@ -646,13 +634,13 @@ export default function CreateQuotationPage() {
                     const newItem: Item = {
                       id: Date.now().toString() + Math.random(),
                       name: plant.nameAr,
-                      description: (plant as any).descriptionAr ?? (plant as any).descriptionEn ?? "",
+                      description: "",
                       category: plant.sectionNameAr ?? "",
                       quantity: 1,
                       unit: "وحدة",
                       price: 0,
                       total: 0,
-                      imageUrl: undefined,
+                      imageUrl: (plant as any).image ?? undefined,
                     };
                     setItems(prev => {
                       const hasEmpty = prev.length === 1 && !prev[0].name.trim() && prev[0].price === 0;
