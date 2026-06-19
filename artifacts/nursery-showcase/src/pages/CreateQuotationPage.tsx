@@ -3,7 +3,7 @@ import { navigate } from "@/App";
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
   Phone, Mail, Globe, RotateCcw, MessageCircle, ArrowRight,
-  Leaf, ChevronDown, Loader2
+  Leaf, ChevronDown, Loader2, Search
 } from "lucide-react";
 import { useCreateQuotation, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
@@ -94,16 +94,22 @@ export default function CreateQuotationPage() {
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
   /* ─── Plant picker state ─────────────────────────────── */
-  const [pickerSection, setPickerSection] = useState<string>("");
-  const [pickerPlant, setPickerPlant] = useState<string>("");
-  const [pickerQty, setPickerQty] = useState<number>(1);
-  const [pickerPrice, setPickerPrice] = useState<number>(0);
-  const [pickerSize, setPickerSize] = useState<string>("");
+  const [pickerSearch, setPickerSearch] = useState<string>("");
   const tableRef = useRef<HTMLDivElement>(null);
 
   const sections = siteData?.sections ?? [];
-  const selectedSection = sections.find(s => s.id === pickerSection);
-  const plants = selectedSection?.photos ?? [];
+
+  /* All plants across all sections, with their section name */
+  const allPlants = sections.flatMap(s =>
+    (s.photos ?? []).map((p: any) => ({ ...p, sectionNameAr: s.nameAr, sectionId: s.id }))
+  );
+  const filteredPlants = pickerSearch.trim()
+    ? allPlants.filter(p =>
+        p.nameAr?.includes(pickerSearch) ||
+        p.nameEn?.toLowerCase().includes(pickerSearch.toLowerCase()) ||
+        p.sectionNameAr?.includes(pickerSearch)
+      )
+    : allPlants;
 
   /* ─── Load existing quotation in edit mode ───────────── */
   const editLoadedRef = useRef(false);
@@ -408,36 +414,51 @@ export default function CreateQuotationPage() {
         </div>
       </div>`;
 
+    /* Render offscreen: visible at top-left but hidden via visibility */
     const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:fixed;top:-20000px;left:-20000px;z-index:-1;";
+    wrapper.style.cssText = [
+      "position:fixed", "top:0", "left:0",
+      "width:794px", "visibility:hidden",
+      "pointer-events:none", "z-index:-9999",
+      "overflow:visible",
+    ].join(";");
     wrapper.innerHTML = html;
     document.body.appendChild(wrapper);
 
     try {
       await document.fonts.ready;
+      /* Small delay so browser paints the element */
+      await new Promise(r => setTimeout(r, 120));
 
-      const canvas = await html2canvas(wrapper.firstElementChild as HTMLElement, {
+      const inner = wrapper.firstElementChild as HTMLElement;
+      const canvas = await html2canvas(inner, {
         scale: 2,
         useCORS: true,
         allowTaint: false,
         backgroundColor: "#ffffff",
         logging: false,
-        width: 794,
+        windowWidth: 794,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
+        width: inner.offsetWidth || 794,
+        height: inner.offsetHeight,
       });
 
-      const PX = 3.7795275591;
-      const w = canvas.width / PX;
-      const h = canvas.height / PX;
+      /* Map canvas pixels → A4 proportional mm (210mm wide) */
+      const A4_W = 210;
+      const A4_H = Math.round((canvas.height / canvas.width) * A4_W * 100) / 100;
 
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [A4_W, A4_H] });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, A4_W, A4_H);
       pdf.save(fileName);
       toast.success(`✅ تم تنزيل: ${fileName}`);
     } catch (err) {
       console.error("PDF error:", err);
-      toast.error("فشل إنشاء PDF — جرّب إزالة الصور من البنود ثم أعد المحاولة");
+      toast.error("فشل إنشاء PDF — حاول مجدداً");
     } finally {
-      document.body.removeChild(wrapper);
+      if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
       setPdfGenerating(false);
     }
   };
@@ -461,7 +482,8 @@ export default function CreateQuotationPage() {
         quantity: Math.max(1, safeNum(i.quantity)),
         price: safeNum(i.price).toFixed(2),
         total: safeNum(i.total).toFixed(2),
-        imageUrl: i.imageUrl || null,
+        /* Skip base64 images — they bloat the payload and break the proxy */
+        imageUrl: (i.imageUrl && !i.imageUrl.startsWith("data:")) ? i.imageUrl : null,
       })),
     };
   };
@@ -593,68 +615,74 @@ export default function CreateQuotationPage() {
 
         {/* ── Plant Picker ── */}
         {sections.length > 0 && (
-          <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-3 no-print">
+          <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-2 no-print">
             <div className="flex items-center gap-2 text-emerald-700">
               <Leaf className="w-5 h-5" />
               <h2 className="text-sm font-bold">اختر من نباتات الموقع</h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {/* Section select */}
-              <div className="relative">
-                <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">القسم</label>
-                <div className="relative">
-                  <select value={pickerSection} onChange={e => { setPickerSection(e.target.value); setPickerPlant(""); }}
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-medium focus:outline-none focus:border-emerald-400 pr-6">
-                    <option value="">— اختر القسم —</option>
-                    {sections.map(s => (
-                      <option key={s.id} value={s.id}>{s.nameAr}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Plant select — auto-adds to table on selection */}
-              <div className="relative sm:col-span-2">
-                <label className="text-[10px] text-slate-500 font-medium mb-0.5 block">النبات (اختر ليُضاف فوراً)</label>
-                <div className="relative">
-                  <select value={pickerPlant}
-                    onChange={e => {
-                      const plantId = e.target.value;
-                      if (!plantId) return;
-                      const plant = plants.find(p => p.id === plantId);
-                      if (!plant) return;
-                      const newItem: Item = {
-                        id: Date.now().toString() + Math.random(),
-                        name: plant.nameAr,
-                        description: (plant as any).descriptionAr ?? (plant as any).descriptionEn ?? "",
-                        category: selectedSection?.nameAr ?? "",
-                        quantity: 1,
-                        unit: "وحدة",
-                        price: 0,
-                        total: 0,
-                        imageUrl: (plant as any).image ?? undefined,
-                      };
-                      setItems(prev => {
-                        const hasEmpty = prev.length === 1 && !prev[0].name.trim() && prev[0].price === 0;
-                        return hasEmpty ? [newItem] : [...prev, newItem];
-                      });
-                      setPickerPlant("");
-                      toast.success(`✅ تمت إضافة "${plant.nameAr}" — عدّل الكمية والسعر في الجدول`);
-                      setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
-                    }}
-                    disabled={!pickerSection}
-                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-xs font-medium focus:outline-none focus:border-emerald-400 pr-6 disabled:opacity-50">
-                    <option value="">— اختر نبات ليُضاف للجدول —</option>
-                    {plants.map(p => (
-                      <option key={p.id} value={p.id}>{p.nameAr}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                </div>
-              </div>
+            {/* Search box */}
+            <div className="relative">
+              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={pickerSearch}
+                onChange={e => setPickerSearch(e.target.value)}
+                placeholder="ابحث عن نبات لإضافته..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg pr-9 pl-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+                dir="rtl"
+              />
             </div>
+
+            {/* Plant list */}
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-100 divide-y divide-slate-100">
+              {filteredPlants.length === 0 ? (
+                <div className="py-6 text-center text-slate-400 text-sm">لا توجد نتائج</div>
+              ) : filteredPlants.map(plant => (
+                <button
+                  key={plant.id}
+                  type="button"
+                  onClick={() => {
+                    const newItem: Item = {
+                      id: Date.now().toString() + Math.random(),
+                      name: plant.nameAr,
+                      description: (plant as any).descriptionAr ?? (plant as any).descriptionEn ?? "",
+                      category: plant.sectionNameAr ?? "",
+                      quantity: 1,
+                      unit: "وحدة",
+                      price: 0,
+                      total: 0,
+                      imageUrl: undefined,
+                    };
+                    setItems(prev => {
+                      const hasEmpty = prev.length === 1 && !prev[0].name.trim() && prev[0].price === 0;
+                      return hasEmpty ? [newItem] : [...prev, newItem];
+                    });
+                    toast.success(`✅ تمت إضافة "${plant.nameAr}"`);
+                    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-right hover:bg-emerald-50 transition-colors"
+                >
+                  {/* Thumbnail */}
+                  {(plant as any).image ? (
+                    <img
+                      src={(plant as any).image}
+                      alt={plant.nameAr}
+                      className="w-11 h-11 rounded-lg object-cover flex-shrink-0 border border-slate-200"
+                    />
+                  ) : (
+                    <div className="w-11 h-11 rounded-lg bg-emerald-100 flex-shrink-0 flex items-center justify-center">
+                      <Leaf className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-800 text-sm leading-tight">{plant.nameAr}</div>
+                    <div className="text-slate-400 text-xs mt-0.5">{plant.sectionNameAr}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 text-center">اضغط على النبات لإضافته للجدول — عدّل الكمية والسعر بعدها</p>
           </div>
         )}
 
