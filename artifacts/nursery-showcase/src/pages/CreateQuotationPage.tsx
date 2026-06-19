@@ -3,12 +3,14 @@ import { navigate } from "@/App";
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
   Phone, Mail, Globe, RotateCcw, MessageCircle, ArrowRight,
-  Leaf, ChevronDown
+  Leaf, ChevronDown, Loader2
 } from "lucide-react";
 import { useCreateQuotation, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import logoImage from "@assets/لقطة_شاشة_2026-03-08_080127_1773036971718.png";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
 
@@ -89,6 +91,7 @@ export default function CreateQuotationPage() {
   const [discountValue, setDiscountValue] = useState<number>(draft?.discountValue ?? 0);
   const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? 0);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   /* ─── Plant picker state ─────────────────────────────── */
   const [pickerSection, setPickerSection] = useState<string>("");
@@ -293,29 +296,55 @@ export default function CreateQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ─── PDF export via browser print ──────────────────── */
-  const handlePDF = () => {
-    const styleId = "__qprint__";
-    let style = document.getElementById(styleId) as HTMLStyleElement | null;
-    if (!style) {
-      style = document.createElement("style");
-      style.id = styleId;
-      document.head.appendChild(style);
+  /* ─── PDF export via jsPDF + html2canvas ─────────────── */
+  const handlePDF = async () => {
+    const element = document.getElementById("quotation-document");
+    if (!element) { toast.error("تعذّر العثور على العرض"); return; }
+
+    setPdfGenerating(true);
+    toast.info("جاري إنشاء ملف PDF...");
+
+    /* Temporarily hide no-print elements */
+    const noPrintEls = Array.from(element.querySelectorAll<HTMLElement>(".no-print"));
+    noPrintEls.forEach(el => { el.style.display = "none"; });
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+
+      const PX_PER_MM = 3.7795275591;
+      const pageW = canvas.width / PX_PER_MM;
+      const pageH = canvas.height / PX_PER_MM;
+
+      const pdf = new jsPDF({
+        orientation: pageW > pageH ? "l" : "p",
+        unit: "mm",
+        format: [pageW, pageH],
+      });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+
+      const clientName = details.customerName.trim() || "عرض_سعر";
+      const safeName = clientName
+        .replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+      const dateTag = details.date || format(new Date(), "yyyy-MM-dd");
+      const fileName = `${safeName}_${dateTag}.pdf`;
+
+      pdf.save(fileName);
+      toast.success(`✅ تم تحميل الملف: ${fileName}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("فشل إنشاء PDF، حاول مجدداً");
+    } finally {
+      noPrintEls.forEach(el => { el.style.display = ""; });
+      setPdfGenerating(false);
     }
-    style.textContent = `
-      @media print {
-        body * { visibility: hidden !important; }
-        #quotation-document,
-        #quotation-document * { visibility: visible !important; }
-        #quotation-document { position: fixed !important; inset: 0 !important; width: 100% !important; background: white !important; z-index: 99999; padding: 8mm; box-sizing: border-box; }
-        .no-print { display: none !important; }
-        input, textarea { border: none !important; background: transparent !important; box-shadow: none !important; outline: none !important; }
-        input::placeholder, textarea::placeholder { color: transparent !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      }
-    `;
-    window.print();
-    setTimeout(() => style?.remove(), 2000);
   };
 
   /* ─── Save / Update ──────────────────────────────────── */
@@ -344,12 +373,19 @@ export default function CreateQuotationPage() {
     const payload = buildPayload();
     if (isEditMode) {
       updateMutation.mutate(payload, {
-        onSuccess: () => { toast.success("تم تحديث عرض السعر بنجاح ✅"); setSavedSuccess(true); },
+        onSuccess: () => {
+          toast.success("تم تحديث عرض السعر بنجاح ✅");
+          setTimeout(() => navigate("/quotation-history"), 800);
+        },
         onError: (e: any) => toast.error(e.message || "خطأ في التحديث"),
       });
     } else {
       createMutation.mutate(payload, {
-        onSuccess: () => { toast.success("تم حفظ عرض السعر بنجاح ✅"); setSavedSuccess(true); setTimeout(clearDraft, 2000); },
+        onSuccess: () => {
+          toast.success("تم حفظ عرض السعر بنجاح ✅ — يمكنك تعديله من السجل");
+          sessionStorage.removeItem(DRAFT_KEY);
+          setTimeout(() => navigate("/quotation-history"), 800);
+        },
         onError: (e: any) => toast.error(e.message || "خطأ في الحفظ"),
       });
     }
@@ -366,26 +402,6 @@ export default function CreateQuotationPage() {
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-500">جاري تحميل العرض...</p>
-        </div>
-      </div>
-    );
-  }
-
-  /* ─── Success screen ─────────────────────────────────── */
-  if (savedSuccess) {
-    return (
-      <div dir="rtl" className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 bg-slate-50">
-        <div className="text-6xl">✅</div>
-        <h2 className="text-2xl font-black text-slate-800">
-          {isEditMode ? "تم تحديث عرض السعر!" : "تم حفظ عرض السعر بنجاح!"}
-        </h2>
-        <p className="text-slate-500 text-sm">{isEditMode ? "" : "سيتم مسح النموذج تلقائياً خلال ثانيتين..."}</p>
-        <div className="flex gap-3">
-          {!isEditMode && (
-            <button onClick={clearDraft} className="px-6 py-2 rounded-xl bg-green-600 text-white font-bold text-sm hover:opacity-90">إنشاء عرض جديد</button>
-          )}
-          <button onClick={() => navigate("/quotation-history")} className="px-6 py-2 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:opacity-90">عرض السجل</button>
-          <button onClick={() => navigate("/")} className="px-6 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-sm hover:opacity-90">العودة للموقع</button>
         </div>
       </div>
     );
@@ -424,9 +440,9 @@ export default function CreateQuotationPage() {
           <button onClick={handleWhatsApp} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all" title="إرسال واتساب">
             <MessageCircle className="w-4 h-4" />
           </button>
-          <button onClick={handlePDF}
-            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all" title="طباعة / حفظ PDF">
-            <FileText className="w-4 h-4" />
+          <button onClick={handlePDF} disabled={pdfGenerating}
+            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all disabled:opacity-50" title="تنزيل PDF باسم العميل والتاريخ">
+            {pdfGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
           </button>
           <button onClick={handleSave} disabled={isSaving}
             className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-800 transition-all disabled:opacity-50 text-sm">
