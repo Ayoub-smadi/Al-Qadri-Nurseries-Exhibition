@@ -5,13 +5,11 @@ import {
   Phone, Mail, Globe, RotateCcw, MessageCircle, ArrowRight,
   Leaf, ChevronDown, Loader2, Search
 } from "lucide-react";
-import { useCreateQuotation, useQuotation, useUpdateQuotation } from "@/hooks/use-quotations-v2";
+import { useQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-import logoImage from "@assets/لقطة_شاشة_2026-03-08_080127_1773036971718.png";
+import { downloadQuotePDFNoHeader } from "@/lib/pdfGen";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
 
 type Item = {
@@ -72,9 +70,8 @@ export default function CreateQuotationPage() {
   const isEditMode = editId !== null;
 
   const { siteData } = useApp();
-  const createMutation = useCreateQuotation();
   const { data: existingQuotation, isLoading: loadingEdit } = useQuotation(editId ?? 0);
-  const updateMutation = useUpdateQuotation(editId ?? 0);
+  const [isSaving, setIsSaving] = useState(false);
 
   /* ─── Draft loading ──────────────────────────────────── */
   const loadDraft = () => {
@@ -181,27 +178,6 @@ export default function CreateQuotationPage() {
     }));
   };
 
-  /* ─── Plant picker add ───────────────────────────────── */
-  const handleAddPlant = () => {
-    const plant = plants.find(p => p.id === pickerPlant);
-    if (!plant) { toast.error("اختر نباتاً أولاً"); return; }
-    const name = plant.nameAr + (pickerSize ? ` (${pickerSize})` : "");
-    const newItem: Item = {
-      id: Date.now().toString(),
-      name,
-      description: plant.descriptionAr ?? plant.descriptionEn ?? "",
-      category: selectedSection?.nameAr ?? "",
-      quantity: Math.max(1, pickerQty),
-      unit: "وحدة",
-      price: pickerPrice,
-      total: Math.max(1, pickerQty) * pickerPrice,
-      imageUrl: plant.image ?? undefined,
-    };
-    const hasEmpty = items.length === 1 && !items[0].name.trim() && items[0].price === 0;
-    setItems(hasEmpty ? [newItem] : [...items, newItem]);
-    setPickerPlant(""); setPickerQty(1); setPickerPrice(0); setPickerSize("");
-    toast.success(`تمت إضافة "${plant.nameAr}" للجدول`);
-  };
 
   /* ─── Logo & image upload ────────────────────────────── */
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,214 +278,121 @@ export default function CreateQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ─── PDF export — builds a clean offscreen div, no DOM inputs ── */
+  /* ─── PDF export — uses the existing pdfGen template ─────────── */
   const handlePDF = async () => {
     setPdfGenerating(true);
+    const validItems = items.filter(i => i.name.trim());
+    if (validItems.length === 0) {
+      toast.error("أضف عناصر أولاً لتنزيل الـ PDF");
+      setPdfGenerating(false);
+      return;
+    }
 
     const clientName = details.customerName.trim() || "عرض_سعر";
-    const safeName = clientName
-      .replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_")
-      .replace(/_+/g, "_")
-      .replace(/^_|_$/g, "");
     const dateTag = details.date || format(new Date(), "yyyy-MM-dd");
-    const fileName = `${safeName}_${dateTag}.pdf`;
-
-    const validItems = items.filter(i => i.name.trim());
-
-    /* Convert image src → dataURL so html2canvas doesn't hit CORS */
-    const toData = async (src: string): Promise<string> => {
-      if (!src || src.startsWith("data:")) return src;
-      try {
-        const r = await fetch(src); if (!r.ok) throw 0;
-        const b = await r.blob();
-        return await new Promise(res => { const fr = new FileReader(); fr.onloadend = () => res(fr.result as string); fr.readAsDataURL(b); });
-      } catch { return src; }
-    };
-
-    const logoSrc = await toData(logoBase64 || (logoImage as string));
-    const stampSrc = await toData(stampImage as string);
-
-    const rowsHtml = validItems.map((item, i) => `
-      <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"};border-bottom:1px solid #e2e8f0;">
-        <td style="padding:7px 6px;text-align:center;color:#94a3b8;font-size:11px;">${i + 1}</td>
-        <td style="padding:7px 6px;font-weight:700;font-size:12px;">${item.name}</td>
-        <td style="padding:7px 6px;color:#64748b;font-size:11px;">${item.description || ""}</td>
-        <td style="padding:7px 6px;color:#64748b;font-size:11px;">${item.category || ""}</td>
-        <td style="padding:7px 6px;text-align:center;font-weight:700;">${item.quantity}</td>
-        <td style="padding:7px 6px;text-align:center;">${fmt(item.price)}</td>
-        <td style="padding:7px 6px;text-align:center;font-weight:900;color:#166534;">${fmt(item.total)}</td>
-      </tr>`).join("");
-
-    const subRow = (discountAmount > 0 || taxAmount > 0) ? `
-      <tr style="background:#f1f5f9;">
-        <td colspan="6" style="padding:6px;text-align:right;color:#64748b;font-size:11px;">المجموع الفرعي</td>
-        <td style="padding:6px;text-align:center;font-weight:700;font-size:12px;">${fmt(subtotal)}</td>
-      </tr>` : "";
-    const discRow = discountAmount > 0 ? `
-      <tr style="background:#f0fdf4;">
-        <td colspan="6" style="padding:6px;text-align:right;color:#16a34a;font-size:11px;">خصم (${discountValue}%)</td>
-        <td style="padding:6px;text-align:center;color:#16a34a;font-weight:700;font-size:12px;">-${fmt(discountAmount)}</td>
-      </tr>` : "";
-    const taxRow = taxAmount > 0 ? `
-      <tr style="background:#fff7ed;">
-        <td colspan="6" style="padding:6px;text-align:right;color:#ea580c;font-size:11px;">ضريبة (${taxRate}%)</td>
-        <td style="padding:6px;text-align:center;color:#ea580c;font-weight:700;font-size:12px;">+${fmt(taxAmount)}</td>
-      </tr>` : "";
-
-    const html = `
-      <div style="font-family:Cairo,Arial,sans-serif;direction:rtl;background:#fff;padding:28px;width:794px;color:#1e293b;">
-
-        <div style="display:flex;align-items:center;gap:20px;padding-bottom:16px;border-bottom:3px solid #e2e8f0;margin-bottom:14px;">
-          <img src="${logoSrc}" style="width:88px;height:88px;object-fit:contain;flex-shrink:0;" />
-          <div style="flex:1;">
-            <div style="font-size:20px;font-weight:900;">${details.companyNameAr}</div>
-            <div style="font-size:13px;color:#64748b;margin-top:2px;">${details.companyLocationAr}</div>
-            <div style="font-size:17px;font-weight:700;margin-top:6px;">${details.companyNameEn}</div>
-            <div style="font-size:12px;color:#64748b;">${details.companyLocationEn}</div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:28px;font-size:13px;margin-bottom:14px;">
-          <span><span style="color:#94a3b8;">رقم العرض: </span><strong>${details.quotationNumber}</strong></span>
-          <span><span style="color:#94a3b8;">التاريخ: </span><strong>${details.date}</strong></span>
-          <span><span style="color:#94a3b8;">العميل: </span><strong>${clientName}</strong></span>
-        </div>
-
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead>
-            <tr style="background:#1e293b;color:#fff;">
-              <th style="padding:9px 6px;text-align:center;width:28px;">#</th>
-              <th style="padding:9px 6px;text-align:right;">${headers.name}</th>
-              <th style="padding:9px 6px;text-align:right;">${headers.description}</th>
-              <th style="padding:9px 6px;text-align:right;">${headers.category}</th>
-              <th style="padding:9px 6px;text-align:center;width:60px;">${headers.quantity}</th>
-              <th style="padding:9px 6px;text-align:center;width:80px;">${headers.price}</th>
-              <th style="padding:9px 6px;text-align:center;width:90px;">${headers.total}</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-          <tfoot>
-            ${subRow}${discRow}${taxRow}
-            <tr style="background:#1e293b;color:#fff;">
-              <td colspan="6" style="padding:11px 10px;text-align:right;font-weight:700;font-size:14px;">المجموع الكلي</td>
-              <td style="padding:11px 6px;text-align:center;font-weight:900;font-size:16px;color:#86efac;">${fmt(grandTotal)}</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        ${details.notes?.trim() ? `<div style="margin-top:12px;padding:10px 14px;background:#f8fafc;border-right:3px solid #94a3b8;font-size:12px;color:#475569;">${details.notes}</div>` : ""}
-
-        <div style="margin-top:18px;text-align:center;font-size:14px;font-weight:700;">${details.closingText}</div>
-
-        <div style="margin-top:16px;display:flex;justify-content:flex-start;">
-          <div style="text-align:center;">
-            <div style="font-size:12px;font-weight:700;">${details.signerTitle}</div>
-            <img src="${stampSrc}" style="width:90px;height:auto;margin-top:8px;" />
-          </div>
-        </div>
-
-        <div style="margin-top:18px;padding-top:12px;border-top:1px solid #e2e8f0;text-align:center;font-size:11px;color:#94a3b8;">
-          <div style="font-weight:700;color:#475569;margin-bottom:3px;">${details.footerCompany}</div>
-          <div>${details.phone} &nbsp;|&nbsp; ${details.email} &nbsp;|&nbsp; ${details.website}</div>
-        </div>
-      </div>`;
-
-    /* Render offscreen — position:fixed left:-9999px keeps it off-screen
-       WITHOUT visibility:hidden (which makes html2canvas render blank) */
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "position:fixed;left:-9999px;top:0;z-index:-1;";
-    wrapper.innerHTML = html;
-    document.body.appendChild(wrapper);
 
     try {
-      await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 80));
+      /* Map local items → QuoteItem shape expected by downloadQuotePDFNoHeader */
+      const quoteItems = validItems.map(i => ({
+        plantId: i.id,
+        plantNameAr: i.name.trim(),
+        plantNameEn: "",
+        sectionNameAr: i.category || "",
+        quantity: Math.max(1, i.quantity),
+        price: i.price,
+        size: "",
+        plantImage: i.imageUrl || "",
+        unavailable: false,
+      }));
 
-      const inner = wrapper.firstElementChild as HTMLElement;
-      const canvas = await html2canvas(inner, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
+      /* Build a minimal QuoteRequest object */
+      const fakeQuote = {
+        id: `q-${details.quotationNumber}`,
+        customer_name: clientName,
+        created_at: new Date(`${dateTag}T12:00:00`).toISOString(),
+        phone: details.phone || "",
+        notes: details.notes || "",
+        discount: String(discountValue),
+        tax: String(taxRate),
+        shipping_fee: "0",
+        planting_fee: "0",
+        shipping_method: "",
+        shipping_address: "",
+        items: quoteItems,
+      } as any;
 
-      /* Map canvas pixels → A4 proportional mm (210mm wide) */
-      const A4_W = 210;
-      const A4_H = Math.round((canvas.height / canvas.width) * A4_W * 100) / 100;
-
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [A4_W, A4_H] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, A4_W, A4_H);
-      pdf.save(fileName);
-      toast.success(`✅ تم تنزيل: ${fileName}`);
+      await downloadQuotePDFNoHeader(
+        fakeQuote,
+        "عرض سعر",
+        undefined,
+        "#2e7d32",
+        undefined,
+        stampImage as string,
+        details.signerTitle || "المدير العام",
+        details.companyNameAr,
+      );
+      toast.success(`✅ تم تنزيل PDF`);
     } catch (err) {
       console.error("PDF error:", err);
       toast.error("فشل إنشاء PDF — حاول مجدداً");
     } finally {
-      if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
       setPdfGenerating(false);
     }
   };
 
-  /* ─── Save / Update ──────────────────────────────────── */
+  /* ─── Save / Update — direct fetch ──────────────────────────── */
   const safeNum = (n: number) => isFinite(n) && !isNaN(n) ? n : 0;
 
-  const buildPayload = () => {
-    const validItems = items.filter(i => i.name.trim());
-    const safeGrand = safeNum(grandTotal);
-    return {
-      quotationNumber: details.quotationNumber || format(new Date(), "yyyyMMdd"),
-      customerName: details.customerName.trim(),
-      date: details.date || format(new Date(), "yyyy-MM-dd"),
-      notes: details.notes || "",
-      grandTotal: safeGrand.toFixed(2),
-      items: validItems.map(i => ({
-        name: i.name.trim(),
-        description: (i.description || "").trim(),
-        category: i.category?.trim() || null,
-        quantity: Math.max(1, safeNum(i.quantity)),
-        price: safeNum(i.price).toFixed(2),
-        total: safeNum(i.total).toFixed(2),
-        /* Skip base64 images — they bloat the payload and break the proxy */
-        imageUrl: (i.imageUrl && !i.imageUrl.startsWith("data:")) ? i.imageUrl : null,
-      })),
-    };
-  };
-
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!details.customerName.trim()) { toast.error("مطلوب اسم العميل"); return; }
     const validItems = items.filter(i => i.name.trim());
     if (validItems.length === 0) { toast.error("مطلوب إضافة عنصر واحد على الأقل"); return; }
 
-    const payload = buildPayload();
+    setIsSaving(true);
+    try {
+      const safeGrand = safeNum(grandTotal);
+      const payload = {
+        quotationNumber: details.quotationNumber || format(new Date(), "yyyyMMdd"),
+        customerName: details.customerName.trim(),
+        date: details.date || format(new Date(), "yyyy-MM-dd"),
+        notes: details.notes || "",
+        grandTotal: safeGrand.toFixed(2),
+        items: validItems.map(i => ({
+          name: i.name.trim(),
+          description: (i.description || "").trim(),
+          category: i.category?.trim() || null,
+          quantity: Math.max(1, safeNum(i.quantity)),
+          price: safeNum(i.price).toFixed(2),
+          total: safeNum(i.total).toFixed(2),
+          imageUrl: null,
+        })),
+      };
 
-    if (isEditMode) {
-      updateMutation.mutate(payload, {
-        onSuccess: () => {
-          toast.success("تم تحديث عرض السعر ✅");
-          setTimeout(() => navigate("/quotation-history"), 700);
-        },
-        onError: (e: any) => {
-          console.error("Update error:", e);
-          toast.error(e.message || "خطأ في التحديث — تحقق من الاتصال");
-        },
+      const url  = isEditMode ? `/api/quotations/${editId}` : `/api/quotations`;
+      const meth = isEditMode ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method: meth,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-    } else {
-      createMutation.mutate(payload, {
-        onSuccess: () => {
-          toast.success("تم حفظ عرض السعر ✅ — يمكنك تعديله من السجل");
-          sessionStorage.removeItem(DRAFT_KEY);
-          setTimeout(() => navigate("/quotation-history"), 700);
-        },
-        onError: (e: any) => {
-          console.error("Create error:", e);
-          toast.error(e.message || "خطأ في الحفظ — تحقق من الاتصال بالسيرفر");
-        },
-      });
+
+      if (!res.ok) {
+        let msg = `خطأ ${res.status}`;
+        try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
+        throw new Error(msg);
+      }
+
+      toast.success(isEditMode ? "تم تحديث عرض السعر ✅" : "تم حفظ عرض السعر ✅");
+      if (!isEditMode) sessionStorage.removeItem(DRAFT_KEY);
+      navigate("/quotation-history");
+    } catch (e: any) {
+      console.error("Save error:", e);
+      toast.error(e.message || "خطأ في الحفظ");
+    } finally {
+      setIsSaving(false);
     }
   };
-
-  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   const hdrCls = "bg-transparent border-none focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-white/30 rounded px-1 text-center text-xs font-bold text-white w-full";
 
@@ -682,7 +565,14 @@ export default function CreateQuotationPage() {
             <div className="flex items-center gap-6">
               <div className="flex-shrink-0">
                 <div className="relative group w-28 h-28 overflow-hidden bg-white flex items-center justify-center border border-slate-200 hover:shadow-xl transition-all rounded">
-                  <img src={logoBase64 || logoImage} alt="Logo" className="w-full h-full object-contain p-2" />
+                  {logoBase64 ? (
+                    <img src={logoBase64} alt="Logo" className="w-full h-full object-contain p-2" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center w-full h-full text-slate-300">
+                      <Leaf className="w-8 h-8" />
+                      <span className="text-xs mt-1">شعار</span>
+                    </div>
+                  )}
                   <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 opacity-0 cursor-pointer no-print" title="انقر لتحميل شعار جديد" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center no-print pointer-events-none">
                     <span className="text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-700 bg-white px-2 py-1 rounded">تغيير</span>
