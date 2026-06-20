@@ -333,19 +333,31 @@ export default function CreateQuotationPage() {
         if (!lbl.querySelector("img") && !lbl.textContent?.trim()) lbl.remove();
       });
 
-      /* Render offscreen */
+      /* Serialize SVG icons to data-URL <img> so html2canvas can render them */
+      clone.querySelectorAll("svg").forEach(svg => {
+        try {
+          svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+          const svgStr = new XMLSerializer().serializeToString(svg);
+          const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)));
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          img.width  = svg.clientWidth  || 16;
+          img.height = svg.clientHeight || 16;
+          img.style.display = "inline-block";
+          svg.parentNode?.replaceChild(img, svg);
+        } catch { /* ignore */ }
+      });
+
+      /* Render offscreen — absolute (no fixed/z-index) so browser lays it out */
+      const elW = docEl.offsetWidth || 800;
       const wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:fixed;left:-9999px;top:0;z-index:-1;width:" + docEl.offsetWidth + "px;";
+      wrapper.style.cssText =
+        `position:absolute;left:-9999px;top:${window.scrollY}px;width:${elW}px;background:#fff;`;
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
 
-      await Promise.allSettled([
-        document.fonts.load("400 13px Cairo"),
-        document.fonts.load("700 13px Cairo"),
-        document.fonts.load("900 13px Cairo"),
-      ]);
       await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 200));
 
       const canvas = await html2canvas(clone, {
         scale: 2,
@@ -353,6 +365,9 @@ export default function CreateQuotationPage() {
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
+        windowWidth: elW,
+        scrollX: 0,
+        scrollY: 0,
       });
 
       document.body.removeChild(wrapper);
