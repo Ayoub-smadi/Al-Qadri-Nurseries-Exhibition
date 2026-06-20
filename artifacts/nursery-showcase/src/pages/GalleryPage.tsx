@@ -1743,8 +1743,6 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
-                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'إنشاء عرض سعر' : 'New Quotation'} highlight onClick={() => navigate('/create-quotation')} />
-                      <SideBtn icon={<ArchiveRestore className="w-4 h-4" />} label={isAr ? 'سجل العروض' : 'Quotations'} onClick={() => navigate('/quotation-history')} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
                       <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
