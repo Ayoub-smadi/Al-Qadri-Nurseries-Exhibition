@@ -296,8 +296,9 @@ export default function CreateQuotationPage() {
       const quoteItems = validItems.map(i => ({
         plantId: i.id,
         plantNameAr: i.name.trim(),
-        plantNameEn: "",
-        sectionNameAr: i.category || "",
+        plantNameEn: (i.description || "").trim(),   // → عمود "الوصف"
+        sectionNameAr: i.category || "",              // → عمود "القسم"
+        sectionNameEn: "",
         quantity: Math.max(1, i.quantity),
         price: i.price,
         size: "",
@@ -312,12 +313,9 @@ export default function CreateQuotationPage() {
         created_at: new Date(`${dateTag}T12:00:00`).toISOString(),
         phone: details.phone || "",
         notes: details.notes || "",
-        discount: String(discountValue),
-        tax: String(taxRate),
-        shipping_fee: "0",
-        planting_fee: "0",
-        shipping_method: "",
-        shipping_address: "",
+        discount: discountValue,        // number
+        tax: taxRate,                   // number
+        status: "pending",
         items: quoteItems,
       } as any;
 
