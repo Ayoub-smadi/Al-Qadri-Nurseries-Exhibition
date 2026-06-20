@@ -9,8 +9,10 @@ import { useQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { downloadQuotePDF } from "@/lib/pdfGen";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
+void stampImage;
 
 type Item = {
   id: string; name: string; description: string; category: string;
@@ -278,7 +280,7 @@ export default function CreateQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ─── PDF export — uses the existing pdfGen template ─────────── */
+  /* ─── PDF export — captures the live document div exactly as-is ── */
   const handlePDF = async () => {
     setPdfGenerating(true);
     const validItems = items.filter(i => i.name.trim());
@@ -288,52 +290,87 @@ export default function CreateQuotationPage() {
       return;
     }
 
-    const clientName = details.customerName.trim() || "عرض_سعر";
-    const dateTag = details.date || format(new Date(), "yyyy-MM-dd");
-
     try {
-      /* Map local items → QuoteItem shape expected by downloadQuotePDFNoHeader */
-      const quoteItems = validItems.map(i => ({
-        plantId: i.id,
-        plantNameAr: i.name.trim(),
-        plantNameEn: (i.description || "").trim(),   // → عمود "الوصف"
-        sectionNameAr: i.category || "",              // → عمود "القسم"
-        sectionNameEn: "",
-        quantity: Math.max(1, i.quantity),
-        price: i.price,
-        size: "",
-        plantImage: i.imageUrl || "",
-        unavailable: false,
-      }));
+      const docEl = document.getElementById("quotation-document");
+      if (!docEl) throw new Error("لم يتم إيجاد المستند");
 
-      /* Build a minimal QuoteRequest object */
-      const fakeQuote = {
-        id: `q-${details.quotationNumber}`,
-        customer_name: clientName,
-        created_at: new Date(`${dateTag}T12:00:00`).toISOString(),
-        phone: details.phone || "",
-        notes: details.notes || "",
-        discount: discountValue,        // number
-        tax: taxRate,                   // number
-        status: "pending",
-        items: quoteItems,
-      } as any;
+      /* Clone the visible document div */
+      const clone = docEl.cloneNode(true) as HTMLElement;
 
-      /* QuoteSiteData shape expected by downloadQuotePDF */
-      const quoteSiteData = {
-        titleAr: details.companyNameAr,
-        titleEn: details.companyNameEn,
-        logo: { customUrl: logoBase64 || siteData?.logo?.customUrl || "" },
-        footer: {
-          phone: details.phone,
-          email: details.email,
-          website: details.website,
-        },
-        sections: siteData?.sections ?? [],
-      };
+      /* Remove all no-print elements (buttons, file inputs, overlays, form controls) */
+      clone.querySelectorAll(".no-print").forEach(el => el.remove());
 
-      await downloadQuotePDF(fakeQuote, quoteSiteData as any);
-      toast.success(`✅ تم تنزيل PDF`);
+      /* Replace every <input> with a <span> showing its current value */
+      clone.querySelectorAll("input").forEach(inp => {
+        const span = document.createElement("span");
+        span.className = inp.className
+          .replace(/border-b\S*/g, "")
+          .replace(/focus:[^\s]*/g, "")
+          .replace(/hover:[^\s]*/g, "");
+        span.style.cssText = inp.style.cssText;
+        span.style.display = "block";
+        span.style.border = "none";
+        span.style.outline = "none";
+        span.style.background = "transparent";
+        span.textContent = inp.value || "";
+        inp.parentNode?.replaceChild(span, inp);
+      });
+
+      /* Replace every <textarea> with a <span> */
+      clone.querySelectorAll("textarea").forEach(ta => {
+        const span = document.createElement("span");
+        span.className = ta.className;
+        span.style.display = "block";
+        span.style.whiteSpace = "pre-wrap";
+        span.style.border = "none";
+        span.style.background = "transparent";
+        span.textContent = ta.value || "";
+        ta.parentNode?.replaceChild(span, ta);
+      });
+
+      /* Remove empty <label> wrappers that held file-only inputs (image cells) */
+      clone.querySelectorAll("label").forEach(lbl => {
+        if (!lbl.querySelector("img") && !lbl.textContent?.trim()) lbl.remove();
+      });
+
+      /* Render offscreen */
+      const wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:fixed;left:-9999px;top:0;z-index:-1;width:" + docEl.offsetWidth + "px;";
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      await Promise.allSettled([
+        document.fonts.load("400 13px Cairo"),
+        document.fonts.load("700 13px Cairo"),
+        document.fonts.load("900 13px Cairo"),
+      ]);
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 120));
+
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+
+      document.body.removeChild(wrapper);
+
+      const PX_PER_MM = 3.7795275591;
+      const pageW = canvas.width  / PX_PER_MM;
+      const pageH = canvas.height / PX_PER_MM;
+
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [pageW, pageH] });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
+
+      const safeName = details.customerName
+        .replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_")
+        .replace(/_+/g, "_").replace(/^_|_$/g, "") || "عرض_سعر";
+      const dateTag = details.date || format(new Date(), "yyyy-MM-dd");
+      pdf.save(`${safeName}_${dateTag}.pdf`);
+
+      toast.success("✅ تم تنزيل PDF");
     } catch (err) {
       console.error("PDF error:", err);
       toast.error("فشل إنشاء PDF — حاول مجدداً");
