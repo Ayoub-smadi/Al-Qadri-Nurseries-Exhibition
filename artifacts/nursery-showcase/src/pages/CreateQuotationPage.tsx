@@ -9,10 +9,12 @@ import { useQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
-void stampImage;
+import {
+  type PdfTemplate,
+  downloadModernPdf,
+  downloadAndalusPdf,
+} from "@/lib/quotationPdfTemplates";
 
 type Item = {
   id: string; name: string; description: string; category: string;
@@ -91,6 +93,8 @@ export default function CreateQuotationPage() {
   const [taxRate, setTaxRate] = useState<number>(draft?.taxRate ?? 0);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfTemplate, setPdfTemplate] = useState<PdfTemplate>("modern");
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
 
   /* ─── Plant picker state ─────────────────────────────── */
   const [pickerSearch, setPickerSearch] = useState<string>("");
@@ -280,8 +284,10 @@ export default function CreateQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ─── PDF export — captures the live document div exactly as-is ── */
-  const handlePDF = async () => {
+  /* ─── PDF export — uses selected template ──────────────────── */
+  const handlePDF = async (tpl?: PdfTemplate) => {
+    const template = tpl ?? pdfTemplate;
+    setPdfMenuOpen(false);
     setPdfGenerating(true);
     const validItems = items.filter(i => i.name.trim());
     if (validItems.length === 0) {
@@ -289,106 +295,54 @@ export default function CreateQuotationPage() {
       setPdfGenerating(false);
       return;
     }
-
     try {
-      const docEl = document.getElementById("quotation-document");
-      if (!docEl) throw new Error("لم يتم إيجاد المستند");
-
-      /* Clone the visible document div */
-      const clone = docEl.cloneNode(true) as HTMLElement;
-
-      /* Remove all no-print elements (buttons, file inputs, overlays, form controls) */
-      clone.querySelectorAll(".no-print").forEach(el => el.remove());
-
-      /* Replace every <input> with a <span> showing its current value */
-      clone.querySelectorAll("input").forEach(inp => {
-        const span = document.createElement("span");
-        span.className = inp.className
-          .replace(/border-b\S*/g, "")
-          .replace(/focus:[^\s]*/g, "")
-          .replace(/hover:[^\s]*/g, "");
-        span.style.cssText = inp.style.cssText;
-        span.style.display = "block";
-        span.style.border = "none";
-        span.style.outline = "none";
-        span.style.background = "transparent";
-        span.textContent = inp.value || "";
-        inp.parentNode?.replaceChild(span, inp);
-      });
-
-      /* Replace every <textarea> with a <span> */
-      clone.querySelectorAll("textarea").forEach(ta => {
-        const span = document.createElement("span");
-        span.className = ta.className;
-        span.style.display = "block";
-        span.style.whiteSpace = "pre-wrap";
-        span.style.border = "none";
-        span.style.background = "transparent";
-        span.textContent = ta.value || "";
-        ta.parentNode?.replaceChild(span, ta);
-      });
-
-      /* Remove empty <label> wrappers that held file-only inputs (image cells) */
-      clone.querySelectorAll("label").forEach(lbl => {
-        if (!lbl.querySelector("img") && !lbl.textContent?.trim()) lbl.remove();
-      });
-
-      /* Serialize SVG icons to data-URL <img> so html2canvas can render them */
-      clone.querySelectorAll("svg").forEach(svg => {
-        try {
-          svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-          const svgStr = new XMLSerializer().serializeToString(svg);
-          const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)));
-          const img = document.createElement("img");
-          img.src = dataUrl;
-          img.width  = svg.clientWidth  || 16;
-          img.height = svg.clientHeight || 16;
-          img.style.display = "inline-block";
-          svg.parentNode?.replaceChild(img, svg);
-        } catch { /* ignore */ }
-      });
-
-      /* Render offscreen — absolute (no fixed/z-index) so browser lays it out */
-      const elW = docEl.offsetWidth || 800;
-      const wrapper = document.createElement("div");
-      wrapper.style.cssText =
-        `position:absolute;left:-9999px;top:${window.scrollY}px;width:${elW}px;background:#fff;`;
-      wrapper.appendChild(clone);
-      document.body.appendChild(wrapper);
-
-      await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 200));
-
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: elW,
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      document.body.removeChild(wrapper);
-
-      const PX_PER_MM = 3.7795275591;
-      const pageW = canvas.width  / PX_PER_MM;
-      const pageH = canvas.height / PX_PER_MM;
-
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [pageW, pageH] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageW, pageH);
-
       const safeName = details.customerName
         .replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_")
         .replace(/_+/g, "_").replace(/^_|_$/g, "") || "عرض_سعر";
       const dateTag = details.date || format(new Date(), "yyyy-MM-dd");
-      pdf.save(`${safeName}_${dateTag}.pdf`);
+      const filename = `${safeName}_${dateTag}.pdf`;
 
+      const tplData = {
+        quotationNumber: details.quotationNumber,
+        date: details.date,
+        customerName: details.customerName,
+        companyNameAr: details.companyNameAr,
+        companyNameEn: details.companyNameEn,
+        companyLocationAr: details.companyLocationAr,
+        phone: details.phone,
+        email: details.email,
+        website: details.website,
+        closingText: details.closingText,
+        signerTitle: details.signerTitle,
+        footerCompany: details.footerCompany,
+        notes: details.notes,
+        items: validItems.map(i => ({
+          name: i.name,
+          description: i.description,
+          category: i.category,
+          quantity: i.quantity,
+          price: i.price,
+          total: i.total,
+          imageUrl: i.imageUrl,
+        })),
+        discountValue,
+        discountAmount,
+        taxRate,
+        taxAmount,
+        subtotal,
+        grandTotal,
+        stampUrl: stampImage,
+      };
+
+      if (template === "andalus") {
+        await downloadAndalusPdf(tplData, filename);
+      } else {
+        await downloadModernPdf(tplData, filename);
+      }
       toast.success("✅ تم تنزيل PDF");
     } catch (err) {
       console.error("PDF error:", err);
-      toast.error("فشل إنشاء PDF — حاول مجدداً");
+      toast.error(`فشل إنشاء PDF: ${(err as Error)?.message ?? err}`);
     } finally {
       setPdfGenerating(false);
     }
@@ -495,10 +449,33 @@ export default function CreateQuotationPage() {
           <button onClick={handleWhatsApp} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all" title="إرسال واتساب">
             <MessageCircle className="w-4 h-4" />
           </button>
-          <button onClick={handlePDF} disabled={pdfGenerating}
-            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all disabled:opacity-50" title="تنزيل PDF باسم العميل والتاريخ">
-            {pdfGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          </button>
+          {/* PDF split-button with template picker */}
+          <div className="relative flex items-center">
+            <button onClick={() => handlePDF()} disabled={pdfGenerating}
+              className="p-1.5 rounded-r-none rounded-l-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all disabled:opacity-50 border-r border-red-200" title="تنزيل PDF">
+              {pdfGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setPdfMenuOpen(v => !v)} disabled={pdfGenerating}
+              className="p-1.5 rounded-l-none rounded-r-lg bg-red-50 text-red-500 hover:bg-red-100 transition-all disabled:opacity-50 text-[10px] font-bold px-1.5"
+              title="اختر نموذج PDF">
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {pdfMenuOpen && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden min-w-44"
+                onMouseLeave={() => setPdfMenuOpen(false)}>
+                <button onClick={() => { setPdfTemplate("modern"); handlePDF("modern"); }}
+                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors ${pdfTemplate === "modern" ? "font-bold text-slate-900" : "text-slate-700"}`}>
+                  <span className="w-2 h-2 rounded-full bg-slate-800 flex-shrink-0"></span>
+                  النموذج الحديث
+                </button>
+                <button onClick={() => { setPdfTemplate("andalus"); handlePDF("andalus"); }}
+                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-amber-50 transition-colors ${pdfTemplate === "andalus" ? "font-bold text-amber-800" : "text-slate-700"}`}>
+                  <span className="w-2 h-2 rounded-full bg-amber-600 flex-shrink-0"></span>
+                  نموذج الأندلس
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={handleSave} disabled={isSaving}
             className="flex items-center gap-1 px-4 py-1.5 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-800 transition-all disabled:opacity-50 text-sm">
             {isSaving ? "جاري الحفظ..." : isEditMode ? "تحديث العرض" : "حفظ العرض"}
