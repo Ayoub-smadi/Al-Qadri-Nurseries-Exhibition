@@ -9,7 +9,7 @@ import { useQuotation } from "@/hooks/use-quotations-v2";
 import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { downloadQuotePDFNoHeader } from "@/lib/pdfGen";
+import { downloadQuotePDF } from "@/lib/pdfGen";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
 
 type Item = {
@@ -319,16 +319,20 @@ export default function CreateQuotationPage() {
         items: quoteItems,
       } as any;
 
-      await downloadQuotePDFNoHeader(
-        fakeQuote,
-        "عرض سعر",
-        undefined,
-        "#2e7d32",
-        undefined,
-        stampImage as string,
-        details.signerTitle || "المدير العام",
-        details.companyNameAr,
-      );
+      /* QuoteSiteData shape expected by downloadQuotePDF */
+      const quoteSiteData = {
+        titleAr: details.companyNameAr,
+        titleEn: details.companyNameEn,
+        logo: { customUrl: logoBase64 || siteData?.logo?.customUrl || "" },
+        footer: {
+          phone: details.phone,
+          email: details.email,
+          website: details.website,
+        },
+        sections: siteData?.sections ?? [],
+      };
+
+      await downloadQuotePDF(fakeQuote, quoteSiteData as any);
       toast.success(`✅ تم تنزيل PDF`);
     } catch (err) {
       console.error("PDF error:", err);
