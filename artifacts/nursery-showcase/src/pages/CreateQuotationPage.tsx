@@ -589,56 +589,48 @@ export default function CreateQuotationPage() {
         )}
 
         {/* ── Document ── */}
-        <div ref={tableRef} id="quotation-document" className="bg-white border border-slate-200 shadow-lg rounded-xl p-5 sm:p-6 space-y-3">
+        <div ref={tableRef} id="quotation-document" className="bg-white border border-slate-200 shadow-lg rounded-xl overflow-hidden">
 
-          {/* Header */}
-          <div className="pb-4 border-b-2 border-slate-200">
-            <div className="flex items-center gap-6">
-              <div className="flex-shrink-0">
-                <div className="relative group w-28 h-28 overflow-hidden bg-white flex items-center justify-center border border-slate-200 hover:shadow-xl transition-all rounded">
-                  {logoBase64 ? (
-                    <img src={logoBase64} alt="Logo" className="w-full h-full object-contain p-2" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-slate-300">
-                      <Leaf className="w-8 h-8" />
-                      <span className="text-xs mt-1">شعار</span>
-                    </div>
-                  )}
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 opacity-0 cursor-pointer no-print" title="انقر لتحميل شعار جديد" />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center no-print pointer-events-none">
-                    <span className="text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity text-slate-700 bg-white px-2 py-1 rounded">تغيير</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex items-start gap-8">
-                  <div className="flex-1 space-y-1">
-                    <input value={details.companyNameAr} onChange={(e) => setDetails({ ...details, companyNameAr: e.target.value })} className="text-xl font-bold text-slate-800 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none w-full text-right px-2 py-1 rounded-sm" placeholder="اسم الشركة" />
-                    <input value={details.companyLocationAr} onChange={(e) => setDetails({ ...details, companyLocationAr: e.target.value })} className="text-sm font-medium text-slate-600 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none w-full text-right px-2 py-0.5 rounded-sm" placeholder="الموقع" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <input value={details.companyNameEn} onChange={(e) => setDetails({ ...details, companyNameEn: e.target.value })} className="text-xl font-bold text-slate-800 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none w-full text-left px-2 py-1 rounded-sm" placeholder="Company Name" />
-                    <input value={details.companyLocationEn} onChange={(e) => setDetails({ ...details, companyLocationEn: e.target.value })} className="text-sm font-medium text-slate-600 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none w-full text-left px-2 py-0.5 rounded-sm" placeholder="Location" />
-                  </div>
-                </div>
-              </div>
+          {/* ── Title bar ── */}
+          <div className="bg-slate-900 px-5 py-4 flex items-center justify-between">
+            <div>
+              <div className="text-white text-lg font-black tracking-wide">عرض سعر</div>
+              <div className="text-slate-400 text-[10px] tracking-widest mt-0.5">QUOTATION</div>
             </div>
-
-            <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <label className="text-slate-500 font-medium">رقم العرض:</label>
-                <input value={details.quotationNumber} onChange={(e) => setDetails({ ...details, quotationNumber: e.target.value })} className="bg-transparent border-b border-slate-300 focus:border-green-500 outline-none px-1 font-bold text-slate-800 w-32" />
+            <div className="flex items-center gap-4 text-xs">
+              <div className="text-right">
+                <div className="text-slate-400 text-[10px] mb-0.5">رقم العرض</div>
+                <input
+                  value={details.quotationNumber}
+                  onChange={e => setDetails({ ...details, quotationNumber: e.target.value })}
+                  className="bg-transparent text-green-400 font-black text-base outline-none border-none text-right w-28 placeholder:text-slate-600"
+                  placeholder="0001"
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-slate-500 font-medium">التاريخ:</label>
-                <input type="date" value={details.date} onChange={(e) => setDetails({ ...details, date: e.target.value })} className="bg-transparent border-b border-slate-300 focus:border-green-500 outline-none px-1 text-slate-800" />
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                <label className="text-slate-500 font-medium">العميل:</label>
-                <input value={details.customerName} onChange={(e) => setDetails({ ...details, customerName: e.target.value })} className="bg-transparent border-b-2 border-slate-300 focus:border-green-500 outline-none px-1 font-semibold text-slate-700 flex-1" placeholder="اسم العميل *" />
+              <div className="text-right">
+                <div className="text-slate-400 text-[10px] mb-0.5">التاريخ</div>
+                <input
+                  type="date"
+                  value={details.date}
+                  onChange={e => setDetails({ ...details, date: e.target.value })}
+                  className="bg-transparent text-white text-xs outline-none border-none text-right"
+                />
               </div>
             </div>
           </div>
+
+          {/* ── Client strip ── */}
+          <div className="bg-slate-100 border-b border-slate-200 px-5 py-2.5 flex items-center gap-3">
+            <span className="text-[10px] text-slate-500 font-semibold shrink-0">العميل</span>
+            <input
+              value={details.customerName}
+              onChange={e => setDetails({ ...details, customerName: e.target.value })}
+              className="flex-1 bg-transparent text-slate-800 font-bold text-sm outline-none border-b-2 border-transparent focus:border-green-500 px-1 placeholder:text-slate-400"
+              placeholder="اسم العميل *"
+            />
+          </div>
+
+          <div className="p-4 space-y-3">
 
           {/* Table */}
           <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -771,13 +763,15 @@ export default function CreateQuotationPage() {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-slate-200 pt-2 text-center opacity-70">
-            <input value={details.footerCompany} onChange={e => setDetails({ ...details, footerCompany: e.target.value })} className="text-[10px] font-bold text-slate-900 bg-transparent border-none focus:outline-none text-center w-full mb-2" placeholder="اسم الشركة في التذييل" />
-            <div className="flex items-center justify-center gap-4 text-slate-600" dir="ltr">
-              <div className="flex items-center gap-1"><Phone className="w-3 h-3 flex-shrink-0" /><input value={details.phone} onChange={(e) => setDetails({ ...details, phone: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none font-semibold w-28" dir="ltr" /></div>
-              <div className="flex items-center gap-1"><Mail className="w-3 h-3 flex-shrink-0" /><input value={details.email} onChange={(e) => setDetails({ ...details, email: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-36" dir="ltr" /></div>
-              <div className="flex items-center gap-1"><Globe className="w-3 h-3 flex-shrink-0" /><input value={details.website} onChange={(e) => setDetails({ ...details, website: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none w-36" dir="ltr" /></div>
+          </div>{/* /p-4 space-y-3 */}
+
+          {/* Footer — edge-to-edge dark bar */}
+          <div className="bg-slate-900 px-5 py-3 flex items-center justify-between gap-4 mt-0">
+            <input value={details.footerCompany} onChange={e => setDetails({ ...details, footerCompany: e.target.value })} className="text-[10px] font-bold text-slate-300 bg-transparent border-none focus:outline-none w-32 placeholder:text-slate-600" placeholder="اسم الشركة" />
+            <div className="flex items-center gap-5 text-slate-400" dir="ltr">
+              <div className="flex items-center gap-1"><Phone className="w-3 h-3 flex-shrink-0 text-green-500" /><input value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-slate-300 font-semibold w-28" dir="ltr" /></div>
+              <div className="flex items-center gap-1"><Mail className="w-3 h-3 flex-shrink-0 text-green-500" /><input value={details.email} onChange={e => setDetails({ ...details, email: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-slate-300 w-36" dir="ltr" /></div>
+              <div className="flex items-center gap-1"><Globe className="w-3 h-3 flex-shrink-0 text-green-500" /><input value={details.website} onChange={e => setDetails({ ...details, website: e.target.value })} className="text-[10px] bg-transparent border-none p-0 focus:ring-0 focus:outline-none text-slate-300 w-36" dir="ltr" /></div>
             </div>
           </div>
         </div>
