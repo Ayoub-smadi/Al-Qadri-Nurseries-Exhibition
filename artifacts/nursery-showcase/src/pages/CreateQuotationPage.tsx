@@ -13,7 +13,8 @@ import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_177304718823
 import {
   type PdfTemplate,
   downloadModernPdf,
-  downloadAndalusPdf,
+  downloadQadriOldPdf,
+  downloadNoHeaderPdf,
 } from "@/lib/quotationPdfTemplates";
 
 type Item = {
@@ -334,8 +335,10 @@ export default function CreateQuotationPage() {
         stampUrl: stampImage,
       };
 
-      if (template === "andalus") {
-        await downloadAndalusPdf(tplData, filename);
+      if (template === "qadri-old") {
+        await downloadQadriOldPdf(tplData, filename);
+      } else if (template === "no-header") {
+        await downloadNoHeaderPdf(tplData, filename);
       } else {
         await downloadModernPdf(tplData, filename);
       }
@@ -461,17 +464,22 @@ export default function CreateQuotationPage() {
               <ChevronDown className="w-3 h-3" />
             </button>
             {pdfMenuOpen && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden min-w-44"
+              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden min-w-48"
                 onMouseLeave={() => setPdfMenuOpen(false)}>
                 <button onClick={() => { setPdfTemplate("modern"); handlePDF("modern"); }}
                   className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors ${pdfTemplate === "modern" ? "font-bold text-slate-900" : "text-slate-700"}`}>
                   <span className="w-2 h-2 rounded-full bg-slate-800 flex-shrink-0"></span>
                   النموذج الحديث
                 </button>
-                <button onClick={() => { setPdfTemplate("andalus"); handlePDF("andalus"); }}
-                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-amber-50 transition-colors ${pdfTemplate === "andalus" ? "font-bold text-amber-800" : "text-slate-700"}`}>
-                  <span className="w-2 h-2 rounded-full bg-amber-600 flex-shrink-0"></span>
-                  نموذج الأندلس
+                <button onClick={() => { setPdfTemplate("qadri-old"); handlePDF("qadri-old"); }}
+                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-green-50 transition-colors ${pdfTemplate === "qadri-old" ? "font-bold text-green-800" : "text-slate-700"}`}>
+                  <span className="w-2 h-2 rounded-full bg-green-700 flex-shrink-0"></span>
+                  قادري قديم
+                </button>
+                <button onClick={() => { setPdfTemplate("no-header"); handlePDF("no-header"); }}
+                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors ${pdfTemplate === "no-header" ? "font-bold text-slate-900" : "text-slate-700"}`}>
+                  <span className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0"></span>
+                  دون ترويسة
                 </button>
               </div>
             )}

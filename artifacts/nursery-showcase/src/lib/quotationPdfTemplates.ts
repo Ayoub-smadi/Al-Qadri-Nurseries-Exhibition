@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-export type PdfTemplate = "modern" | "andalus";
+export type PdfTemplate = "modern" | "qadri-old" | "no-header";
 
 export interface TemplateData {
   quotationNumber: string;
@@ -215,16 +215,16 @@ export async function downloadModernPdf(data: TemplateData, filename: string) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Template 2 — الأندلس (warm amber / gold Islamic-inspired theme)
+   Template 2 — قادري قديم (green Al-Qadri style WITH company header)
    ════════════════════════════════════════════════════════════════ */
-export async function downloadAndalusPdf(data: TemplateData, filename: string) {
+export async function downloadQadriOldPdf(data: TemplateData, filename: string) {
   const stamp = data.stampUrl ? await toDataUrl(data.stampUrl) : "";
-  const rows = buildRows(data.items, "#fffbeb", "#ffffff", "#fef3c7", "#92400e");
+  const rows = buildRows(data.items, "#f0fdf4", "#ffffff", "#dcfce7", "#14532d");
 
   const subtotalRows = (data.discountAmount > 0 || data.taxAmount > 0) ? `
-    <tr style="background:#fffbeb;border-top:2px solid #fde68a;">
-      <td colspan="6" style="padding:8px 12px;text-align:right;font-size:12px;color:#78716c;font-weight:600;">المجموع الفرعي</td>
-      <td style="padding:8px;text-align:center;font-weight:700;color:#57534e;font-size:12px;">${fmt(data.subtotal)}</td>
+    <tr style="background:#f0fdf4;border-top:2px solid #86efac;">
+      <td colspan="6" style="padding:8px 12px;text-align:right;font-size:12px;color:#4b5563;font-weight:600;">المجموع الفرعي</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:#374151;font-size:12px;">${fmt(data.subtotal)}</td>
       <td></td>
     </tr>
     ${data.discountAmount > 0 ? `
@@ -242,84 +242,192 @@ export async function downloadAndalusPdf(data: TemplateData, filename: string) {
   ` : "";
 
   const html = `
-  <div dir="rtl" style="font-family:Cairo,Arial,sans-serif;width:820px;background:#fff;padding:0;margin:0;border:2px solid #d97706;">
+  <div dir="rtl" style="font-family:Cairo,Arial,sans-serif;width:820px;background:#fff;padding:0;margin:0;border:2px solid #16a34a;">
 
-    <!-- Decorative top stripe -->
-    <div style="height:6px;background:repeating-linear-gradient(90deg,#92400e 0,#92400e 18px,#d97706 18px,#d97706 36px,#fde68a 36px,#fde68a 54px,#d97706 54px,#d97706 72px);"></div>
+    <!-- Top accent line -->
+    <div style="height:6px;background:linear-gradient(90deg,#14532d,#16a34a,#4ade80,#16a34a,#14532d);"></div>
 
-    <!-- Header -->
-    <div style="background:#78350f;padding:22px 32px;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden;">
-      <div style="position:absolute;inset:0;opacity:0.07;background:repeating-linear-gradient(45deg,transparent,transparent 15px,#fff 15px,#fff 16px);"></div>
-      <div style="position:relative;">
-        <div style="font-size:32px;font-weight:900;color:#fef3c7;letter-spacing:2px;">الأندلس</div>
-        <div style="font-size:11px;color:#fde68a;margin-top:2px;letter-spacing:4px;">AL-ANDALUS</div>
+    <!-- Company letterhead -->
+    <div style="background:#14532d;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:26px;font-weight:900;color:#f0fdf4;letter-spacing:1px;">مؤسسة ومشاتل القادري الزراعية</div>
+        <div style="font-size:11px;color:#86efac;margin-top:3px;letter-spacing:3px;">AL-QADRI AGRICULTURAL ESTABLISHMENT</div>
+        <div style="font-size:10px;color:#bbf7d0;margin-top:6px;display:flex;gap:16px;">
+          ${data.phone ? `<span>&#9742; ${data.phone}</span>` : ""}
+          ${data.email ? `<span>&#9993; ${data.email}</span>` : ""}
+          ${data.website ? `<span>&#127760; ${data.website}</span>` : ""}
+        </div>
       </div>
-      <div style="position:relative;text-align:left;">
-        <div style="font-size:11px;color:#fde68a;font-weight:600;letter-spacing:1px;">عرض سعر</div>
-        <div style="font-size:22px;font-weight:900;color:#fff;">#${data.quotationNumber}</div>
-        <div style="font-size:11px;color:#fde68a;margin-top:3px;">${data.date}</div>
+      <div style="text-align:center;">
+        <div style="font-size:36px;font-weight:900;color:#4ade80;">🌱</div>
+        <div style="font-size:10px;color:#86efac;margin-top:2px;">جرش – الرشايدة</div>
       </div>
     </div>
 
-    <!-- Decorative middle stripe -->
-    <div style="height:4px;background:repeating-linear-gradient(90deg,#d97706 0,#d97706 18px,#fde68a 18px,#fde68a 36px);"></div>
+    <!-- Divider stripe -->
+    <div style="height:4px;background:repeating-linear-gradient(90deg,#16a34a 0,#16a34a 20px,#4ade80 20px,#4ade80 40px);"></div>
+
+    <!-- Quotation title bar -->
+    <div style="background:#f0fdf4;padding:12px 32px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #86efac;">
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#14532d;">عرض سعر</div>
+        <div style="font-size:10px;color:#16a34a;letter-spacing:2px;">QUOTATION</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-size:20px;font-weight:900;color:#16a34a;">#${data.quotationNumber}</div>
+        <div style="font-size:11px;color:#4b5563;margin-top:2px;">${data.date}</div>
+      </div>
+    </div>
 
     <!-- Client ribbon -->
-    <div style="background:#fffbeb;padding:11px 32px;display:flex;gap:24px;align-items:center;border-bottom:1px solid #fde68a;">
-      <div style="font-size:11px;color:#92400e;font-weight:700;">إلى حضرة / السيد</div>
-      <div style="font-size:16px;font-weight:900;color:#1c1917;">${data.customerName}</div>
+    <div style="background:#fff;padding:10px 32px;display:flex;gap:24px;align-items:center;border-bottom:1px solid #e5e7eb;">
+      <div style="font-size:11px;color:#16a34a;font-weight:700;">إلى حضرة / السيد</div>
+      <div style="font-size:16px;font-weight:900;color:#111827;">${data.customerName}</div>
     </div>
 
     <!-- Table -->
-    <div style="padding:18px 32px 0;">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #fde68a;">
+    <div style="padding:16px 32px 0;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #d1fae5;">
         <thead>
-          <tr style="background:#78350f;color:#fef3c7;">
+          <tr style="background:#14532d;color:#f0fdf4;">
             <th style="padding:10px 6px;text-align:center;width:28px;">#</th>
             <th style="padding:10px 8px;text-align:right;">الاسم</th>
             <th style="padding:10px 8px;text-align:right;">الوصف</th>
             <th style="padding:10px 8px;text-align:right;">القسم</th>
             <th style="padding:10px 6px;text-align:center;width:55px;">الكمية</th>
             <th style="padding:10px 6px;text-align:center;width:70px;">السعر</th>
-            <th style="padding:10px 6px;text-align:center;width:80px;background:#d97706;">الإجمالي</th>
+            <th style="padding:10px 6px;text-align:center;width:80px;background:#16a34a;">الإجمالي</th>
             <th style="padding:10px 6px;text-align:center;width:68px;">الصورة</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
         <tfoot>
           ${subtotalRows}
-          <tr style="background:#78350f;color:#fef3c7;">
+          <tr style="background:#14532d;color:#f0fdf4;">
             <td colspan="6" style="padding:14px 12px;text-align:right;font-weight:800;font-size:15px;">المجموع الكلي</td>
-            <td style="padding:14px 8px;text-align:center;font-weight:900;font-size:16px;color:#fde68a;">${fmt(data.grandTotal)}</td>
-            <td style="padding:14px 8px;text-align:center;font-size:11px;color:#fde68a;">د.أ</td>
+            <td style="padding:14px 8px;text-align:center;font-weight:900;font-size:16px;color:#4ade80;">${fmt(data.grandTotal)}</td>
+            <td style="padding:14px 8px;text-align:center;font-size:11px;color:#86efac;">د.أ</td>
           </tr>
         </tfoot>
       </table>
     </div>
 
     ${data.notes.trim() ? `
-    <div style="margin:16px 32px 0;padding:12px 16px;background:#fffbeb;border-right:4px solid #d97706;border-radius:6px;font-size:12px;color:#374151;white-space:pre-wrap;line-height:1.7;">${data.notes}</div>
+    <div style="margin:16px 32px 0;padding:12px 16px;background:#f0fdf4;border-right:4px solid #16a34a;border-radius:6px;font-size:12px;color:#374151;white-space:pre-wrap;line-height:1.7;">${data.notes}</div>
     ` : ""}
 
     <!-- Closing / Signature -->
     <div style="margin:24px 32px 16px;display:flex;justify-content:space-between;align-items:flex-end;">
-      <div style="font-size:13px;color:#78716c;font-weight:600;">${data.closingText}</div>
+      <div style="font-size:13px;color:#6b7280;font-weight:600;">${data.closingText}</div>
       <div style="text-align:center;">
-        <div style="font-size:12px;font-weight:700;color:#1c1917;margin-bottom:6px;">${data.signerTitle}</div>
+        <div style="font-size:12px;font-weight:700;color:#14532d;margin-bottom:6px;">${data.signerTitle}</div>
         ${stamp ? `<img src="${stamp}" style="width:90px;height:auto;" />` : ""}
       </div>
     </div>
 
-    <!-- Bottom decorative stripe -->
-    <div style="height:4px;background:repeating-linear-gradient(90deg,#d97706 0,#d97706 18px,#fde68a 18px,#fde68a 36px);"></div>
+    <!-- Bottom stripe -->
+    <div style="height:4px;background:repeating-linear-gradient(90deg,#16a34a 0,#16a34a 20px,#4ade80 20px,#4ade80 40px);"></div>
 
     <!-- Footer -->
-    <div style="background:#78350f;padding:11px 32px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">
-      <span style="color:#fde68a;font-weight:800;">${data.footerCompany}</span>
-      <div style="display:flex;gap:20px;color:#fcd34d;">
+    <div style="background:#14532d;padding:11px 32px;display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+      <span style="color:#bbf7d0;font-weight:800;">${data.footerCompany}</span>
+      <div style="display:flex;gap:20px;color:#86efac;">
         ${data.phone ? `<span>&#9742; ${data.phone}</span>` : ""}
         ${data.email ? `<span>&#9993; ${data.email}</span>` : ""}
         ${data.website ? `<span>&#127760; ${data.website}</span>` : ""}
+      </div>
+    </div>
+
+    <!-- Bottom accent -->
+    <div style="height:6px;background:linear-gradient(90deg,#14532d,#16a34a,#4ade80,#16a34a,#14532d);"></div>
+  </div>`;
+
+  await captureAndSave(html, 820, filename);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Template 3 — دون ترويسة (clean table, no company header)
+   ════════════════════════════════════════════════════════════════ */
+export async function downloadNoHeaderPdf(data: TemplateData, filename: string) {
+  const stamp = data.stampUrl ? await toDataUrl(data.stampUrl) : "";
+  const rows = buildRows(data.items, "#ffffff", "#f8fafc", "#f1f5f9", "#1e293b");
+
+  const subtotalRows = (data.discountAmount > 0 || data.taxAmount > 0) ? `
+    <tr style="background:#f8fafc;border-top:2px solid #e2e8f0;">
+      <td colspan="6" style="padding:8px 12px;text-align:right;font-size:12px;color:#64748b;font-weight:600;">المجموع الفرعي</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:#475569;font-size:12px;">${fmt(data.subtotal)}</td>
+      <td></td>
+    </tr>
+    ${data.discountAmount > 0 ? `
+    <tr style="background:#f0fdf4;">
+      <td colspan="6" style="padding:8px 12px;text-align:right;font-size:12px;color:#16a34a;font-weight:600;">خصم ${data.discountValue}%</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:#16a34a;font-size:12px;">−${fmt(data.discountAmount)}</td>
+      <td></td>
+    </tr>` : ""}
+    ${data.taxAmount > 0 ? `
+    <tr style="background:#fff7ed;">
+      <td colspan="6" style="padding:8px 12px;text-align:right;font-size:12px;color:#ea580c;font-weight:600;">ضريبة ${data.taxRate}%</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:#ea580c;font-size:12px;">+${fmt(data.taxAmount)}</td>
+      <td></td>
+    </tr>` : ""}
+  ` : "";
+
+  const html = `
+  <div dir="rtl" style="font-family:Cairo,Arial,sans-serif;width:820px;background:#fff;padding:32px 40px;margin:0;">
+
+    <!-- Title + meta row -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #e2e8f0;">
+      <div>
+        <div style="font-size:28px;font-weight:900;color:#1e293b;">عرض سعر</div>
+        <div style="font-size:11px;color:#94a3b8;letter-spacing:3px;margin-top:2px;">QUOTATION</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-size:13px;color:#64748b;font-weight:600;">رقم العرض: <span style="color:#1e293b;font-weight:800;">#${data.quotationNumber}</span></div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">التاريخ: ${data.date}</div>
+      </div>
+    </div>
+
+    <!-- Client line -->
+    <div style="margin-bottom:20px;display:flex;gap:12px;align-items:center;">
+      <div style="font-size:12px;color:#64748b;font-weight:600;">إلى:</div>
+      <div style="font-size:16px;font-weight:800;color:#1e293b;">${data.customerName}</div>
+    </div>
+
+    <!-- Table -->
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#1e293b;color:#f1f5f9;">
+          <th style="padding:10px 6px;text-align:center;width:28px;">#</th>
+          <th style="padding:10px 8px;text-align:right;">الاسم</th>
+          <th style="padding:10px 8px;text-align:right;">الوصف</th>
+          <th style="padding:10px 8px;text-align:right;">القسم</th>
+          <th style="padding:10px 6px;text-align:center;width:55px;">الكمية</th>
+          <th style="padding:10px 6px;text-align:center;width:70px;">السعر</th>
+          <th style="padding:10px 6px;text-align:center;width:80px;">الإجمالي</th>
+          <th style="padding:10px 6px;text-align:center;width:68px;">الصورة</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        ${subtotalRows}
+        <tr style="background:#f1f5f9;border-top:2px solid #cbd5e1;">
+          <td colspan="6" style="padding:14px 12px;text-align:right;font-weight:800;font-size:15px;color:#1e293b;">المجموع الكلي</td>
+          <td style="padding:14px 8px;text-align:center;font-weight:900;font-size:16px;color:#1e293b;">${fmt(data.grandTotal)}</td>
+          <td style="padding:14px 8px;text-align:center;font-size:11px;color:#64748b;">د.أ</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${data.notes.trim() ? `
+    <div style="margin:16px 0 0;padding:12px 16px;background:#f8fafc;border-right:4px solid #94a3b8;border-radius:6px;font-size:12px;color:#374151;white-space:pre-wrap;line-height:1.7;">${data.notes}</div>
+    ` : ""}
+
+    <!-- Closing / Signature -->
+    <div style="margin-top:32px;display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #e2e8f0;padding-top:20px;">
+      <div style="font-size:13px;color:#64748b;font-weight:600;">${data.closingText}</div>
+      <div style="text-align:center;">
+        <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px;">${data.signerTitle}</div>
+        ${stamp ? `<img src="${stamp}" style="width:90px;height:auto;" />` : ""}
       </div>
     </div>
   </div>`;
