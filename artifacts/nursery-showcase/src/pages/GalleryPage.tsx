@@ -3469,26 +3469,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                     <span className="text-sm font-bold arabic text-foreground">{isAr ? 'توصيل فقط' : 'Delivery Only'}</span>
                     {shippingMode === 'delivery' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShippingMode('plant_only'); setShippingError(false); setShippingAddress(''); }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'plant_only' ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'border-border bg-background hover:bg-muted'}`}
-                  >
-                    <span className="text-lg">🌱</span>
-                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'زراعة الأشجار فقط' : 'Planting Only'}</span>
-                    {shippingMode === 'plant_only' && <CheckCircle2 className="w-4 h-4 text-orange-500 shrink-0" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShippingMode('delivery_plant'); setShippingError(false); }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${shippingMode === 'delivery_plant' ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20' : 'border-border bg-background hover:bg-muted'}`}
-                  >
-                    <span className="text-lg">🚚🌱</span>
-                    <span className="text-sm font-bold arabic text-foreground">{isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span>
-                    {shippingMode === 'delivery_plant' && <CheckCircle2 className="w-4 h-4 text-orange-500 shrink-0" />}
-                  </button>
                 </div>
-                {(shippingMode === 'delivery' || shippingMode === 'delivery_plant') && (
+                {shippingMode === 'delivery' && (
                   <Input
                     value={shippingAddress}
                     onChange={e => { setShippingAddress(e.target.value); setShippingError(false); }}
@@ -3497,20 +3479,11 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                     placeholder={isAr ? 'اكتب عنوانك للتوصيل...' : 'Enter your delivery address...'}
                   />
                 )}
-                {shippingMode === 'plant_only' && (
-                  <Input
-                    value={shippingAddress}
-                    onChange={e => { setShippingAddress(e.target.value); setShippingError(false); }}
-                    dir="rtl"
-                    className="arabic"
-                    placeholder={isAr ? 'اكتب عنوان موقع الزراعة...' : 'Enter the planting site address...'}
-                  />
-                )}
                 {shippingError && (
                   <p className="text-xs text-red-600 dark:text-red-400 arabic mt-1">
                     {isAr
-                      ? (shippingMode === 'plant_only' ? '⚠️ يرجى كتابة عنوان موقع الزراعة' : (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
-                      : (shippingMode === 'plant_only' ? '⚠️ Please enter the planting site address' : (shippingMode === 'delivery' || shippingMode === 'delivery_plant') ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
+                      ? (shippingMode === 'delivery' ? '⚠️ يرجى كتابة عنوان التوصيل' : '⚠️ يرجى اختيار طريقة التوصيل')
+                      : (shippingMode === 'delivery' ? '⚠️ Please enter a delivery address' : '⚠️ Please select a delivery method')}
                   </p>
                 )}
               </div>
