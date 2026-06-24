@@ -3621,7 +3621,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [noHeaderTitle, setNoHeaderTitle] = useState('عرض سعر');
   const [noHeaderExtraLine, setNoHeaderExtraLine] = useState('');
   const [noHeaderColor, setNoHeaderColor] = useState('#2e7d32');
-  const [noHeaderBrand, setNoHeaderBrand] = useState<'qadri' | 'andalus'>('qadri');
+  const [noHeaderBrand, setNoHeaderBrand] = useState<'qadri-old' | 'no-header'>('qadri-old');
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3723,16 +3723,15 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
 
   const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
     setNoHeaderPdfingId(q.id);
-    const isAndalus = noHeaderBrand === 'andalus';
     await downloadQuotePDFNoHeader(
       q,
       noHeaderTitle || 'عرض سعر',
       siteData.sections,
-      isAndalus ? '#1a6b3c' : noHeaderColor,
+      noHeaderBrand === 'no-header' ? '#1e293b' : noHeaderColor,
       noHeaderExtraLine || undefined,
-      isAndalus ? '/stamp-andalus.png' : undefined,
-      isAndalus ? 'م. ايوب عبدالرحمن' : undefined,
-      isAndalus ? 'مشتل الأندلس الزراعي' : undefined
+      undefined,
+      undefined,
+      undefined
     );
     setNoHeaderPdfingId(null);
   };
@@ -4079,13 +4078,13 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   {/* Brand toggle */}
                   <div className="flex items-center rounded-md overflow-hidden border border-border h-7 text-xs arabic">
                     <button
-                      onClick={() => setNoHeaderBrand('qadri')}
-                      className={`px-2 h-full transition-colors ${noHeaderBrand === 'qadri' ? 'bg-green-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                    >القادري</button>
+                      onClick={() => setNoHeaderBrand('qadri-old')}
+                      className={`px-2 h-full transition-colors ${noHeaderBrand === 'qadri-old' ? 'bg-green-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >قادري قديم</button>
                     <button
-                      onClick={() => setNoHeaderBrand('andalus')}
-                      className={`px-2 h-full transition-colors border-r border-border ${noHeaderBrand === 'andalus' ? 'bg-emerald-800 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                    >الأندلس</button>
+                      onClick={() => setNoHeaderBrand('no-header')}
+                      className={`px-2 h-full transition-colors border-r border-border ${noHeaderBrand === 'no-header' ? 'bg-slate-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >دون ترويسة</button>
                   </div>
                   <input
                     type="text"
@@ -4101,7 +4100,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     placeholder={isAr ? 'سطر فوق (اختياري)' : 'Line above (optional)'}
                     className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-36 h-7"
                   />
-                  {noHeaderBrand === 'qadri' && (
+                  {noHeaderBrand === 'qadri-old' && (
                     <div className="flex items-center gap-1">
                       {([
                         { color: '#2e7d32', label: 'أخضر' },
