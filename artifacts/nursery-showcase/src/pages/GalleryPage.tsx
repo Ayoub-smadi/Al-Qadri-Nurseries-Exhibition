@@ -3617,11 +3617,8 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [createOpen, setCreateOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [pdfingId, setPdfingId] = useState<string | null>(null);
+  const [qadriOldPdfingId, setQadriOldPdfingId] = useState<string | null>(null);
   const [noHeaderPdfingId, setNoHeaderPdfingId] = useState<string | null>(null);
-  const [noHeaderTitle, setNoHeaderTitle] = useState('عرض سعر');
-  const [noHeaderExtraLine, setNoHeaderExtraLine] = useState('');
-  const [noHeaderColor, setNoHeaderColor] = useState('#2e7d32');
-  const [noHeaderBrand, setNoHeaderBrand] = useState<'qadri-old' | 'no-header'>('qadri-old');
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3721,18 +3718,15 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setPdfingId(null);
   };
 
-  const handleDownloadPDFNoHeader = async (q: QuoteRequest) => {
+  const handleDownloadQadriOld = async (q: QuoteRequest) => {
+    setQadriOldPdfingId(q.id);
+    await downloadQuotePDFNoHeader(q, 'عرض سعر', siteData.sections, '#2e7d32');
+    setQadriOldPdfingId(null);
+  };
+
+  const handleDownloadNoHeaderOnly = async (q: QuoteRequest) => {
     setNoHeaderPdfingId(q.id);
-    await downloadQuotePDFNoHeader(
-      q,
-      noHeaderTitle || 'عرض سعر',
-      siteData.sections,
-      noHeaderBrand === 'no-header' ? '#1e293b' : noHeaderColor,
-      noHeaderExtraLine || undefined,
-      undefined,
-      undefined,
-      undefined
-    );
+    await downloadQuotePDFNoHeader(q, 'عرض سعر', siteData.sections, '#334155');
     setNoHeaderPdfingId(null);
   };
 
@@ -3998,10 +3992,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 arabic font-medium">📍 {q.shipping_address}</span>
                           : q.shipping_method === 'delivery_free'
                           ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 arabic font-medium">🚗 {isAr ? 'توصيل مجاني' : 'Free Delivery'}</span>
-                          : q.shipping_method === 'delivery_plant'
-                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🚚🌱 {isAr ? 'توصيل وزراعة' : 'Delivery & Plant'}</span>
-                          : q.shipping_method === 'plant_only'
-                          ? <span className="inline-flex items-center gap-1 mt-1 text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 arabic font-medium">🌱 {q.shipping_address ? `📍 ${q.shipping_address}` : (isAr ? 'زراعة الأشجار' : 'Planting Only')}</span>
                           : null
                       }
                     </button>
@@ -4072,53 +4062,13 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                 {/* Row 2: PDF download controls */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs h-7">
-                    {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'PDF' : 'PDF'}</>}
+                    {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />القادري</>}
                   </Button>
-                  <div className="w-px h-5 bg-border" />
-                  {/* Brand toggle */}
-                  <div className="flex items-center rounded-md overflow-hidden border border-border h-7 text-xs arabic">
-                    <button
-                      onClick={() => setNoHeaderBrand('qadri-old')}
-                      className={`px-2 h-full transition-colors ${noHeaderBrand === 'qadri-old' ? 'bg-green-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                    >قادري قديم</button>
-                    <button
-                      onClick={() => setNoHeaderBrand('no-header')}
-                      className={`px-2 h-full transition-colors border-r border-border ${noHeaderBrand === 'no-header' ? 'bg-slate-700 text-white font-bold' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                    >دون ترويسة</button>
-                  </div>
-                  <input
-                    type="text"
-                    value={noHeaderTitle}
-                    onChange={e => setNoHeaderTitle(e.target.value)}
-                    placeholder="عرض سعر"
-                    className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-24 h-7"
-                  />
-                  <input
-                    type="text"
-                    value={noHeaderExtraLine}
-                    onChange={e => setNoHeaderExtraLine(e.target.value)}
-                    placeholder={isAr ? 'سطر فوق (اختياري)' : 'Line above (optional)'}
-                    className="arabic text-xs border border-border rounded px-2 py-1 bg-background w-36 h-7"
-                  />
-                  {noHeaderBrand === 'qadri-old' && (
-                    <div className="flex items-center gap-1">
-                      {([
-                        { color: '#2e7d32', label: 'أخضر' },
-                        { color: '#1565c0', label: 'أزرق' },
-                        { color: '#1a1a1a', label: 'أسود' },
-                      ] as const).map(({ color: c, label }) => (
-                        <button
-                          key={c}
-                          onClick={() => setNoHeaderColor(c)}
-                          title={label}
-                          className="w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center"
-                          style={{ background: c, borderColor: noHeaderColor === c ? '#fff' : c, outline: noHeaderColor === c ? `2px solid ${c}` : 'none', outlineOffset: '2px' }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => handleDownloadPDFNoHeader(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7" title={isAr ? 'PDF بدون ترويسة' : 'PDF without header'}>
-                    {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />{isAr ? 'بدون ترويسة' : 'No Header'}</>}
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadQadriOld(editQuote)} disabled={qadriOldPdfingId === editQuote.id} className="arabic text-xs h-7 text-green-700 border-green-200 hover:bg-green-50">
+                    {qadriOldPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />قادري قديم</>}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadNoHeaderOnly(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
+                    {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />دون ترويسة</>}
                   </Button>
                 </div>
               </div>
