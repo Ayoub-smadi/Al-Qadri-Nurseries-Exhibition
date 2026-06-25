@@ -127,13 +127,22 @@ export default function NoHeaderQuotationPage() {
       await document.fonts.ready;
       await new Promise(r => setTimeout(r, 200));
 
-      const canvas = await html2canvas(docRef.current, {
+      const el = docRef.current;
+      const fullHeight = el.scrollHeight;
+      const fullWidth = el.scrollWidth;
+
+      const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
-        windowWidth: docRef.current.offsetWidth,
+        width: fullWidth,
+        height: fullHeight,
+        windowWidth: fullWidth,
+        windowHeight: fullHeight,
+        scrollX: 0,
+        scrollY: 0,
         onclone: (_clonedDoc, element) => {
           /* Strip all Tailwind classes to avoid oklch parse errors */
           element.querySelectorAll("[class]").forEach(el => el.removeAttribute("class"));
