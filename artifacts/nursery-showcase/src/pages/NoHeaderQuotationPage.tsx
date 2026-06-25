@@ -169,7 +169,7 @@ export default function NoHeaderQuotationPage() {
       /* 5. Mount clone off-screen so html2canvas sees full height */
       wrapper = document.createElement("div");
       wrapper.style.cssText =
-        "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;visibility:hidden;";
+        "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;";
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
 

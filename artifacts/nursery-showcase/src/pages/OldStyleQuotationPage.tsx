@@ -201,7 +201,7 @@ export default function OldStyleQuotationPage() {
            .forEach(n => n.removeAttribute("class"));
 
       wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;visibility:hidden;";
+      wrapper.style.cssText = "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;";
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
       await new Promise(r => setTimeout(r, 120));
