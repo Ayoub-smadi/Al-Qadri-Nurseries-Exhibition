@@ -4037,8 +4037,31 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs h-7">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />القادري</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDownloadNoHeaderOnly(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
-                    {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />دون ترويسة</>}
+                  <Button size="sm" variant="outline" onClick={() => {
+                    try {
+                      const prefill = {
+                        details: {
+                          quotationNumber: format(new Date(editQuote.created_at), 'yyyyMMdd'),
+                          customerName: editQuote.customer_name,
+                          date: format(new Date(editQuote.created_at), 'yyyy-MM-dd'),
+                          notes: editQuote.notes || '',
+                        },
+                        items: editQuote.items.map((it: any, idx: number) => ({
+                          id: String(idx) + Math.random(),
+                          name: it.plantNameAr || it.plantNameEn || '',
+                          description: it.size || '',
+                          quantity: it.quantity || 1,
+                          unitPrice: it.price || 0,
+                          total: (it.quantity || 1) * (it.price || 0),
+                        })),
+                        logoUrl: '',
+                        stampUrl: '',
+                      };
+                      sessionStorage.setItem('aq_no_header_prefill', JSON.stringify(prefill));
+                    } catch {}
+                    navigate('/no-header-quotation');
+                  }} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
+                    <FileDown className="w-3.5 h-3.5 me-1" />دون ترويسة
                   </Button>
                 </div>
               </div>
