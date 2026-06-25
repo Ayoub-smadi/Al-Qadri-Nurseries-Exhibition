@@ -164,54 +164,60 @@ export default function OldStyleQuotationPage() {
     if (file) { const r = new FileReader(); r.onloadend = () => setLogoUrl(r.result as string); r.readAsDataURL(file); }
   };
 
-  /* ─── PDF export (off-screen clone) ───────────────── */
+  /* ─── PDF export (in-place, no off-screen tricks) ──── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
-    let wrapper: HTMLDivElement | null = null;
+    const el = docRef.current;
+    type HiddenEl  = { node: HTMLElement; was: string };
+    type ReplacedInput = { input: HTMLElement; div: HTMLElement };
+    type SavedClass = { node: Element; cls: string };
+    const hiddenEls:    HiddenEl[]      = [];
+    const replacedInputs: ReplacedInput[] = [];
+    const savedClasses: SavedClass[]    = [];
     try {
       await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 150));
-      const el = docRef.current;
-      const clone = el.cloneNode(true) as HTMLElement;
+      el.scrollIntoView({ block: "start" });
+      await new Promise(r => setTimeout(r, 120));
 
-      /* bake input/textarea values into plain divs */
-      const srcInputs   = Array.from(el.querySelectorAll("input, textarea"));
-      const cloneInputs = Array.from(clone.querySelectorAll("input, textarea"));
-      srcInputs.forEach((src, i) => {
-        const srcEl = src as HTMLInputElement | HTMLTextAreaElement;
-        const cloEl = cloneInputs[i] as HTMLInputElement | HTMLTextAreaElement;
-        const cs = window.getComputedStyle(srcEl);
+      /* 1. Hide UI-only controls */
+      el.querySelectorAll(".pdf-hide,.pdf-hide-if-empty").forEach(n => {
+        const h = n as HTMLElement;
+        hiddenEls.push({ node: h, was: h.style.display });
+        h.style.display = "none";
+      });
+
+      /* 2. Replace inputs/textareas with baked text divs in-place */
+      Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
+        const inp = n as HTMLInputElement | HTMLTextAreaElement;
+        const cs  = window.getComputedStyle(inp);
         const div = document.createElement("div");
-        div.textContent = srcEl.value;
+        div.textContent = inp.value;
         div.style.cssText = [
           "background:transparent", "border:none",
           "font-family:Cairo,Arial,sans-serif",
           `font-size:${cs.fontSize}`, `font-weight:${cs.fontWeight}`,
           `color:${cs.color}`, `text-align:${cs.textAlign}`,
           "width:100%", "white-space:pre-wrap", "word-break:break-word",
+          `min-height:${cs.height}`,
         ].join(";");
-        cloEl.parentNode?.replaceChild(div, cloEl);
+        inp.parentNode!.insertBefore(div, inp);
+        (inp as HTMLElement).style.display = "none";
+        replacedInputs.push({ input: inp as HTMLElement, div });
       });
 
-      /* hide controls and strip Tailwind to avoid oklch errors */
-      clone.querySelectorAll(".pdf-hide,.pdf-hide-if-empty")
-           .forEach(n => ((n as HTMLElement).style.display = "none"));
-      clone.querySelectorAll("[class]")
-           .forEach(n => n.removeAttribute("class"));
+      /* 3. Strip Tailwind class names to avoid oklch colour errors */
+      Array.from(el.querySelectorAll("[class]")).forEach(n => {
+        savedClasses.push({ node: n, cls: n.className });
+        n.removeAttribute("class");
+      });
 
-      wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;";
-      wrapper.appendChild(clone);
-      document.body.appendChild(wrapper);
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 60));
 
-      const canvas = await html2canvas(clone, {
+      /* 4. Capture element exactly where it sits in the page */
+      const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
-        scrollX: 0, scrollY: 0,
-        width: clone.offsetWidth,
-        height: clone.offsetHeight,
       });
       const PX = 3.7795275591;
       const w = canvas.width / PX;
@@ -224,7 +230,13 @@ export default function OldStyleQuotationPage() {
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
     } finally {
-      if (wrapper) document.body.removeChild(wrapper);
+      /* Restore everything */
+      hiddenEls.forEach(({ node, was }) => (node.style.display = was));
+      replacedInputs.forEach(({ input, div }) => {
+        div.parentNode?.removeChild(div);
+        (input as HTMLElement).style.display = "";
+      });
+      savedClasses.forEach(({ node, cls }) => (node.className = cls));
       setIsPdf(false);
       setShowPdfMenu(false);
     }

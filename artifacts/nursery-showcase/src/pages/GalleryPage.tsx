@@ -4041,9 +4041,9 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     try {
                       const prefill = {
                         details: {
-                          quotationNumber: format(new Date(editQuote.created_at), 'yyyyMMdd'),
+                          quotationNumber: new Date(editQuote.created_at).toISOString().slice(0,10).replace(/-/g,''),
                           customerName: editQuote.customer_name,
-                          date: format(new Date(editQuote.created_at), 'yyyy-MM-dd'),
+                          date: new Date(editQuote.created_at).toISOString().slice(0,10),
                           notes: editQuote.notes || '',
                         },
                         items: editQuote.items.map((it: any, idx: number) => ({
@@ -4068,7 +4068,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                       const prefill = {
                         details: {
                           quotationNumber: new Date().toISOString().slice(0,10).replace(/-/g,''),
-                          customerName: editQuote?.customerName || '',
+                          customerName: editQuote?.customer_name || '',
                           date: new Date().toISOString().slice(0,10),
                           notes: editQuote?.notes || '',
                           phone: '00962777772211', email: 'tamerqadri@gmail.com', website: 'www.alkadri-plants.com',
