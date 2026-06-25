@@ -195,14 +195,17 @@ export default function QadriOldQuotationPage() {
            .forEach(n => n.removeAttribute("class"));
 
       wrapper = document.createElement("div");
-      wrapper.style.cssText = "position:fixed;left:-9999px;top:0;z-index:-9999;pointer-events:none;background:#fff;";
+      wrapper.style.cssText = "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;visibility:hidden;";
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 120));
 
       const canvas = await html2canvas(clone, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
+        scrollX: 0, scrollY: 0,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
       });
       const PX = 3.7795275591;
       const w  = canvas.width  / PX;

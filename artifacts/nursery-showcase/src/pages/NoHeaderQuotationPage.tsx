@@ -169,20 +169,24 @@ export default function NoHeaderQuotationPage() {
       /* 5. Mount clone off-screen so html2canvas sees full height */
       wrapper = document.createElement("div");
       wrapper.style.cssText =
-        "position:fixed;left:-9999px;top:0;z-index:-9999;pointer-events:none;background:#fff;";
+        "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;visibility:hidden;";
       wrapper.appendChild(clone);
       document.body.appendChild(wrapper);
 
       /* Give the browser one paint cycle to lay out the clone */
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 120));
 
-      /* 6. Capture the off-screen clone — no scroll-offset confusion */
+      /* 6. Capture — scrollX/Y:0 ensures no viewport-offset clipping */
       const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
+        scrollX: 0,
+        scrollY: 0,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
       });
 
       const PX = 3.7795275591;

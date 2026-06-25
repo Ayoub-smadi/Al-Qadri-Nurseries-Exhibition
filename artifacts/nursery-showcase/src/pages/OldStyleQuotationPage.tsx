@@ -164,17 +164,54 @@ export default function OldStyleQuotationPage() {
     if (file) { const r = new FileReader(); r.onloadend = () => setLogoUrl(r.result as string); r.readAsDataURL(file); }
   };
 
-  /* ─── PDF export ───────────────────────────────────── */
+  /* ─── PDF export (off-screen clone) ───────────────── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
+    let wrapper: HTMLDivElement | null = null;
     try {
       await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 200));
-      const canvas = await html2canvas(docRef.current, {
+      await new Promise(r => setTimeout(r, 150));
+      const el = docRef.current;
+      const clone = el.cloneNode(true) as HTMLElement;
+
+      /* bake input/textarea values into plain divs */
+      const srcInputs   = Array.from(el.querySelectorAll("input, textarea"));
+      const cloneInputs = Array.from(clone.querySelectorAll("input, textarea"));
+      srcInputs.forEach((src, i) => {
+        const srcEl = src as HTMLInputElement | HTMLTextAreaElement;
+        const cloEl = cloneInputs[i] as HTMLInputElement | HTMLTextAreaElement;
+        const cs = window.getComputedStyle(srcEl);
+        const div = document.createElement("div");
+        div.textContent = srcEl.value;
+        div.style.cssText = [
+          "background:transparent", "border:none",
+          "font-family:Cairo,Arial,sans-serif",
+          `font-size:${cs.fontSize}`, `font-weight:${cs.fontWeight}`,
+          `color:${cs.color}`, `text-align:${cs.textAlign}`,
+          "width:100%", "white-space:pre-wrap", "word-break:break-word",
+        ].join(";");
+        cloEl.parentNode?.replaceChild(div, cloEl);
+      });
+
+      /* hide controls and strip Tailwind to avoid oklch errors */
+      clone.querySelectorAll(".pdf-hide,.pdf-hide-if-empty")
+           .forEach(n => ((n as HTMLElement).style.display = "none"));
+      clone.querySelectorAll("[class]")
+           .forEach(n => n.removeAttribute("class"));
+
+      wrapper = document.createElement("div");
+      wrapper.style.cssText = "position:fixed;left:0;top:0;z-index:-9999;pointer-events:none;background:#fff;visibility:hidden;";
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+      await new Promise(r => setTimeout(r, 120));
+
+      const canvas = await html2canvas(clone, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
-        windowWidth: docRef.current.offsetWidth,
+        scrollX: 0, scrollY: 0,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
       });
       const PX = 3.7795275591;
       const w = canvas.width / PX;
@@ -187,6 +224,7 @@ export default function OldStyleQuotationPage() {
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
     } finally {
+      if (wrapper) document.body.removeChild(wrapper);
       setIsPdf(false);
       setShowPdfMenu(false);
     }
