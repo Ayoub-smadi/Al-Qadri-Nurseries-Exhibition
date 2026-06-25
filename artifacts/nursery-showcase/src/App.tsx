@@ -5,6 +5,7 @@ import { AppProvider } from "@/lib/context";
 import GalleryPage from "@/pages/GalleryPage";
 import CreateQuotationPage from "@/pages/CreateQuotationPage";
 import QuotationHistoryPage from "@/pages/QuotationHistoryPage";
+import OldStyleQuotationPage from "@/pages/OldStyleQuotationPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ function RouterView() {
 
   if (path === "/create-quotation") return <CreateQuotationPage />;
   if (path === "/quotation-history") return <QuotationHistoryPage />;
+  if (path === "/old-quotation") return <OldStyleQuotationPage />;
   return <GalleryPage />;
 }
 

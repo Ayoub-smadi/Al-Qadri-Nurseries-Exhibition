@@ -40,11 +40,18 @@ export default function QuotationHistoryPage() {
             <p className="text-slate-400 text-xs">تصفح وتعديل جميع عروض الأسعار</p>
           </div>
         </div>
-        <button onClick={() => navigate("/create-quotation")}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-700 text-white font-bold text-sm hover:bg-green-800 transition-colors">
-          <Plus className="w-4 h-4" />
-          عرض جديد
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate("/old-quotation")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1a2744] text-white font-bold text-sm hover:bg-[#1e2f50] transition-colors">
+            <Plus className="w-4 h-4" />
+            عرض قادري
+          </button>
+          <button onClick={() => navigate("/create-quotation")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-700 text-white font-bold text-sm hover:bg-green-800 transition-colors">
+            <Plus className="w-4 h-4" />
+            عرض جديد
+          </button>
+        </div>
       </div>
 
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4">
