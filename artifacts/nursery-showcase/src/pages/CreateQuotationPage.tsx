@@ -471,9 +471,9 @@ export default function CreateQuotationPage() {
                   <span className="w-2 h-2 rounded-full bg-slate-800 flex-shrink-0"></span>
                   النموذج الحديث
                 </button>
-                <button onClick={() => { setPdfTemplate("qadri-old"); handlePDF("qadri-old"); }}
-                  className={`w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-green-50 transition-colors ${pdfTemplate === "qadri-old" ? "font-bold text-green-800" : "text-slate-700"}`}>
-                  <span className="w-2 h-2 rounded-full bg-green-700 flex-shrink-0"></span>
+                <button onClick={() => { setPdfMenuOpen(false); navigate("/old-quotation"); }}
+                  className="w-full text-right px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-blue-50 transition-colors text-slate-700">
+                  <span className="w-2 h-2 rounded-full bg-[#1a2744] flex-shrink-0"></span>
                   قادري قديم
                 </button>
                 <button onClick={() => { setPdfTemplate("no-header"); handlePDF("no-header"); }}
