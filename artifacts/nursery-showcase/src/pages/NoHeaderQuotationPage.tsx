@@ -9,6 +9,19 @@ import {
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+/* ─── Color schemes ─────────────────────────────────────── */
+const SCHEMES = {
+  green:  { accent: "#16a34a", header: "#166534", lightBg: "#f0fdf4", lightBorder: "#bbf7d0" },
+  orange: { accent: "#ea580c", header: "#9a3412", lightBg: "#fff7ed", lightBorder: "#fed7aa" },
+  blue:   { accent: "#2563eb", header: "#1e40af", lightBg: "#eff6ff", lightBorder: "#bfdbfe" },
+  black:  { accent: "#1f2937", header: "#111827", lightBg: "#f8fafc", lightBorder: "#cbd5e1" },
+} as const;
+type ColorKey = keyof typeof SCHEMES;
+
+const COLOR_LABELS: Record<ColorKey, string> = {
+  green: "أخضر", orange: "برتقالي", blue: "أزرق", black: "أسود",
+};
+
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
   id: string;
@@ -18,7 +31,6 @@ type Item = {
   unitPrice: number;
   total: number;
 };
-
 type Details = {
   quotationNumber: string;
   customerName: string;
@@ -53,37 +65,37 @@ function fmt(n: number) {
 export default function NoHeaderQuotationPage() {
   const docRef = useRef<HTMLDivElement>(null);
 
-  /* ─── Load prefill from GalleryPage (if navigated from there) */
+  /* ─── Load prefill / draft ─────────────────────────────── */
   const loadInitial = () => {
     try {
       const prefill = sessionStorage.getItem(PREFILL_KEY);
-      if (prefill) {
-        sessionStorage.removeItem(PREFILL_KEY);
-        return JSON.parse(prefill);
-      }
+      if (prefill) { sessionStorage.removeItem(PREFILL_KEY); return JSON.parse(prefill); }
       const draft = sessionStorage.getItem(DRAFT_KEY);
       if (draft) return JSON.parse(draft);
     } catch {}
     return null;
   };
-
   const initial = loadInitial();
 
   const [details, setDetails] = useState<Details>(initial?.details ?? mkDefault());
   const [items, setItems] = useState<Item[]>(initial?.items ?? [mkItem()]);
   const [logoUrl, setLogoUrl] = useState<string>(initial?.logoUrl ?? "");
   const [stampUrl, setStampUrl] = useState<string>(initial?.stampUrl ?? "");
+  const [colorKey, setColorKey] = useState<ColorKey>((initial?.colorKey ?? "green") as ColorKey);
   const [isPdf, setIsPdf] = useState(false);
+
+  const C = SCHEMES[colorKey];
 
   /* ─── Auto-save draft ──────────────────────────────────── */
   const saveDraft = useCallback(() => {
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, stampUrl })); } catch {}
-  }, [details, items, logoUrl, stampUrl]);
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, stampUrl, colorKey })); } catch {}
+  }, [details, items, logoUrl, stampUrl, colorKey]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
-    setDetails(mkDefault()); setItems([mkItem()]); setLogoUrl(""); setStampUrl("");
+    setDetails(mkDefault()); setItems([mkItem()]);
+    setLogoUrl(""); setStampUrl(""); setColorKey("green");
   };
 
   /* ─── Totals ───────────────────────────────────────────── */
@@ -106,20 +118,50 @@ export default function NoHeaderQuotationPage() {
     const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
   };
 
-  /* ─── PDF export ───────────────────────────────────────── */
+  /* ─── PDF export (fixes oklch + hides empty upload boxes) ─ */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
     try {
       await document.fonts.ready;
       await new Promise(r => setTimeout(r, 200));
+
       const canvas = await html2canvas(docRef.current, {
-        scale: 2, useCORS: true, allowTaint: true,
-        backgroundColor: "#ffffff", logging: false,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
         windowWidth: docRef.current.offsetWidth,
+        onclone: (_clonedDoc, element) => {
+          /* Strip all Tailwind classes to avoid oklch parse errors */
+          element.querySelectorAll("[class]").forEach(el => el.removeAttribute("class"));
+
+          /* Restore essential inline overrides for form fields */
+          element.querySelectorAll("input, textarea").forEach(el => {
+            const h = el as HTMLElement;
+            h.style.background = "transparent";
+            h.style.border = "none";
+            h.style.outline = "none";
+            h.style.width = "100%";
+            h.style.fontFamily = "Cairo, Arial, sans-serif";
+          });
+
+          /* Hide empty upload boxes */
+          element.querySelectorAll(".pdf-hide-if-empty").forEach(el => {
+            (el as HTMLElement).style.display = "none";
+          });
+
+          /* Hide the delete buttons column */
+          element.querySelectorAll(".pdf-hide").forEach(el => {
+            (el as HTMLElement).style.display = "none";
+          });
+        },
       });
+
       const PX = 3.7795275591;
-      const w = canvas.width / PX; const h = canvas.height / PX;
+      const w = canvas.width / PX;
+      const h = canvas.height / PX;
       const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
       pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
@@ -127,7 +169,9 @@ export default function NoHeaderQuotationPage() {
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
-    } finally { setIsPdf(false); }
+    } finally {
+      setIsPdf(false);
+    }
   };
 
   /* ─── WhatsApp ─────────────────────────────────────────── */
@@ -138,113 +182,162 @@ export default function NoHeaderQuotationPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
-  /* ── Reused input style ─────────────────────────────────── */
-  const inp = (extra = "") =>
-    `bg-transparent border-none outline-none focus:bg-green-50/60 rounded px-1 w-full ${extra}`;
+  /* ─── Reusable input style (no focus classes → no oklch) ── */
+  const fieldStyle: React.CSSProperties = {
+    background: "transparent", border: "none", outline: "none",
+    width: "100%", fontFamily: "Cairo, Arial, sans-serif",
+  };
 
   /* ════════════════════════════════════════════════════════ */
   return (
-    <div dir="rtl" className="min-h-screen bg-gray-100">
+    <div dir="rtl" style={{ minHeight: "100vh", background: "#f3f4f6", fontFamily: "Cairo, Arial, sans-serif" }}>
 
-      {/* ── Toolbar ─────────────────────────────────────── */}
-      <div className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm px-4 py-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+      {/* ── Toolbar ──────────────────────────────────────── */}
+      <div style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "#fff", borderBottom: "1px solid #e2e8f0",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+        padding: "8px 16px",
+        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => navigate("/")}
-            className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-1 text-sm font-medium">
-            <ArrowRight className="w-4 h-4" /> رجوع
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "5px 10px", borderRadius: 8,
+              background: "#f1f5f9", color: "#475569",
+              border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            <ArrowRight style={{ width: 15, height: 15 }} /> رجوع
           </button>
           <div>
-            <h1 className="text-base font-bold text-slate-800">عرض السعر — دون ترويسة</h1>
-            <p className="text-slate-400 text-xs hidden sm:block">اضغط على أي حقل لتعديله مباشرة</p>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>عرض السعر — دون ترويسة</div>
+            <div style={{ fontSize: 11, color: "#94a3b8" }}>اضغط على أي حقل لتعديله مباشرة</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button onClick={clearDraft} className="p-1.5 rounded-lg bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-red-500 transition-all" title="مسح وبدء من جديد">
-            <RotateCcw className="w-4 h-4" />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Color picker */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {(Object.keys(SCHEMES) as ColorKey[]).map(k => (
+              <button
+                key={k}
+                title={COLOR_LABELS[k]}
+                onClick={() => setColorKey(k)}
+                style={{
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: SCHEMES[k].accent,
+                  border: k === colorKey ? "2.5px solid #1e293b" : "2px solid #e2e8f0",
+                  cursor: "pointer", flexShrink: 0,
+                }}
+              />
+            ))}
+          </div>
+
+          <button onClick={clearDraft} title="مسح وبدء من جديد"
+            style={{
+              padding: 6, borderRadius: 8, background: "#f8fafc",
+              color: "#64748b", border: "1px solid #e2e8f0", cursor: "pointer",
+            }}>
+            <RotateCcw style={{ width: 14, height: 14 }} />
           </button>
-          <button onClick={handleWhatsApp}
-            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all" title="إرسال واتساب">
-            <MessageCircle className="w-4 h-4" />
+
+          <button onClick={handleWhatsApp} title="إرسال واتساب"
+            style={{
+              padding: 6, borderRadius: 8, background: "#f0fdf4",
+              color: "#16a34a", border: "1px solid #bbf7d0", cursor: "pointer",
+            }}>
+            <MessageCircle style={{ width: 14, height: 14 }} />
           </button>
+
           <button onClick={handlePDF} disabled={isPdf}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-800 transition-all disabled:opacity-50 text-sm">
-            {isPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 16px", borderRadius: 8,
+              background: C.accent, color: "#fff",
+              border: "none", cursor: "pointer",
+              fontWeight: 700, fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
+              opacity: isPdf ? 0.6 : 1,
+            }}>
+            {isPdf ? <Loader2 style={{ width: 14, height: 14 }} /> : <FileText style={{ width: 14, height: 14 }} />}
             {isPdf ? "جاري التنزيل..." : "تنزيل PDF"}
           </button>
         </div>
       </div>
 
       {/* ── Document ─────────────────────────────────────── */}
-      <div className="py-8 px-4 flex justify-center">
+      <div style={{ padding: "32px 16px", display: "flex", justifyContent: "center" }}>
         <div
           ref={docRef}
-          className="bg-white"
-          style={{ width: 794, minWidth: 794, fontFamily: "Cairo, Arial, sans-serif", direction: "rtl" }}
+          style={{ background: "#fff", width: 794, minWidth: 794, fontFamily: "Cairo, Arial, sans-serif", direction: "rtl" }}
         >
-          {/* Green top bar */}
-          <div style={{ height: 8, background: "#16a34a" }} />
+          {/* Accent top bar */}
+          <div style={{ height: 8, background: C.accent }} />
 
           {/* ── Title row ─────────────────────────────── */}
           <div style={{ padding: "20px 28px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             {/* Logo upload (left) */}
-            <label style={{ cursor: "pointer" }}>
-              <div style={{
-                width: 72, height: 72, border: "2px dashed #d1d5db", borderRadius: 8,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                background: "#f9fafb", gap: 4,
-              }}>
-                {logoUrl ? (
-                  <img src={logoUrl} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
-                ) : (
-                  <>
-                    <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
-                    <span style={{ fontSize: 10, color: "#9ca3af" }}>شعار</span>
-                  </>
-                )}
+            {logoUrl ? (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <img src={logoUrl} alt="logo" style={{ width: 72, height: 72, objectFit: "contain" }} />
+                <button
+                  className="pdf-hide"
+                  onClick={() => setLogoUrl("")}
+                  style={{
+                    position: "absolute", top: -6, right: -6,
+                    background: "#ef4444", color: "#fff",
+                    border: "none", borderRadius: "50%",
+                    width: 18, height: 18, cursor: "pointer", fontSize: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>✕</button>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setLogoUrl); }} />
-            </label>
+            ) : (
+              <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
+                <div style={{
+                  width: 72, height: 72, border: "2px dashed #d1d5db", borderRadius: 8,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  background: "#f9fafb", gap: 4,
+                }}>
+                  <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>شعار</span>
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setLogoUrl); }} />
+              </label>
+            )}
 
             {/* Title (right) */}
-            <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: 22, fontWeight: 800, color: "#16a34a", textDecoration: "underline", textDecorationColor: "#16a34a" }}>
-                عرض سعر
-              </span>
-            </div>
+            <span style={{ fontSize: 24, fontWeight: 800, color: C.accent, textDecoration: "underline", textDecorationColor: C.accent }}>
+              عرض سعر
+            </span>
           </div>
 
-          {/* ── Info row (light green bg) ──────────────── */}
-          <div style={{ margin: "0 28px 0", background: "#f0fdf4", borderRadius: 8, display: "flex", overflow: "hidden" }}>
-            {/* العميل */}
-            <div style={{ flex: 1, padding: "10px 16px", borderLeft: "1px solid #bbf7d0" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 4 }}>العميل</div>
+          {/* ── Info row ──────────────────────────────── */}
+          <div style={{ margin: "0 28px", background: C.lightBg, borderRadius: 8, display: "flex", overflow: "hidden" }}>
+            <div style={{ flex: 1, padding: "10px 16px", borderLeft: `1px solid ${C.lightBorder}` }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 4 }}>العميل</div>
               <input
                 value={details.customerName}
                 onChange={e => setDetails(p => ({ ...p, customerName: e.target.value }))}
                 placeholder="اسم العميل"
-                className={inp("text-right placeholder:text-green-200")}
-                style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}
+                style={{ ...fieldStyle, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "right" }}
               />
             </div>
-            {/* رقم عرض السعر */}
-            <div style={{ flex: 1, padding: "10px 16px", borderLeft: "1px solid #bbf7d0", textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 4, textAlign: "center" }}>رقم عرض السعر</div>
+            <div style={{ flex: 1, padding: "10px 16px", borderLeft: `1px solid ${C.lightBorder}`, textAlign: "center" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 4 }}>رقم عرض السعر</div>
               <input
                 value={details.quotationNumber}
                 onChange={e => setDetails(p => ({ ...p, quotationNumber: e.target.value }))}
-                className={inp("text-center")}
-                style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}
+                style={{ ...fieldStyle, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
               />
             </div>
-            {/* التاريخ */}
             <div style={{ flex: 1, padding: "10px 16px", textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 4, textAlign: "center" }}>التاريخ</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 4 }}>التاريخ</div>
               <input
                 type="date"
                 value={details.date}
                 onChange={e => setDetails(p => ({ ...p, date: e.target.value }))}
-                className={inp("text-center")}
-                style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}
+                style={{ ...fieldStyle, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
               />
             </div>
           </div>
@@ -253,67 +346,60 @@ export default function NoHeaderQuotationPage() {
           <div style={{ margin: "16px 28px 0" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
-                <tr style={{ background: "#166534", color: "#ffffff" }}>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 32 }}>#</th>
-                  <th style={{ padding: "10px 12px", textAlign: "right" }}>البيان</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 70 }}>الكمية</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90 }}>سعر الوحدة</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90 }}>الإجمالي</th>
+                <tr style={{ background: C.header, color: "#ffffff" }}>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif" }}>#</th>
+                  <th style={{ padding: "10px 12px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif" }}>البيان</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 70, fontFamily: "Cairo, Arial, sans-serif" }}>الكمية</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif" }}>سعر الوحدة</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif" }}>الإجمالي</th>
+                  <th className="pdf-hide" style={{ width: 24 }} />
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, i) => (
                   <tr key={item.id} style={{ borderBottom: "1px solid #e5e7eb", background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
-                    {/* # */}
-                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#374151", verticalAlign: "top" }}>
+                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#374151", verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif" }}>
                       {i + 1}
                     </td>
-                    {/* البيان */}
                     <td style={{ padding: "8px 12px", verticalAlign: "top" }}>
                       <input
                         value={item.name}
                         onChange={e => updateItem(item.id, "name", e.target.value)}
                         placeholder="اسم البيان"
-                        className={inp("placeholder:text-slate-300")}
-                        style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "right", marginBottom: 2 }}
+                        style={{ ...fieldStyle, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "right", marginBottom: 2 }}
                       />
                       <input
                         value={item.description}
                         onChange={e => updateItem(item.id, "description", e.target.value)}
                         placeholder="وصف إضافي..."
-                        className={inp("placeholder:text-slate-200")}
-                        style={{ fontSize: 11, color: "#6b7280", textAlign: "right" }}
+                        style={{ ...fieldStyle, fontSize: 11, color: "#6b7280", textAlign: "right" }}
                       />
                     </td>
-                    {/* الكمية */}
                     <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
                       <input
                         type="number" min={1}
                         value={item.quantity}
                         onChange={e => updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)}
-                        className={inp("text-center")}
-                        style={{ fontSize: 12, fontWeight: 700 }}
+                        style={{ ...fieldStyle, fontSize: 12, fontWeight: 700, textAlign: "center" }}
                       />
                     </td>
-                    {/* سعر الوحدة */}
                     <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
                       <input
                         type="number" min={0} step={0.01}
                         value={item.unitPrice || ""}
                         onChange={e => updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
-                        className={inp("text-center placeholder:text-slate-300")}
-                        style={{ fontSize: 12, fontWeight: 700 }}
+                        style={{ ...fieldStyle, fontSize: 12, fontWeight: 700, textAlign: "center" }}
                       />
                     </td>
-                    {/* الإجمالي */}
-                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top" }}>
+                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif" }}>
                       {fmt(item.total)}
                     </td>
-                    {/* حذف */}
-                    <td className="no-print" style={{ padding: "8px 2px", verticalAlign: "top", width: 20 }}>
-                      <button onClick={() => removeItem(item.id)} className="text-slate-200 hover:text-red-400 transition-colors mt-1.5">
-                        <Trash2 className="w-3.5 h-3.5" />
+                    <td className="pdf-hide" style={{ padding: "8px 2px", verticalAlign: "top", width: 24 }}>
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", padding: 2, marginTop: 6 }}>
+                        <Trash2 style={{ width: 13, height: 13 }} />
                       </button>
                     </td>
                   </tr>
@@ -322,76 +408,103 @@ export default function NoHeaderQuotationPage() {
             </table>
 
             {/* + إضافة صف */}
-            <button onClick={addItem}
-              className="flex items-center gap-1 mt-2 text-green-700 hover:text-green-800 text-sm font-medium transition-colors no-print">
-              <Plus className="w-4 h-4" />
+            <button
+              onClick={addItem}
+              className="pdf-hide"
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                marginTop: 8, background: "none", border: "none",
+                color: C.accent, cursor: "pointer",
+                fontFamily: "Cairo, Arial, sans-serif", fontSize: 13, fontWeight: 600,
+              }}>
+              <Plus style={{ width: 15, height: 15 }} />
               إضافة صف
             </button>
           </div>
 
           {/* ── Totals ────────────────────────────────── */}
           <div style={{ margin: "12px 28px 0" }}>
-            {/* المجموع الفرعي */}
             <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", padding: "8px 12px", gap: 16 }}>
-              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600, minWidth: 120 }}>المجموع الفرعي</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{fmt(subtotal)}</span>
+              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600, minWidth: 120, fontFamily: "Cairo, Arial, sans-serif" }}>المجموع الفرعي</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(subtotal)}</span>
             </div>
-            {/* الإجمالي الكلي */}
             <div style={{
-              background: "#16a34a", borderRadius: 8, padding: "12px 16px",
+              background: C.accent, borderRadius: 8, padding: "12px 16px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
               marginTop: 4,
             }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "#ffffff" }}>الإجمالي الكلي</span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: "#ffffff" }}>{fmt(subtotal)}</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", fontFamily: "Cairo, Arial, sans-serif" }}>الإجمالي الكلي</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: "#ffffff", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(subtotal)}</span>
             </div>
           </div>
 
           {/* ── Notes + Stamp ─────────────────────────── */}
           <div style={{ margin: "20px 28px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
             {/* Stamp upload (left) */}
-            <label style={{ cursor: "pointer", flexShrink: 0 }}>
-              <div style={{
-                width: 90, height: 90, border: "2px dashed #d1d5db", borderRadius: 8,
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                background: "#f9fafb", gap: 4,
-              }}>
-                {stampUrl ? (
-                  <img src={stampUrl} alt="stamp" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
-                ) : (
-                  <>
-                    <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
-                    <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
-                  </>
-                )}
+            {stampUrl ? (
+              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+                <img src={stampUrl} alt="stamp" style={{ width: 90, height: 90, objectFit: "contain" }} />
+                <button
+                  className="pdf-hide"
+                  onClick={() => setStampUrl("")}
+                  style={{
+                    position: "absolute", top: -6, right: -6,
+                    background: "#ef4444", color: "#fff",
+                    border: "none", borderRadius: "50%",
+                    width: 18, height: 18, cursor: "pointer", fontSize: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>✕</button>
               </div>
-              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
-            </label>
+            ) : (
+              <label style={{ cursor: "pointer", flexShrink: 0 }} className="pdf-hide-if-empty">
+                <div style={{
+                  width: 90, height: 90, border: "2px dashed #d1d5db", borderRadius: 8,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  background: "#f9fafb", gap: 4,
+                }}>
+                  <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
+                  <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
+              </label>
+            )}
 
             {/* Notes (right) */}
             <div style={{ flex: 1, textAlign: "right" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>ملاحظات</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات</div>
               <textarea
                 value={details.notes}
                 onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
                 placeholder="أي ملاحظات إضافية..."
                 rows={3}
-                className="w-full bg-transparent border-none outline-none focus:bg-green-50/40 rounded px-1 resize-none placeholder:text-slate-300"
-                style={{ fontSize: 12, color: "#374151", textAlign: "right", direction: "rtl" }}
+                style={{
+                  ...fieldStyle,
+                  resize: "none",
+                  fontSize: 12, color: "#374151",
+                  textAlign: "right", direction: "rtl",
+                }}
               />
             </div>
           </div>
 
-          {/* Green bottom bar */}
-          <div style={{ height: 8, background: "#16a34a", marginTop: 24 }} />
+          {/* Accent bottom bar */}
+          <div style={{ height: 8, background: C.accent, marginTop: 24 }} />
         </div>
       </div>
 
-      {/* Floating add button */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 no-print z-40">
-        <button onClick={addItem}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-green-700 text-white shadow-lg hover:bg-green-800 transition-all text-sm font-semibold">
-          <Plus className="w-4 h-4" />
+      {/* Floating add row button */}
+      <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 40 }}>
+        <button
+          onClick={addItem}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 24px", borderRadius: 9999,
+            background: C.accent, color: "#fff",
+            border: "none", cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+            fontFamily: "Cairo, Arial, sans-serif", fontSize: 13, fontWeight: 700,
+          }}>
+          <Plus style={{ width: 15, height: 15 }} />
           إضافة صف جديد
         </button>
       </div>
