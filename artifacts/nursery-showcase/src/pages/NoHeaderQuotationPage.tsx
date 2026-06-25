@@ -80,6 +80,7 @@ export default function NoHeaderQuotationPage() {
   const [details, setDetails] = useState<Details>(initial?.details ?? mkDefault());
   const [items, setItems] = useState<Item[]>(initial?.items ?? [mkItem()]);
   const [logoUrl, setLogoUrl] = useState<string>(initial?.logoUrl ?? "");
+  const [logoText, setLogoText] = useState<string>(initial?.logoText ?? "");
   const [stampUrl, setStampUrl] = useState<string>(initial?.stampUrl ?? "");
   const [colorKey, setColorKey] = useState<ColorKey>((initial?.colorKey ?? "green") as ColorKey);
   const [isPdf, setIsPdf] = useState(false);
@@ -88,14 +89,14 @@ export default function NoHeaderQuotationPage() {
 
   /* ─── Auto-save draft ──────────────────────────────────── */
   const saveDraft = useCallback(() => {
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, stampUrl, colorKey })); } catch {}
-  }, [details, items, logoUrl, stampUrl, colorKey]);
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, logoText, stampUrl, colorKey })); } catch {}
+  }, [details, items, logoUrl, logoText, stampUrl, colorKey]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
-    setLogoUrl(""); setStampUrl(""); setColorKey("green");
+    setLogoUrl(""); setLogoText(""); setStampUrl(""); setColorKey("green");
   };
 
   /* ─── Totals ───────────────────────────────────────────── */
@@ -277,36 +278,55 @@ export default function NoHeaderQuotationPage() {
 
           {/* ── Title row ─────────────────────────────── */}
           <div style={{ padding: "20px 28px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {/* Logo upload (left) */}
-            {logoUrl ? (
-              <div style={{ position: "relative", display: "inline-block" }}>
-                <img src={logoUrl} alt="logo" style={{ width: 72, height: 72, objectFit: "contain" }} />
-                <button
-                  className="pdf-hide"
-                  onClick={() => setLogoUrl("")}
-                  style={{
-                    position: "absolute", top: -6, right: -6,
-                    background: "#ef4444", color: "#fff",
-                    border: "none", borderRadius: "50%",
-                    width: 18, height: 18, cursor: "pointer", fontSize: 10,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>✕</button>
-              </div>
-            ) : (
-              <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
-                <div style={{
-                  width: 72, height: 72, border: "2px dashed #d1d5db", borderRadius: 8,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  background: "#f9fafb", gap: 4,
-                }}>
-                  <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
-                  <span style={{ fontSize: 10, color: "#9ca3af" }}>شعار</span>
+            {/* Logo + text below (right side in RTL) */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6, minWidth: 130 }}>
+              {logoUrl ? (
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <img
+                    src={logoUrl}
+                    alt="logo"
+                    style={{ maxWidth: 130, maxHeight: 90, width: "auto", height: "auto", objectFit: "contain", display: "block" }}
+                  />
+                  <button
+                    className="pdf-hide"
+                    onClick={() => setLogoUrl("")}
+                    style={{
+                      position: "absolute", top: -6, right: -6,
+                      background: "#ef4444", color: "#fff",
+                      border: "none", borderRadius: "50%",
+                      width: 18, height: 18, cursor: "pointer", fontSize: 10,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>✕</button>
                 </div>
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setLogoUrl); }} />
-              </label>
-            )}
+              ) : (
+                <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
+                  <div style={{
+                    width: 90, height: 72, border: "2px dashed #d1d5db", borderRadius: 8,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                    background: "#f9fafb", gap: 4,
+                  }}>
+                    <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
+                    <span style={{ fontSize: 10, color: "#9ca3af" }}>شعار</span>
+                  </div>
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setLogoUrl); }} />
+                </label>
+              )}
+              {/* Text below logo */}
+              <input
+                value={logoText}
+                onChange={e => setLogoText(e.target.value)}
+                placeholder="نص تحت اللوغو..."
+                style={{
+                  ...fieldStyle,
+                  fontSize: 11, color: "#374151", textAlign: "right",
+                  minWidth: 120, maxWidth: 160,
+                  borderBottom: isPdf ? "none" : "1px dashed #d1d5db",
+                  paddingBottom: 2,
+                }}
+              />
+            </div>
 
-            {/* Title (right) */}
+            {/* Title (left in RTL = visually right) */}
             <span style={{ fontSize: 24, fontWeight: 800, color: C.accent, textDecoration: "underline", textDecorationColor: C.accent }}>
               عرض سعر
             </span>
