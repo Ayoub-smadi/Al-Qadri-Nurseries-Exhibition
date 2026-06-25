@@ -4037,9 +4037,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs h-7">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />القادري</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleDownloadQadriOld(editQuote)} disabled={qadriOldPdfingId === editQuote.id} className="arabic text-xs h-7 text-green-700 border-green-200 hover:bg-green-50">
-                    {qadriOldPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />قادري قديم</>}
-                  </Button>
                   <Button size="sm" variant="outline" onClick={() => handleDownloadNoHeaderOnly(editQuote)} disabled={noHeaderPdfingId === editQuote.id} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
                     {noHeaderPdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />دون ترويسة</>}
                   </Button>
