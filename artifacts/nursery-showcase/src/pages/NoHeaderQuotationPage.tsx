@@ -119,59 +119,75 @@ export default function NoHeaderQuotationPage() {
     const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
   };
 
-  /* ─── PDF export (fixes oklch + hides empty upload boxes) ─ */
+  /* ─── PDF export ────────────────────────────────────────── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
+    let wrapper: HTMLDivElement | null = null;
     try {
       await document.fonts.ready;
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 150));
 
       const el = docRef.current;
-      const fullHeight = el.scrollHeight;
-      const fullWidth = el.scrollWidth;
 
-      const canvas = await html2canvas(el, {
+      /* 1. Deep-clone the element so we never touch the live DOM */
+      const clone = el.cloneNode(true) as HTMLElement;
+
+      /* 2. Bake live input/textarea values into the clone as text divs
+            (cloneNode copies DOM attributes, not live .value) */
+      const srcInputs = Array.from(el.querySelectorAll("input, textarea"));
+      const cloneInputs = Array.from(clone.querySelectorAll("input, textarea"));
+      srcInputs.forEach((src, i) => {
+        const srcEl  = src as HTMLInputElement | HTMLTextAreaElement;
+        const cloEl  = cloneInputs[i] as HTMLInputElement | HTMLTextAreaElement;
+        const cs     = window.getComputedStyle(srcEl);
+        const div    = document.createElement("div");
+        div.textContent = srcEl.value;
+        div.style.cssText = [
+          `background:transparent`,
+          `border:none`,
+          `font-family:Cairo,Arial,sans-serif`,
+          `font-size:${cs.fontSize}`,
+          `font-weight:${cs.fontWeight}`,
+          `color:${cs.color}`,
+          `text-align:${cs.textAlign}`,
+          `width:100%`,
+          `white-space:pre-wrap`,
+          `word-break:break-word`,
+        ].join(";");
+        cloEl.parentNode?.replaceChild(div, cloEl);
+      });
+
+      /* 3. Hide UI-only elements */
+      clone.querySelectorAll(".pdf-hide, .pdf-hide-if-empty")
+           .forEach(n => ((n as HTMLElement).style.display = "none"));
+
+      /* 4. Strip Tailwind class names to avoid oklch colour errors */
+      clone.querySelectorAll("[class]")
+           .forEach(n => n.removeAttribute("class"));
+
+      /* 5. Mount clone off-screen so html2canvas sees full height */
+      wrapper = document.createElement("div");
+      wrapper.style.cssText =
+        "position:fixed;left:-9999px;top:0;z-index:-9999;pointer-events:none;background:#fff;";
+      wrapper.appendChild(clone);
+      document.body.appendChild(wrapper);
+
+      /* Give the browser one paint cycle to lay out the clone */
+      await new Promise(r => setTimeout(r, 100));
+
+      /* 6. Capture the off-screen clone — no scroll-offset confusion */
+      const canvas = await html2canvas(clone, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
-        width: fullWidth,
-        height: fullHeight,
-        windowWidth: fullWidth,
-        windowHeight: fullHeight,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (_clonedDoc, element) => {
-          /* Strip all Tailwind classes to avoid oklch parse errors */
-          element.querySelectorAll("[class]").forEach(el => el.removeAttribute("class"));
-
-          /* Restore essential inline overrides for form fields */
-          element.querySelectorAll("input, textarea").forEach(el => {
-            const h = el as HTMLElement;
-            h.style.background = "transparent";
-            h.style.border = "none";
-            h.style.outline = "none";
-            h.style.width = "100%";
-            h.style.fontFamily = "Cairo, Arial, sans-serif";
-          });
-
-          /* Hide empty upload boxes */
-          element.querySelectorAll(".pdf-hide-if-empty").forEach(el => {
-            (el as HTMLElement).style.display = "none";
-          });
-
-          /* Hide the delete buttons column */
-          element.querySelectorAll(".pdf-hide").forEach(el => {
-            (el as HTMLElement).style.display = "none";
-          });
-        },
       });
 
       const PX = 3.7795275591;
-      const w = canvas.width / PX;
-      const h = canvas.height / PX;
+      const w  = canvas.width  / PX;
+      const h  = canvas.height / PX;
       const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
       pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
@@ -180,6 +196,7 @@ export default function NoHeaderQuotationPage() {
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
     } finally {
+      if (wrapper) document.body.removeChild(wrapper);
       setIsPdf(false);
     }
   };
