@@ -611,7 +611,10 @@ export default function QadriOldQuotationPage() {
                     </td>
                     {/* الصورة */}
                     <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle" }}>
-                      <label style={{ cursor: "pointer", display: "block" }}>
+                      <div
+                        style={{ cursor: "pointer", display: "block" }}
+                        onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
+                      >
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt="" style={{ width: 80, height: 64, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
                         ) : (
@@ -624,9 +627,14 @@ export default function QadriOldQuotationPage() {
                             <span style={{ fontSize: 10, color: "#9ca3af" }}>صورة</span>
                           </div>
                         )}
-                        <input type="file" accept="image/*" style={{ display: "none" }}
-                          onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, v => updateItem(item.id, "imageUrl", v)); }} />
-                      </label>
+                      </div>
+                      <input
+                        id={`img-input-${item.id}`}
+                        type="file"
+                        accept="image/*"
+                        style={{ position: "fixed", top: -9999, left: -9999, opacity: 0, width: 1, height: 1 }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, v => updateItem(item.id, "imageUrl", v)); }}
+                      />
                     </td>
                     {/* حذف */}
                     <td className="pdf-hide" style={{ padding: "6px 2px", verticalAlign: "top", width: 24 }}>

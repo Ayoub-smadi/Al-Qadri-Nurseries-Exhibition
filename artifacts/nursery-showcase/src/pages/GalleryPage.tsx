@@ -4070,60 +4070,6 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs h-7">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />القادري</>}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    try {
-                      const prefill = {
-                        details: {
-                          quotationNumber: new Date(editQuote.created_at).toISOString().slice(0,10).replace(/-/g,''),
-                          customerName: editQuote.customer_name,
-                          date: new Date(editQuote.created_at).toISOString().slice(0,10),
-                          notes: editQuote.notes || '',
-                        },
-                        items: editQuote.items.map((it: any, idx: number) => ({
-                          id: String(idx) + Math.random(),
-                          name: it.plantNameAr || it.plantNameEn || '',
-                          description: it.size || '',
-                          quantity: it.quantity || 1,
-                          unitPrice: it.price || 0,
-                          total: (it.quantity || 1) * (it.price || 0),
-                        })),
-                        logoUrl: '',
-                        stampUrl: '',
-                      };
-                      sessionStorage.setItem('aq_no_header_prefill', JSON.stringify(prefill));
-                    } catch {}
-                    navigate('/no-header-quotation');
-                  }} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
-                    <FileDown className="w-3.5 h-3.5 me-1" />دون ترويسة
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    try {
-                      const prefill = {
-                        details: {
-                          quotationNumber: new Date().toISOString().slice(0,10).replace(/-/g,''),
-                          customerName: editQuote?.customer_name || '',
-                          date: new Date().toISOString().slice(0,10),
-                          notes: editQuote?.notes || '',
-                          phone: '00962777772211', email: 'tamerqadri@gmail.com', website: 'www.alkadri-plants.com',
-                          closingText: 'واقبلوا فائق الاحترام....', signerTitle: 'المدير العام/ ثامر احمد القادري',
-                          companyNameAr: 'مؤسسة ومشاتل القادري الزراعية', companyLocationAr: 'جرش – الرشايدة',
-                          companyNameEn: 'Al-Qadri Agricultural Establishment', companyLocationEn: 'Jerash - Al-Rashaidah',
-                          footerCompany: 'مؤسسة ومشاتل القادري الزراعية',
-                        },
-                        items: (editQuote?.items || []).map((it: any) => ({
-                          id: Date.now().toString() + Math.random(),
-                          name: it.name || '', description: it.description || '',
-                          category: it.category || '', quantity: it.quantity || 1,
-                          price: it.price || 0, total: (it.quantity || 1) * (it.price || 0),
-                        })),
-                        logoUrl: '', stampUrl: '',
-                      };
-                      sessionStorage.setItem('aq_qadri_old_inline_draft', JSON.stringify(prefill));
-                    } catch {}
-                    navigate('/qadri-old-quotation');
-                  }} className="arabic text-xs h-7 text-slate-600 border-slate-200 hover:bg-slate-50">
-                    <FileDown className="w-3.5 h-3.5 me-1" />قادري قديم
-                  </Button>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-4">

@@ -207,12 +207,21 @@ export default function NoHeaderQuotationPage() {
       await new Promise(r => setTimeout(r, 60));
 
       /* 4. Capture the full element at its natural size */
+      const docW = el.scrollWidth;
+      const docH = el.scrollHeight;
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
         scrollX: 0, scrollY: 0,
-        width: el.scrollWidth,
-        height: el.scrollHeight,
+        width: docW,
+        height: docH,
+        windowWidth: docW,
+        windowHeight: docH,
+        onclone: (_doc, cloned) => {
+          cloned.style.position = "relative";
+          cloned.style.left = "0";
+          cloned.style.top = "0";
+        },
       });
       const PX = 3.7795275591;
       const w  = canvas.width  / PX;
