@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
-  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X,
+  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -39,7 +39,30 @@ type Details = {
   footerCompany: string;
 };
 
-const DRAFT_KEY = "aq_qadri_old_inline_draft";
+const DRAFT_KEY   = "aq_qadri_old_inline_draft";
+const RECORDS_KEY = "aq_qadri_old_records";
+const EDIT_ID_KEY = "aq_qadri_old_edit_id";
+
+function loadQadriRecords(): any[] {
+  try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+
+function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string }, id?: string): string {
+  const records = loadQadriRecords();
+  const now = new Date().toISOString();
+  if (id) {
+    const idx = records.findIndex((r: any) => r.id === id);
+    if (idx >= 0) {
+      records[idx] = { ...records[idx], ...data, updatedAt: now };
+      localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+      return id;
+    }
+  }
+  const newId = Date.now().toString();
+  records.unshift({ ...data, id: newId, createdAt: now, updatedAt: now });
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+  return newId;
+}
 
 const mkDefault = (): Details => ({
   quotationNumber: format(new Date(), "yyyyMMdd"),
@@ -83,6 +106,12 @@ export default function QadriOldQuotationPage() {
   const docRef = useRef<HTMLDivElement>(null);
 
   /* ─── Load draft ────────────────────────────────────── */
+  /* ─── Load edit ID (set by records modal) ───────────── */
+  const loadEditId = () => {
+    try { const id = sessionStorage.getItem(EDIT_ID_KEY); if (id) sessionStorage.removeItem(EDIT_ID_KEY); return id ?? null; } catch { return null; }
+  };
+  const [currentRecordId, setCurrentRecordId] = useState<string | null>(() => loadEditId());
+
   const loadDraft = () => {
     try { const r = sessionStorage.getItem(DRAFT_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
   };
@@ -108,6 +137,14 @@ export default function QadriOldQuotationPage() {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
     setLogoUrl(""); setStampUrl("");
+    setCurrentRecordId(null);
+  };
+
+  /* ─── Save to records ────────────────────────────────── */
+  const handleSave = () => {
+    const id = persistQadriRecord({ details, items, logoUrl, stampUrl }, currentRecordId ?? undefined);
+    if (!currentRecordId) setCurrentRecordId(id);
+    toast.success("✅ تم الحفظ في السجل");
   };
 
   /* ─── Totals ─────────────────────────────────────────── */
@@ -160,7 +197,7 @@ export default function QadriOldQuotationPage() {
   /* ─── Effective logo ─────────────────────────────────── */
   const effectiveLogo = logoUrl || siteData?.logo?.customUrl || "";
 
-  /* ─── PDF export (in-place, no off-screen tricks) ─────── */
+  /* ─── PDF export ─────────────────────────────────────── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
@@ -168,10 +205,13 @@ export default function QadriOldQuotationPage() {
     const hiddenEls:      { node: HTMLElement; was: string }[]       = [];
     const replacedInputs: { input: HTMLElement; div: HTMLElement }[] = [];
     const savedClasses:   { node: Element; cls: string }[]           = [];
+    const savedScrollY = window.scrollY;
     try {
       await document.fonts.ready;
-      el.scrollIntoView({ block: "start" });
-      await new Promise(r => setTimeout(r, 150));
+
+      /* Scroll to top without triggering browser zoom */
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      await new Promise(r => setTimeout(r, 120));
 
       /* 1. Hide UI-only controls */
       el.querySelectorAll(".pdf-hide,.pdf-hide-if-empty").forEach(n => {
@@ -180,7 +220,7 @@ export default function QadriOldQuotationPage() {
         h.style.display = "none";
       });
 
-      /* 2. Replace inputs/textareas with baked text divs in-place */
+      /* 2. Replace inputs/textareas with baked text divs */
       Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
         const inp = n as HTMLInputElement | HTMLTextAreaElement;
         const cs  = window.getComputedStyle(inp);
@@ -199,7 +239,7 @@ export default function QadriOldQuotationPage() {
         replacedInputs.push({ input: inp as HTMLElement, div });
       });
 
-      /* 3. Strip any remaining class names to avoid oklch errors */
+      /* 3. Strip class names to avoid oklch errors */
       Array.from(el.querySelectorAll("[class]")).forEach(n => {
         savedClasses.push({ node: n, cls: n.className });
         n.removeAttribute("class");
@@ -207,10 +247,13 @@ export default function QadriOldQuotationPage() {
 
       await new Promise(r => setTimeout(r, 60));
 
-      /* 4. Capture element exactly where it sits in the page */
+      /* 4. Capture the full element at its natural size */
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
+        scrollX: 0, scrollY: 0,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
       });
       const PX = 3.7795275591;
       const w  = canvas.width  / PX;
@@ -229,6 +272,7 @@ export default function QadriOldQuotationPage() {
         input.style.display = "";
       });
       savedClasses.forEach(({ node, cls }) => (node.className = cls));
+      window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
     }
   };
@@ -309,6 +353,21 @@ export default function QadriOldQuotationPage() {
           <button onClick={handleWhatsApp}
             style={{ padding: 6, borderRadius: 8, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", cursor: "pointer" }}>
             <MessageCircle style={{ width: 14, height: 14 }} />
+          </button>
+
+          <button onClick={handleSave}
+            title={currentRecordId ? "تحديث السجل" : "حفظ في السجل"}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              background: currentRecordId ? "#eff6ff" : "#f0fdf4",
+              color: currentRecordId ? "#2563eb" : "#059669",
+              border: currentRecordId ? "1px solid #bfdbfe" : "1px solid #6ee7b7",
+              cursor: "pointer", fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            <Save style={{ width: 14, height: 14 }} />
+            {currentRecordId ? "تحديث" : "حفظ"}
           </button>
 
           <button onClick={handlePDF} disabled={isPdf}

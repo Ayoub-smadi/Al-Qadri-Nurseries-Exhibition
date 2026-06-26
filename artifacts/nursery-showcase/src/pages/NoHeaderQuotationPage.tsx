@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
-  RotateCcw, MessageCircle, Upload,
+  RotateCcw, MessageCircle, Upload, Save,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -38,8 +38,31 @@ type Details = {
   notes: string;
 };
 
-const DRAFT_KEY = "aq_no_header_draft";
+const DRAFT_KEY   = "aq_no_header_draft";
 const PREFILL_KEY = "aq_no_header_prefill";
+const RECORDS_KEY = "aq_no_header_records";
+const EDIT_ID_KEY = "aq_no_header_edit_id";
+
+function loadNoHeaderRecords(): any[] {
+  try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
+}
+
+function persistNoHeaderRecord(data: { details: Details; items: Item[]; logoUrl: string; logoText: string; stampUrl: string; colorKey: string }, id?: string): string {
+  const records = loadNoHeaderRecords();
+  const now = new Date().toISOString();
+  if (id) {
+    const idx = records.findIndex((r: any) => r.id === id);
+    if (idx >= 0) {
+      records[idx] = { ...records[idx], ...data, updatedAt: now };
+      localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+      return id;
+    }
+  }
+  const newId = Date.now().toString();
+  records.unshift({ ...data, id: newId, createdAt: now, updatedAt: now });
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+  return newId;
+}
 
 const mkDefault = (): Details => ({
   quotationNumber: format(new Date(), "yyyyMMdd"),
@@ -66,6 +89,12 @@ export default function NoHeaderQuotationPage() {
   const docRef = useRef<HTMLDivElement>(null);
 
   /* ─── Load prefill / draft ─────────────────────────────── */
+  /* ─── Load edit ID (set by records modal) ───────────── */
+  const loadEditId = () => {
+    try { const id = sessionStorage.getItem(EDIT_ID_KEY); if (id) sessionStorage.removeItem(EDIT_ID_KEY); return id ?? null; } catch { return null; }
+  };
+  const [currentRecordId, setCurrentRecordId] = useState<string | null>(() => loadEditId());
+
   const loadInitial = () => {
     try {
       const prefill = sessionStorage.getItem(PREFILL_KEY);
@@ -97,6 +126,14 @@ export default function NoHeaderQuotationPage() {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
     setLogoUrl(""); setLogoText(""); setStampUrl(""); setColorKey("green");
+    setCurrentRecordId(null);
+  };
+
+  /* ─── Save to records ────────────────────────────────── */
+  const handleSave = () => {
+    const id = persistNoHeaderRecord({ details, items, logoUrl, logoText, stampUrl, colorKey }, currentRecordId ?? undefined);
+    if (!currentRecordId) setCurrentRecordId(id);
+    toast.success("✅ تم الحفظ في السجل");
   };
 
   /* ─── Totals ───────────────────────────────────────────── */
@@ -119,18 +156,21 @@ export default function NoHeaderQuotationPage() {
     const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
   };
 
-  /* ─── PDF export (in-place, no off-screen tricks) ──────── */
+  /* ─── PDF export ───────────────────────────────────────── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
     const el = docRef.current;
-    const hiddenEls:      { node: HTMLElement; was: string }[]     = [];
+    const hiddenEls:      { node: HTMLElement; was: string }[]       = [];
     const replacedInputs: { input: HTMLElement; div: HTMLElement }[] = [];
-    const savedClasses:   { node: Element; cls: string }[]         = [];
+    const savedClasses:   { node: Element; cls: string }[]           = [];
+    const savedScrollY = window.scrollY;
     try {
       await document.fonts.ready;
-      el.scrollIntoView({ block: "start" });
-      await new Promise(r => setTimeout(r, 150));
+
+      /* Scroll to top without triggering browser zoom */
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      await new Promise(r => setTimeout(r, 120));
 
       /* 1. Hide UI-only controls */
       el.querySelectorAll(".pdf-hide,.pdf-hide-if-empty").forEach(n => {
@@ -139,7 +179,7 @@ export default function NoHeaderQuotationPage() {
         h.style.display = "none";
       });
 
-      /* 2. Replace inputs/textareas with baked text divs in-place */
+      /* 2. Replace inputs/textareas with baked text divs */
       Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
         const inp = n as HTMLInputElement | HTMLTextAreaElement;
         const cs  = window.getComputedStyle(inp);
@@ -158,7 +198,7 @@ export default function NoHeaderQuotationPage() {
         replacedInputs.push({ input: inp as HTMLElement, div });
       });
 
-      /* 3. Strip Tailwind class names to avoid oklch colour errors */
+      /* 3. Strip class names to avoid oklch errors */
       Array.from(el.querySelectorAll("[class]")).forEach(n => {
         savedClasses.push({ node: n, cls: n.className });
         n.removeAttribute("class");
@@ -166,10 +206,13 @@ export default function NoHeaderQuotationPage() {
 
       await new Promise(r => setTimeout(r, 60));
 
-      /* 4. Capture element exactly where it sits in the page */
+      /* 4. Capture the full element at its natural size */
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
+        scrollX: 0, scrollY: 0,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
       });
       const PX = 3.7795275591;
       const w  = canvas.width  / PX;
@@ -188,6 +231,7 @@ export default function NoHeaderQuotationPage() {
         input.style.display = "";
       });
       savedClasses.forEach(({ node, cls }) => (node.className = cls));
+      window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
     }
   };
@@ -267,6 +311,21 @@ export default function NoHeaderQuotationPage() {
               color: "#16a34a", border: "1px solid #bbf7d0", cursor: "pointer",
             }}>
             <MessageCircle style={{ width: 14, height: 14 }} />
+          </button>
+
+          <button onClick={handleSave}
+            title={currentRecordId ? "تحديث السجل" : "حفظ في السجل"}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              background: currentRecordId ? "#eff6ff" : "#f0fdf4",
+              color: currentRecordId ? "#2563eb" : "#059669",
+              border: currentRecordId ? "1px solid #bfdbfe" : "1px solid #6ee7b7",
+              cursor: "pointer", fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            <Save style={{ width: 14, height: 14 }} />
+            {currentRecordId ? "تحديث" : "حفظ"}
           </button>
 
           <button onClick={handlePDF} disabled={isPdf}

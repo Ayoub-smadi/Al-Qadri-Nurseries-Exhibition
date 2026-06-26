@@ -424,6 +424,9 @@ export default function GalleryPage() {
   const [adminReceiptsOpen, setAdminReceiptsOpen] = useState(false);
   /* admin disbursements */
   const [adminDisbursementsOpen, setAdminDisbursementsOpen] = useState(false);
+  /* qadri-old & no-header quotation records */
+  const [qadriOldOpen, setQadriOldOpen] = useState(false);
+  const [noHeaderOpen, setNoHeaderOpen] = useState(false);
   /* experience certificate */
   const [certOpen, setCertOpen] = useState(false);
 
@@ -1744,6 +1747,8 @@ export default function GalleryPage() {
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
+                      <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
+                      <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
                       <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
                     </SideSection>
@@ -2340,6 +2345,24 @@ export default function GalleryPage() {
         />
       )}
 
+      {/* Qadri Old Quotation Records Modal */}
+      {isAdmin && (
+        <QadriOldRecordsModal
+          open={qadriOldOpen}
+          onClose={() => setQadriOldOpen(false)}
+          isAr={isAr}
+        />
+      )}
+
+      {/* No Header Quotation Records Modal */}
+      {isAdmin && (
+        <NoHeaderRecordsModal
+          open={noHeaderOpen}
+          onClose={() => setNoHeaderOpen(false)}
+          isAr={isAr}
+        />
+      )}
+
       {/* Experience Certificate Modal */}
       {isAdmin && (
         <CertificateModal
@@ -2822,6 +2845,16 @@ function SideBtnBadge({ icon, label, onClick, badge = 0 }: {
           {badge > 99 ? '99+' : badge}
         </span>
       )}
+    </button>
+  );
+}
+
+function SideSubBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className="w-full flex items-center gap-2 ps-6 pe-3 py-1.5 rounded-xl text-xs font-medium transition-all hover:bg-accent active:scale-[0.98] arabic text-start text-muted-foreground hover:text-foreground">
+      <span className="text-primary/60 shrink-0">{icon}</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -5988,6 +6021,7 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
           )}
 
           {view === 'list' && (
+
             <div className="flex flex-col h-full">
               <div className="px-4 py-3 border-b border-border shrink-0">
                 <Button size="sm" onClick={() => { setDraft(emptyDraft()); setView('create'); }} className="arabic text-xs w-full">
@@ -6039,5 +6073,187 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── QadriOld Records Modal ──────────────────────────────── */
+type QadriOldRec = {
+  id: string;
+  details: { customerName: string; date: string; quotationNumber: string; [k: string]: string };
+  items: { id: string; name: string; [k: string]: unknown }[];
+  logoUrl: string; stampUrl: string;
+  createdAt: string; updatedAt: string;
+};
+
+function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () => void; isAr: boolean }) {
+  const RECS_KEY  = 'aq_qadri_old_records';
+  const EDIT_KEY  = 'aq_qadri_old_edit_id';
+  const DRAFT_KEY = 'aq_qadri_old_inline_draft';
+  const [records, setRecords] = React.useState<QadriOldRec[]>([]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
+  }, [open]);
+
+  const openRec = (rec: QadriOldRec) => {
+    try {
+      sessionStorage.setItem(EDIT_KEY, rec.id);
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, stampUrl: rec.stampUrl }));
+    } catch {}
+    navigate('/qadri-old-quotation');
+    onClose();
+  };
+
+  const deleteRec = (id: string) => {
+    const updated = records.filter(r => r.id !== id);
+    localStorage.setItem(RECS_KEY, JSON.stringify(updated));
+    setRecords(updated);
+  };
+
+  const createNew = () => {
+    try { sessionStorage.removeItem(EDIT_KEY); sessionStorage.removeItem(DRAFT_KEY); } catch {}
+    navigate('/qadri-old-quotation');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg bg-card border-border p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85vh' }}>
+        <DialogHeader className="shrink-0 px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="arabic flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            سجل عروض قادري قديم
+          </DialogTitle>
+        </DialogHeader>
+        <div className="shrink-0 px-4 py-3 border-b border-border">
+          <Button size="sm" onClick={createNew} className="arabic w-full text-xs">
+            <Plus className="w-3.5 h-3.5 me-1" /> عرض سعر جديد
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {records.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+              <FileText className="w-10 h-10 opacity-20" />
+              <p className="text-sm arabic">لا توجد عروض محفوظة بعد</p>
+              <p className="text-xs arabic opacity-60">أنشئ عرضاً وانقر "حفظ" لتظهر هنا</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {records.map(rec => (
+                <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 dark:bg-blue-950/30">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
+                    <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
+                    <p className="text-xs text-muted-foreground arabic">
+                      {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
+                    <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── NoHeader Records Modal ──────────────────────────────── */
+type NoHeaderRec = {
+  id: string;
+  details: { customerName: string; date: string; quotationNumber: string };
+  items: { id: string; name: string; [k: string]: unknown }[];
+  logoUrl: string; logoText: string; stampUrl: string; colorKey: string;
+  createdAt: string; updatedAt: string;
+};
+
+function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () => void; isAr: boolean }) {
+  const RECS_KEY  = 'aq_no_header_records';
+  const EDIT_KEY  = 'aq_no_header_edit_id';
+  const DRAFT_KEY = 'aq_no_header_draft';
+  const [records, setRecords] = React.useState<NoHeaderRec[]>([]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
+  }, [open]);
+
+  const openRec = (rec: NoHeaderRec) => {
+    try {
+      sessionStorage.setItem(EDIT_KEY, rec.id);
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, logoText: rec.logoText, stampUrl: rec.stampUrl, colorKey: rec.colorKey }));
+    } catch {}
+    navigate('/no-header-quotation');
+    onClose();
+  };
+
+  const deleteRec = (id: string) => {
+    const updated = records.filter(r => r.id !== id);
+    localStorage.setItem(RECS_KEY, JSON.stringify(updated));
+    setRecords(updated);
+  };
+
+  const createNew = () => {
+    try { sessionStorage.removeItem(EDIT_KEY); sessionStorage.removeItem(DRAFT_KEY); } catch {}
+    navigate('/no-header-quotation');
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg bg-card border-border p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85vh' }}>
+        <DialogHeader className="shrink-0 px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="arabic flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            سجل عروض دون ترويسة
+          </DialogTitle>
+        </DialogHeader>
+        <div className="shrink-0 px-4 py-3 border-b border-border">
+          <Button size="sm" onClick={createNew} className="arabic w-full text-xs">
+            <Plus className="w-3.5 h-3.5 me-1" /> عرض سعر جديد
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {records.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+              <FileText className="w-10 h-10 opacity-20" />
+              <p className="text-sm arabic">لا توجد عروض محفوظة بعد</p>
+              <p className="text-xs arabic opacity-60">أنشئ عرضاً وانقر "حفظ" لتظهر هنا</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {records.map(rec => (
+                <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-green-100 dark:bg-green-950/30">
+                    <FileText className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
+                    <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
+                    <p className="text-xs text-muted-foreground arabic">
+                      {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
+                    <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
