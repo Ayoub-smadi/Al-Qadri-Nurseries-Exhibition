@@ -674,8 +674,12 @@ export default function QadriOldQuotationPage() {
             </div>
           </div>
 
-          {/* ── ملاحظات (أعلى) ───────────────────────────── */}
-          <div style={{ margin: "16px 24px 0", direction: "rtl" }}>
+          {/* ── ملاحظات — pdf-hide على الـ wrapper كله إذا فارغة ── */}
+          {/* على الشاشة: pdf-hide لا يخفي شيئاً / في PDF: يُخفى إذا فارغ */}
+          <div
+            className={details.notes.trim() ? "" : "pdf-hide"}
+            style={{ margin: "16px 24px 0", direction: "rtl" }}
+          >
             <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات:</div>
             <textarea
               value={details.notes}
@@ -690,13 +694,20 @@ export default function QadriOldQuotationPage() {
             />
           </div>
 
-          {/* ── Closing + Stamp ──────────────────────────── */}
-          {/* RTL flex: first item = visual right (closing text centered),
-              last item = visual left (stamp + signer) */}
-          <div style={{ margin: "16px 24px 0", display: "flex", alignItems: "flex-end", gap: 16, direction: "rtl" }}>
+          {/* ── Closing + Stamp — grid 3 أعمدة ───────────── */}
+          {/* عمود يسار: ختم+عنوان | عمود وسط: نص الإغلاق | عمود يمين: فارغ */}
+          <div style={{
+            margin: "16px 24px 8px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            alignItems: "flex-end",
+            direction: "rtl",
+          }}>
+            {/* عمود يمين — فارغ للتوازن */}
+            <div />
 
-            {/* Closing text — centered (visual right / center) */}
-            <div style={{ flex: 1, textAlign: "center" }}>
+            {/* عمود وسط — نص الإغلاق في المنتصف */}
+            <div style={{ textAlign: "center" }}>
               <input
                 value={details.closingText}
                 onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
@@ -704,8 +715,13 @@ export default function QadriOldQuotationPage() {
               />
             </div>
 
-            {/* Stamp + signer — visual LEFT (last item in RTL flex) */}
-            <div style={{ flexShrink: 0, textAlign: "center", minWidth: 120 }}>
+            {/* عمود يسار — عنوان الموقِّع ثم الختم تحته */}
+            <div style={{ textAlign: "center" }}>
+              <input
+                value={details.signerTitle}
+                onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
+                style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center", marginBottom: 8 }}
+              />
               {stampUrl ? (
                 <div style={{ position: "relative", display: "inline-block" }}>
                   <img src={stampUrl} alt="stamp" style={{ width: 100, height: 80, objectFit: "contain", display: "block", margin: "0 auto" }} />
@@ -731,11 +747,6 @@ export default function QadriOldQuotationPage() {
                     onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
                 </label>
               )}
-              <input
-                value={details.signerTitle}
-                onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center", marginTop: 6 }}
-              />
             </div>
           </div>
 
