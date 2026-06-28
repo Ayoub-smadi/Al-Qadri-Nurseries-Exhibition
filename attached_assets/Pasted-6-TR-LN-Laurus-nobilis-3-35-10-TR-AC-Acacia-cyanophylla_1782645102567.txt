@@ -1,0 +1,53 @@
+6 / TR-LN - غار Laurus nobilis / 3م / أشجار / 35
+10 / TR-AC - أكاسيا سيانوفيلا Acacia cyanophylla / 3م / أشجار / 40
+2 / TR-CS - خروب Ceratonia siliqua / 3م / أشجار / 25
+1 / TR-AZ - نيم Azadirachta indica / 3م / أشجار / 35
+7 / TR-QC - سنديان قرمزي Quercus coccifera / 3م / أشجار / 75
+2 / TR-LG - تمر حنا Lagerstroemia indica / 3م / أشجار / 40
+4 / TR-CQ - شجرة يهوذا(زمزريق) Cercis siliquastrum / 2.5م / أشجار / 45
+2 / TR-AJ - ألبيزيا جوليبريسين Albizia julibrissin / 2.5م / أشجار / 35
+8 / TR-MA - زنزلخت Melia azedarach / 3م / أشجار / 35
+5 / TR-JM - جاكرندا Jacaranda mimosifolia / 3.5م / أشجار / 35
+1 / TR-AL - ألبيزيا لبخ Albizia lebbeck / 3م / أشجار / 35
+
+14 / SH-RC - صفندر Ruscus aculeatus / 60 سم / شجيرات / 8
+9 / SH-LG - ليغوستروم ياباني Ligustrum japonicum / 2م / شجيرات / 8
+6 / SH-SV - ليلك Syringa vulgaris / 80 سم / شجيرات / 4
+1 / SH-BD - شجيرة الفراشة (باديليا) Buddleia davidii / 1م / شجيرات / 12
+4 / SH-EJ - مرجان Euonymus japonicus / 60 سم / شجيرات / 4
+27 / SH-HB - هيبي Hebe spp / 80 سم / شجيرات / 6
+25 / SH-MC - آس Myrtus communis / 1م / شجيرات / 12
+9 / SH-PT - بتسبورم Pittosporum tobira / 80 سم-1م / شجيرات / 8
+77 / SH-SC - قيصوم Santolina chamaecyparissus / 30 سم / شجيرات / 6
+6 / SH-VC - كف مريم Vitex agnus-castus / 80 سم-1م / شجيرات / 15
+6 / SH-LC - لانتانا Lantana camara / 1م / شجيرات / 3.5
+1 / SH-SN - فضية Senecio cineraria / 30 سم / شجيرات / 4
+65 / SH-RO - إكليل الجبل Rosmarinus officinalis / 60 سم / شجيرات / 2
+13 / SH-PS - حلفا حمراء (عشب النافورة) Pennisetum setaceum / 1م / شجيرات / 2.5
+54 / SH-LA - لافندر Lavandula angustifolia / 50 سم / شجيرات / 4
+
+1 / GR-TP - الجعدة Teucrium polium / 30 سم / غطاء أرضي / 2.5
+1 / GR-ST - زعتر Satureja thymbra / 30 سم / غطاء أرضي / 1
+12 / GR-JM - السعد البحري(حلفا) Juncus maritimus / 60 سم-80 سم / غطاء أرضي / 9
+13 / GR-TD - البوص الجنوبي(حلفا) Typha domingensis / 80 سم / غطاء أرضي / 9
+61 / GR-ML - النعناع البري Mentha longifolia / 30 سم-40 سم / غطاء أرضي / 1
+21 / GR-SL - بوص بحري Scirpus lacustris / 80 سم-1م / غطاء أرضي / 8
+31 / GR-AP - أليسما مائية Alisma plantago-aquatica / 40 سم / غطاء أرضي / 6
+1 / GR-AH - لوف مائي Arum hygrophilum / 20 سم / غطاء أرضي / 3
+57 / GR-KN - كنيفوفيا Kniphofia / 60 سم / غطاء أرضي / 12
+11 / GR-AF - مارغريت(اقحوان) Argyranthemum frutescens / 30 سم / غطاء أرضي / 4
+30 / GR-OS - أقحوان أفريقي Osteospermum jucundum / 30 سم / غطاء أرضي / 4
+1 / GR-IM - السوسن العراقي Iris mesopotamica / 40 سم / غطاء أرضي / 6
+35 / GR-RA - الحوذان الفارسي Ranunculus asiaticus / 30 سم / غطاء أرضي / 4
+71 / GR-AC - كزبرة البئر Adiantum capillus-veneris / 20 سم-30 سم / غطاء أرضي / 4
+
+4 / أنبوب HDPE PN16 قطر 40 مم / خط ري رئيسي / شبكة ري / 0
+40 / أنبوب HDPE PN16 قطر 32 مم / خط ري / شبكة ري / 0
+90 / أنبوب HDPE PN16 قطر 25 مم / خط ري / شبكة ري / 0
+1200 / أنبوب HDPE PN16 قطر 20 مم / خط ري / شبكة ري / 0
+774 / نقاط تنقيط (Drippers) / نقاط تنقيط للأشجار / شبكة ري / 0.25
+4 / صمام ري كهربائي (Solenoid Valve) / صمام تحكم لنظام الري / شبكة ري / 80
+3 / صندوق صمامات (Valve Box) / صندوق حماية لصمامات الري / شبكة ري / 50
+1 / مضخة ري IR.P-01 / التدفق: 1.2 لتر/ثانية - الرفع: 20 متر / شبكة ري / 20
+1 / مضخة ري IR.P-02 / التدفق: 1.5 لتر/ثانية - الرفع: 21 متر / شبكة ري / 0
+2 / مؤشر مستوى المياه (Water Level Indicator) / مؤشر مستوى لخزانات المياه / شبكة ري / 100

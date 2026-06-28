@@ -450,24 +450,26 @@ export default function QadriOldQuotationPage() {
         >
 
           {/* ── Company Header ─────────────────────────── */}
-          <div style={{ padding: "20px 24px 16px", borderBottom: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          {/* Use direction:ltr so we control visual order directly:
+              Logo = far right, Arabic = center, English = far left */}
+          <div style={{ padding: "20px 24px 16px", borderBottom: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, direction: "ltr" }}>
 
-            {/* English (left / LTR side) */}
-            <div style={{ textAlign: "left", minWidth: 190, flexShrink: 0 }}>
+            {/* English — far left */}
+            <div style={{ textAlign: "left", minWidth: 200, flexShrink: 0 }}>
               <input
                 value={details.companyNameEn}
                 onChange={e => setDetails(p => ({ ...p, companyNameEn: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "left" }}
+                style={{ ...F, fontSize: 14, fontWeight: 700, color: "#1e293b", textAlign: "left", direction: "ltr" }}
               />
               <input
                 value={details.companyLocationEn}
                 onChange={e => setDetails(p => ({ ...p, companyLocationEn: e.target.value }))}
-                style={{ ...F, fontSize: 12, color: "#64748b", textAlign: "left", marginTop: 3 }}
+                style={{ ...F, fontSize: 12, color: "#64748b", textAlign: "left", marginTop: 4, direction: "ltr" }}
               />
             </div>
 
             {/* Arabic company name — center */}
-            <div style={{ flex: 1, textAlign: "center" }}>
+            <div style={{ flex: 1, textAlign: "center", direction: "rtl" }}>
               <input
                 value={details.companyNameAr}
                 onChange={e => setDetails(p => ({ ...p, companyNameAr: e.target.value }))}
@@ -476,14 +478,14 @@ export default function QadriOldQuotationPage() {
               <input
                 value={details.companyLocationAr}
                 onChange={e => setDetails(p => ({ ...p, companyLocationAr: e.target.value }))}
-                style={{ ...F, fontSize: 12, color: "#64748b", textAlign: "center", marginTop: 3 }}
+                style={{ ...F, fontSize: 12, color: "#64748b", textAlign: "center", marginTop: 4 }}
               />
             </div>
 
-            {/* Logo box — far right (RTL: visually far left when rendered in LTR browser but this is RTL doc) */}
+            {/* Logo box — far right */}
             <label style={{ cursor: "pointer", position: "relative", flexShrink: 0 }} title="انقر لتغيير الشعار">
               <div style={{
-                width: 90, height: 78, border: "1px solid #d1d5db", borderRadius: 8,
+                width: 90, height: 80, border: "1px solid #d1d5db", borderRadius: 8,
                 overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
                 background: "#f8fafc",
               }}>
