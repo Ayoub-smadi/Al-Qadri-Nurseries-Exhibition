@@ -179,9 +179,10 @@ export default function NoHeaderQuotationPage() {
         h.style.display = "none";
       });
 
-      /* 2. Replace inputs/textareas with baked text divs */
+      /* 2. Replace inputs/textareas with baked text divs (skip file inputs) */
       Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
         const inp = n as HTMLInputElement | HTMLTextAreaElement;
+        if ((inp as HTMLInputElement).type === "file") return;
         const cs  = window.getComputedStyle(inp);
         const div = document.createElement("div");
         div.textContent = inp.value;

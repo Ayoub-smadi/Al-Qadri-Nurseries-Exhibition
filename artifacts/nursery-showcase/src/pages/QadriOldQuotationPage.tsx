@@ -220,9 +220,10 @@ export default function QadriOldQuotationPage() {
         h.style.display = "none";
       });
 
-      /* 2. Replace inputs/textareas with baked text divs */
+      /* 2. Replace inputs/textareas with baked text divs (skip file inputs) */
       Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
         const inp = n as HTMLInputElement | HTMLTextAreaElement;
+        if ((inp as HTMLInputElement).type === "file") return;
         const cs  = window.getComputedStyle(inp);
         const div = document.createElement("div");
         div.textContent = inp.value;
@@ -673,13 +674,41 @@ export default function QadriOldQuotationPage() {
             </div>
           </div>
 
-          {/* ── Notes + Closing + Stamp ──────────────────── */}
-          <div style={{ margin: "20px 24px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
-            {/* Stamp / signature */}
-            <div style={{ flexShrink: 0 }}>
+          {/* ── ملاحظات (أعلى) ───────────────────────────── */}
+          <div style={{ margin: "16px 24px 0", direction: "rtl" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات:</div>
+            <textarea
+              value={details.notes}
+              onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
+              placeholder="ملاحظات إضافية..."
+              rows={3}
+              style={{
+                ...F, fontSize: 12, color: "#374151", textAlign: "right",
+                resize: "none", border: "1px dashed #d1d5db", borderRadius: 6,
+                padding: "6px 10px", boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          {/* ── Closing + Stamp ──────────────────────────── */}
+          {/* RTL flex: first item = visual right (closing text centered),
+              last item = visual left (stamp + signer) */}
+          <div style={{ margin: "16px 24px 0", display: "flex", alignItems: "flex-end", gap: 16, direction: "rtl" }}>
+
+            {/* Closing text — centered (visual right / center) */}
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <input
+                value={details.closingText}
+                onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
+                style={{ ...F, fontSize: 13, color: "#374151", textAlign: "center" }}
+              />
+            </div>
+
+            {/* Stamp + signer — visual LEFT (last item in RTL flex) */}
+            <div style={{ flexShrink: 0, textAlign: "center", minWidth: 120 }}>
               {stampUrl ? (
                 <div style={{ position: "relative", display: "inline-block" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 110, height: 90, objectFit: "contain" }} />
+                  <img src={stampUrl} alt="stamp" style={{ width: 100, height: 80, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
                       position: "absolute", top: -6, right: -6,
@@ -691,42 +720,21 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 110, height: 90, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 100, height: 80, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    background: "#f9fafb", gap: 4,
+                    background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
-                    <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
+                    <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
                     <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
                   </div>
                   <input type="file" accept="image/*" style={{ display: "none" }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
                 </label>
               )}
-            </div>
-
-            {/* Closing text + signer */}
-            <div style={{ flex: 1, textAlign: "right" }}>
-              <input
-                value={details.closingText}
-                onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-                style={{ ...F, fontSize: 13, color: "#374151", textAlign: "right", marginBottom: 8 }}
-              />
               <input
                 value={details.signerTitle}
                 onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "right" }}
-              />
-              {/* Notes */}
-              <textarea
-                value={details.notes}
-                onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
-                placeholder="ملاحظات إضافية..."
-                rows={3}
-                style={{
-                  ...F, fontSize: 12, color: "#374151", textAlign: "right",
-                  resize: "none", marginTop: 10,
-                  borderTop: "1px dashed #e2e8f0", paddingTop: 6,
-                }}
+                style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center", marginTop: 6 }}
               />
             </div>
           </div>
