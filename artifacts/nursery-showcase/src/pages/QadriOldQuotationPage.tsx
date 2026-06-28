@@ -240,9 +240,10 @@ export default function QadriOldQuotationPage() {
         replacedInputs.push({ input: inp as HTMLElement, div });
       });
 
-      /* 3. Strip class names to avoid oklch errors */
+      /* 3. Strip class names to avoid oklch errors (use getAttribute for SVG safety) */
       Array.from(el.querySelectorAll("[class]")).forEach(n => {
-        savedClasses.push({ node: n, cls: n.className });
+        const cls = n.getAttribute("class") ?? "";
+        savedClasses.push({ node: n, cls });
         n.removeAttribute("class");
       });
 
@@ -272,7 +273,7 @@ export default function QadriOldQuotationPage() {
         div.parentNode?.removeChild(div);
         input.style.display = "";
       });
-      savedClasses.forEach(({ node, cls }) => (node.className = cls));
+      savedClasses.forEach(({ node, cls }) => cls ? node.setAttribute("class", cls) : node.removeAttribute("class"));
       window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
     }
@@ -723,11 +724,11 @@ export default function QadriOldQuotationPage() {
                 style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center", marginBottom: 8 }}
               />
               {stampUrl ? (
-                <div style={{ position: "relative", display: "inline-block" }}>
+                <div style={{ position: "relative", display: "block", textAlign: "center" }}>
                   <img src={stampUrl} alt="stamp" style={{ width: 100, height: 80, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
-                      position: "absolute", top: -6, right: -6,
+                      position: "absolute", top: -6, right: "50%", transform: "translateX(50px)",
                       background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
                       width: 18, height: 18, cursor: "pointer", fontSize: 10,
                       display: "flex", alignItems: "center", justifyContent: "center",
