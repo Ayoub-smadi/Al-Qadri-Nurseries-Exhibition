@@ -614,10 +614,10 @@ export default function QadriOldQuotationPage() {
                         onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
                       >
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt="" style={{ width: 80, height: 64, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
+                          <img src={item.imageUrl} alt="" style={{ width: 120, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
                         ) : (
                           <div className="pdf-hide-if-empty" style={{
-                            width: 80, height: 64, border: "1px dashed #d1d5db", borderRadius: 6,
+                            width: 120, height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
                             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                             background: "#f9fafb", margin: "0 auto", gap: 3,
                           }}>
