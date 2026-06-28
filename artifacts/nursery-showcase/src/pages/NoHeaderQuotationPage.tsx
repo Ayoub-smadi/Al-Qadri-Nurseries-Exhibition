@@ -223,11 +223,17 @@ export default function NoHeaderQuotationPage() {
           cloned.style.top = "0";
         },
       });
+      /* Fit content to A4 width; extend page height if content is taller */
+      const A4_W_MM = 210;
+      const A4_H_MM = 297;
       const PX = 3.7795275591;
-      const w  = canvas.width  / PX;
-      const h  = canvas.height / PX;
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
+      const contentW = canvas.width  / PX;
+      const contentH = canvas.height / PX;
+      const scale    = A4_W_MM / contentW;
+      const scaledH  = contentH * scale;
+      const pageH    = Math.max(A4_H_MM, scaledH);
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [A4_W_MM, pageH] });
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, A4_W_MM, scaledH);
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
       pdf.save(`${name}_${details.date}.pdf`);
       toast.success("✅ تم تنزيل PDF");
@@ -449,24 +455,24 @@ export default function NoHeaderQuotationPage() {
 
           {/* ── Table ─────────────────────────────────── */}
           <div style={{ margin: "16px 28px 0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #cbd5e1" }}>
               <thead>
                 <tr style={{ background: C.header, color: "#ffffff" }}>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif" }}>#</th>
-                  <th style={{ padding: "10px 12px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif" }}>البيان</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 70, fontFamily: "Cairo, Arial, sans-serif" }}>الكمية</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif" }}>سعر الوحدة</th>
-                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif" }}>الإجمالي</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>#</th>
+                  <th style={{ padding: "10px 12px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>البيان</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 70, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الكمية</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>سعر الوحدة</th>
+                  <th style={{ padding: "10px 8px", textAlign: "center", width: 90, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الإجمالي</th>
                   <th className="pdf-hide" style={{ width: 24 }} />
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #e5e7eb", background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
-                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#374151", verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif" }}>
+                  <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
+                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, color: "#374151", verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
                       {i + 1}
                     </td>
-                    <td style={{ padding: "8px 12px", verticalAlign: "top" }}>
+                    <td style={{ padding: "8px 12px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.name}
                         onChange={e => updateItem(item.id, "name", e.target.value)}
@@ -480,7 +486,7 @@ export default function NoHeaderQuotationPage() {
                         style={{ ...fieldStyle, fontSize: 11, color: "#6b7280", textAlign: "right" }}
                       />
                     </td>
-                    <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                    <td style={{ padding: "10px 8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={1}
                         value={item.quantity}
@@ -488,7 +494,7 @@ export default function NoHeaderQuotationPage() {
                         style={{ ...fieldStyle, fontSize: 12, fontWeight: 700, textAlign: "center" }}
                       />
                     </td>
-                    <td style={{ padding: "10px 8px", verticalAlign: "top" }}>
+                    <td style={{ padding: "10px 8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={0} step={0.01}
                         value={item.unitPrice || ""}
@@ -497,7 +503,7 @@ export default function NoHeaderQuotationPage() {
                         style={{ ...fieldStyle, fontSize: 12, fontWeight: 700, textAlign: "center" }}
                       />
                     </td>
-                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif" }}>
+                    <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
                       {fmt(item.total)}
                     </td>
                     <td className="pdf-hide" style={{ padding: "8px 2px", verticalAlign: "top", width: 24 }}>
