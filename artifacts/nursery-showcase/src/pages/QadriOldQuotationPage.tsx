@@ -234,6 +234,11 @@ export default function QadriOldQuotationPage() {
           `color:${cs.color}`, `text-align:${cs.textAlign}`,
           "width:100%", "white-space:pre-wrap", "word-break:break-word",
           `min-height:${cs.height}`,
+          `margin-top:${cs.marginTop}`,
+          `margin-bottom:${cs.marginBottom}`,
+          `margin-left:${cs.marginLeft}`,
+          `margin-right:${cs.marginRight}`,
+          `padding:${cs.padding}`,
         ].join(";");
         inp.parentNode!.insertBefore(div, inp);
         (inp as HTMLElement).style.display = "none";
@@ -695,20 +700,19 @@ export default function QadriOldQuotationPage() {
             />
           </div>
 
-          {/* ── Closing + Stamp — grid 3 أعمدة ───────────── */}
-          {/* عمود يسار: ختم+عنوان | عمود وسط: نص الإغلاق | عمود يمين: فارغ */}
+          {/* ── Closing + Stamp — flex row (RTL) ────────────── */}
+          {/* flex بدلاً من grid — html2canvas يدعم flex بشكل أفضل */}
           <div style={{
             margin: "16px 24px 8px",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
+            display: "flex",
             alignItems: "flex-end",
             direction: "rtl",
           }}>
-            {/* عمود يمين — فارغ للتوازن */}
-            <div />
+            {/* يمين — فارغ للتوازن بعرض ثابت */}
+            <div style={{ width: 130, flexShrink: 0 }} />
 
-            {/* عمود وسط — نص الإغلاق في المنتصف */}
-            <div style={{ textAlign: "center" }}>
+            {/* وسط — نص الإغلاق (flex:1 = يأخذ ما تبقى) */}
+            <div style={{ flex: 1, textAlign: "center" }}>
               <input
                 value={details.closingText}
                 onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
@@ -716,19 +720,21 @@ export default function QadriOldQuotationPage() {
               />
             </div>
 
-            {/* عمود يسار — عنوان الموقِّع ثم الختم تحته */}
-            <div style={{ textAlign: "center" }}>
-              <input
-                value={details.signerTitle}
-                onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center", marginBottom: 8 }}
-              />
+            {/* يسار — عنوان الموقِّع فوق، ثم الختم تحته، عرض ثابت */}
+            <div style={{ width: 130, flexShrink: 0, textAlign: "center" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif", marginBottom: 8 }}>
+                <input
+                  value={details.signerTitle}
+                  onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
+                  style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                />
+              </div>
               {stampUrl ? (
                 <div style={{ position: "relative", display: "block", textAlign: "center" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 100, height: 80, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                  <img src={stampUrl} alt="stamp" style={{ width: 110, height: 88, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
-                      position: "absolute", top: -6, right: "50%", transform: "translateX(50px)",
+                      position: "absolute", top: -6, left: "50%", transform: "translateX(-50px)",
                       background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
                       width: 18, height: 18, cursor: "pointer", fontSize: 10,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -737,7 +743,7 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 100, height: 80, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 110, height: 88, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
