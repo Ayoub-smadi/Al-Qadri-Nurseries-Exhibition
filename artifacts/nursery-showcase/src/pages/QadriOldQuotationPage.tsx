@@ -708,10 +708,10 @@ export default function QadriOldQuotationPage() {
             alignItems: "flex-end",
             direction: "rtl",
           }}>
-            {/* يمين — فارغ للتوازن بعرض ثابت */}
-            <div style={{ width: 130, flexShrink: 0 }} />
+            {/* يمين — فارغ للتوازن */}
+            <div style={{ width: 200, flexShrink: 0 }} />
 
-            {/* وسط — نص الإغلاق (flex:1 = يأخذ ما تبقى) */}
+            {/* وسط — نص الإغلاق */}
             <div style={{ flex: 1, textAlign: "center" }}>
               <input
                 value={details.closingText}
@@ -720,21 +720,24 @@ export default function QadriOldQuotationPage() {
               />
             </div>
 
-            {/* يسار — عنوان الموقِّع فوق، ثم الختم تحته، عرض ثابت */}
-            <div style={{ width: 130, flexShrink: 0, textAlign: "center" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif", marginBottom: 8 }}>
+            {/* يسار — الاسم سطر واحد، ثم الختم تحته */}
+            <div style={{ width: 200, flexShrink: 0, textAlign: "center" }}>
+              <div style={{ marginBottom: 10 }}>
                 <input
                   value={details.signerTitle}
                   onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                  style={{ ...F, fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                  style={{
+                    ...F, fontSize: 13, fontWeight: 700, color: "#1e293b",
+                    textAlign: "center", whiteSpace: "nowrap",
+                  }}
                 />
               </div>
               {stampUrl ? (
                 <div style={{ position: "relative", display: "block", textAlign: "center" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 110, height: 88, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                  <img src={stampUrl} alt="stamp" style={{ width: 160, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
-                      position: "absolute", top: -6, left: "50%", transform: "translateX(-50px)",
+                      position: "absolute", top: -6, left: "50%", transform: "translateX(-44px)",
                       background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
                       width: 18, height: 18, cursor: "pointer", fontSize: 10,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -743,11 +746,11 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 110, height: 88, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 160, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
-                    <Upload style={{ width: 18, height: 18, color: "#9ca3af" }} />
+                    <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
                     <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
                   </div>
                   <input type="file" accept="image/*" style={{ display: "none" }}
