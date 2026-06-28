@@ -120,7 +120,7 @@ export default function QadriOldQuotationPage() {
   const [details, setDetails] = useState<Details>(draft?.details ?? mkDefault());
   const [items, setItems] = useState<Item[]>(draft?.items ?? [mkItem()]);
   const [logoUrl, setLogoUrl] = useState<string>(draft?.logoUrl ?? "");
-  const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "/stamp-qadri.png");
+  const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "");
   const [isPdf, setIsPdf] = useState(false);
 
   /* ─── Smart analysis state ──────────────────────────── */
@@ -136,7 +136,7 @@ export default function QadriOldQuotationPage() {
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
-    setLogoUrl(""); setStampUrl("/stamp-qadri.png");
+    setLogoUrl(""); setStampUrl("");
     setCurrentRecordId(null);
   };
 
@@ -486,7 +486,7 @@ export default function QadriOldQuotationPage() {
             {/* Logo box — far right */}
             <label style={{ cursor: "pointer", position: "relative", flexShrink: 0 }} title="انقر لتغيير الشعار">
               <div style={{
-                width: 110, height: 100, border: "1px solid #d1d5db", borderRadius: 8,
+                width: 90, height: 80, border: "1px solid #d1d5db", borderRadius: 8,
                 overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
                 background: "#f8fafc",
               }}>
@@ -536,7 +536,7 @@ export default function QadriOldQuotationPage() {
 
           {/* ── Table ──────────────────────────────────── */}
           <div style={{ padding: "16px 20px 0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #000000" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #cbd5e1" }}>
               <thead>
                 <tr style={{ background: "#1a2744", color: "#ffffff" }}>
                   <th style={{ padding: "10px 6px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>#</th>
@@ -554,11 +554,11 @@ export default function QadriOldQuotationPage() {
                 {items.map((item, i) => (
                   <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
                     {/* # */}
-                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#374151", fontSize: 13, verticalAlign: "top", paddingTop: 12, border: "1px solid #000000" }}>
+                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#374151", fontSize: 13, verticalAlign: "top", paddingTop: 12, border: "1px solid #d1d5db" }}>
                       {i + 1}
                     </td>
                     {/* الاسم */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #000000" }}>
+                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.name}
                         onChange={e => updateItem(item.id, "name", e.target.value)}
@@ -567,7 +567,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الوصف */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #000000" }}>
+                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.description}
                         onChange={e => updateItem(item.id, "description", e.target.value)}
@@ -576,7 +576,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* القسم */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #000000" }}>
+                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.category}
                         onChange={e => updateItem(item.id, "category", e.target.value)}
@@ -585,7 +585,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الكمية */}
-                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #000000" }}>
+                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={1}
                         value={item.quantity}
@@ -594,7 +594,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* السعر */}
-                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #000000" }}>
+                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={0} step={0.01}
                         value={item.price || ""}
@@ -604,20 +604,20 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الإجمالي */}
-                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, verticalAlign: "top", paddingTop: 12, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #000000" }}>
+                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, verticalAlign: "top", paddingTop: 12, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
                       {fmt(item.total)}
                     </td>
                     {/* الصورة */}
-                    <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #000000" }}>
+                    <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <div
                         style={{ cursor: "pointer", display: "block" }}
                         onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
                       >
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt="" style={{ width: 100, height: 80, objectFit: "cover", borderRadius: 6, border: "1px solid #000000", margin: "0 auto" }} />
+                          <img src={item.imageUrl} alt="" style={{ width: 80, height: 64, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
                         ) : (
                           <div className="pdf-hide-if-empty" style={{
-                            width: 100, height: 80, border: "1px dashed #d1d5db", borderRadius: 6,
+                            width: 80, height: 64, border: "1px dashed #d1d5db", borderRadius: 6,
                             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                             background: "#f9fafb", margin: "0 auto", gap: 3,
                           }}>
