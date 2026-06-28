@@ -82,3 +82,4 @@ channel = "stable-25_05"
 [userenv.shared]
 PORT = "8080"
 FRONTEND_PORT = "5000"
+ADMIN_SETUP_SECRET = "7586e2f068baf7fe6d96880b978cfa4c2c395aa11e7b18bc07defbf5c925bb6c"
