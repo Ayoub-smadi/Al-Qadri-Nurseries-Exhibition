@@ -71,7 +71,7 @@ const mkDefault = (): Details => ({
   notes: "",
   phone: "00962777772211",
   email: "tamerqadri@gmail.com",
-  website: "https://alkadrionline.com",
+  website: "https://alkadrionline.com/",
   closingText: "واقبلوا فائق الاحترام....",
   signerTitle: "المدير العام/ ثامر احمد القادري",
   companyNameAr: "مؤسسة ومشاتل القادري الزراعية",
@@ -122,6 +122,9 @@ export default function QadriOldQuotationPage() {
   const [logoUrl, setLogoUrl] = useState<string>(draft?.logoUrl ?? "");
   const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "");
   const [isPdf, setIsPdf] = useState(false);
+  const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
+  const [taxPct, setTaxPct] = useState<number>(draft?.taxPct ?? 0);
+  const [showPlantPicker, setShowPlantPicker] = useState(false);
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -129,14 +132,15 @@ export default function QadriOldQuotationPage() {
 
   /* ─── Auto-save ─────────────────────────────────────── */
   const saveDraft = useCallback(() => {
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, stampUrl })); } catch {}
-  }, [details, items, logoUrl, stampUrl]);
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, stampUrl, discountPct, taxPct })); } catch {}
+  }, [details, items, logoUrl, stampUrl, discountPct, taxPct]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
     setLogoUrl(""); setStampUrl("");
+    setDiscountPct(0); setTaxPct(0);
     setCurrentRecordId(null);
   };
 
@@ -148,7 +152,10 @@ export default function QadriOldQuotationPage() {
   };
 
   /* ─── Totals ─────────────────────────────────────────── */
-  const grandTotal = items.reduce((s, i) => s + (i.total || 0), 0);
+  const subtotal = items.reduce((s, i) => s + (i.total || 0), 0);
+  const discountAmt = subtotal * (discountPct / 100);
+  const taxAmt = (subtotal - discountAmt) * (taxPct / 100);
+  const grandTotal = subtotal - discountAmt + taxAmt;
 
   /* ─── Item helpers ───────────────────────────────────── */
   const updateItem = (id: string, field: keyof Item, val: string | number) => {
@@ -284,6 +291,24 @@ export default function QadriOldQuotationPage() {
     }
   };
 
+  /* ─── Plants ────────────────────────────────────────────── */
+  const addItemFromPlant = (plant: { nameAr: string; descriptionAr: string; sectionName: string }) => {
+    setItems(prev => {
+      const clean = prev.filter(i => i.name.trim());
+      return [...clean, {
+        id: Date.now().toString() + Math.random(),
+        name: plant.nameAr,
+        description: plant.descriptionAr,
+        category: plant.sectionName,
+        quantity: 1,
+        price: 0,
+        total: 0,
+        imageUrl: undefined,
+      }];
+    });
+    setShowPlantPicker(false);
+  };
+
   /* ─── WhatsApp ───────────────────────────────────────── */
   const handleWhatsApp = () => {
     const lines = items.filter(i => i.name.trim())
@@ -356,6 +381,56 @@ export default function QadriOldQuotationPage() {
             }}>
             <Plus style={{ width: 14, height: 14 }} /> إضافة صف
           </button>
+
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowPlantPicker(v => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "6px 12px", borderRadius: 8,
+                background: showPlantPicker ? "#dcfce7" : "#f0fdf4",
+                color: "#16a34a",
+                border: "1px solid #bbf7d0", cursor: "pointer",
+                fontSize: 13, fontWeight: 600, fontFamily: "Cairo, Arial, sans-serif",
+              }}>
+              🌿 من النباتات
+            </button>
+            {showPlantPicker && (
+              <div style={{
+                position: "absolute", top: "110%", right: 0, zIndex: 200,
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                width: 280, maxHeight: 360, overflowY: "auto", padding: 8,
+              }}>
+                {(siteData?.sections ?? []).length === 0 && (
+                  <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نباتات في الموقع</div>
+                )}
+                {(siteData?.sections ?? []).map(s => (
+                  <div key={s.id} style={{ marginBottom: 6 }}>
+                    <div style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#475569", background: "#f1f5f9", borderRadius: 4, marginBottom: 2, fontFamily: "Cairo, Arial, sans-serif" }}>
+                      {s.nameAr}
+                    </div>
+                    {s.photos.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => addItemFromPlant({ nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "", sectionName: s.nameAr })}
+                        style={{
+                          display: "block", width: "100%", textAlign: "right",
+                          padding: "5px 12px", background: "none", border: "none",
+                          cursor: "pointer", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
+                          borderRadius: 4, color: "#1e293b",
+                        }}
+                        onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
+                        onMouseOut={e => (e.currentTarget.style.background = "none")}
+                      >
+                        {p.nameAr}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button onClick={handleWhatsApp}
             style={{ padding: 6, borderRadius: 8, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", cursor: "pointer" }}>
@@ -665,12 +740,48 @@ export default function QadriOldQuotationPage() {
             </button>
           </div>
 
-          {/* ── Grand Total ─────────────────────────────── */}
+          {/* ── Totals ─────────────────────────────────── */}
           <div style={{ margin: "8px 20px 0" }}>
+            {(discountPct > 0 || taxPct > 0) && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px", fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>المجموع الفرعي</span>
+                <span style={{ fontWeight: 600 }}>{fmt(subtotal)} د.أ</span>
+              </div>
+            )}
+            <div className="pdf-hide" style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 16px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>خصم %</span>
+              <input
+                type="number" min={0} max={100} step={0.5}
+                value={discountPct || ""}
+                onChange={e => setDiscountPct(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
+              />
+              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif", marginRight: 8 }}>ضريبة %</span>
+              <input
+                type="number" min={0} max={100} step={0.5}
+                value={taxPct || ""}
+                onChange={e => setTaxPct(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
+              />
+            </div>
+            {discountPct > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#16a34a", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>خصم {discountPct}%</span>
+                <span style={{ fontWeight: 700 }}>− {fmt(discountAmt)} د.أ</span>
+              </div>
+            )}
+            {taxPct > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#ea580c", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>ضريبة {taxPct}%</span>
+                <span style={{ fontWeight: 700 }}>+ {fmt(taxAmt)} د.أ</span>
+              </div>
+            )}
             <div style={{
               background: "#1a2744", color: "#fff",
               display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "12px 16px", borderRadius: 4,
+              padding: "12px 16px", borderRadius: 4, marginTop: 4,
             }}>
               <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "Cairo, Arial, sans-serif" }}>المجموع الكلي</span>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -700,44 +811,31 @@ export default function QadriOldQuotationPage() {
             />
           </div>
 
-          {/* ── Closing + Stamp — flex row (RTL) ────────────── */}
-          {/* flex بدلاً من grid — html2canvas يدعم flex بشكل أفضل */}
-          <div style={{
-            margin: "16px 24px 8px",
-            display: "flex",
-            alignItems: "flex-end",
-            direction: "rtl",
-          }}>
-            {/* يمين — فارغ للتوازن */}
-            <div style={{ width: 200, flexShrink: 0 }} />
+          {/* ── نص الإغلاق — وسط الصفحة ────────────────────────── */}
+          <div style={{ margin: "16px 24px 4px", textAlign: "center" }}>
+            <input
+              value={details.closingText}
+              onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
+              style={{ ...F, fontSize: 13, color: "#374151", textAlign: "center" }}
+            />
+          </div>
 
-            {/* وسط — نص الإغلاق */}
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <input
-                value={details.closingText}
-                onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-                style={{ ...F, fontSize: 13, color: "#374151", textAlign: "center" }}
-              />
-            </div>
-
-            {/* يسار — الاسم سطر واحد، ثم الختم تحته */}
-            <div style={{ width: 200, flexShrink: 0, textAlign: "center" }}>
-              <div style={{ marginBottom: 10 }}>
+          {/* ── التوقيع والختم — يمين الصفحة ────────────────── */}
+          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-start", direction: "rtl" }}>
+            <div style={{ textAlign: "center", minWidth: 140 }}>
+              <div style={{ marginBottom: 6 }}>
                 <input
                   value={details.signerTitle}
                   onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                  style={{
-                    ...F, fontSize: 13, fontWeight: 700, color: "#1e293b",
-                    textAlign: "center", whiteSpace: "nowrap",
-                  }}
+                  style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
                 />
               </div>
               {stampUrl ? (
-                <div style={{ position: "relative", display: "block", textAlign: "center" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 160, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                <div style={{ position: "relative", display: "inline-block" }}>
+                  <img src={stampUrl} alt="stamp" style={{ width: 90, height: 70, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
-                      position: "absolute", top: -6, left: "50%", transform: "translateX(-44px)",
+                      position: "absolute", top: -6, right: -6,
                       background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
                       width: 18, height: 18, cursor: "pointer", fontSize: 10,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -746,11 +844,11 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 160, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 90, height: 70, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
-                    <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
+                    <Upload style={{ width: 16, height: 16, color: "#9ca3af" }} />
                     <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
                   </div>
                   <input type="file" accept="image/*" style={{ display: "none" }}

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { navigate } from "@/App";
+import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -87,6 +88,7 @@ function fmt(n: number) {
 /* ══════════════════════════════════════════════════════════ */
 export default function NoHeaderQuotationPage() {
   const docRef = useRef<HTMLDivElement>(null);
+  const { siteData } = useApp();
 
   /* ─── Load prefill / draft ─────────────────────────────── */
   /* ─── Load edit ID (set by records modal) ───────────── */
@@ -113,19 +115,23 @@ export default function NoHeaderQuotationPage() {
   const [stampUrl, setStampUrl] = useState<string>(initial?.stampUrl ?? "");
   const [colorKey, setColorKey] = useState<ColorKey>((initial?.colorKey ?? "green") as ColorKey);
   const [isPdf, setIsPdf] = useState(false);
+  const [discountPct, setDiscountPct] = useState<number>(initial?.discountPct ?? 0);
+  const [taxPct, setTaxPct] = useState<number>(initial?.taxPct ?? 0);
+  const [showPlantPicker, setShowPlantPicker] = useState(false);
 
   const C = SCHEMES[colorKey];
 
   /* ─── Auto-save draft ──────────────────────────────────── */
   const saveDraft = useCallback(() => {
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, logoText, stampUrl, colorKey })); } catch {}
-  }, [details, items, logoUrl, logoText, stampUrl, colorKey]);
+    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, logoText, stampUrl, colorKey, discountPct, taxPct })); } catch {}
+  }, [details, items, logoUrl, logoText, stampUrl, colorKey, discountPct, taxPct]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
     setLogoUrl(""); setLogoText(""); setStampUrl(""); setColorKey("green");
+    setDiscountPct(0); setTaxPct(0);
     setCurrentRecordId(null);
   };
 
@@ -138,6 +144,9 @@ export default function NoHeaderQuotationPage() {
 
   /* ─── Totals ───────────────────────────────────────────── */
   const subtotal = items.reduce((s, i) => s + (i.total || 0), 0);
+  const discountAmt = subtotal * (discountPct / 100);
+  const taxAmt = (subtotal - discountAmt) * (taxPct / 100);
+  const grandTotal = subtotal - discountAmt + taxAmt;
 
   /* ─── Item helpers ─────────────────────────────────────── */
   const updateItem = (id: string, field: keyof Item, val: string | number) => {
@@ -252,6 +261,22 @@ export default function NoHeaderQuotationPage() {
     }
   };
 
+  /* ─── Plants ───────────────────────────────────────────── */
+  const addItemFromPlant = (plant: { nameAr: string; descriptionAr: string }) => {
+    setItems(prev => {
+      const clean = prev.filter(i => i.name.trim());
+      return [...clean, {
+        id: Date.now().toString() + Math.random(),
+        name: plant.nameAr,
+        description: plant.descriptionAr,
+        quantity: 1,
+        unitPrice: 0,
+        total: 0,
+      }];
+    });
+    setShowPlantPicker(false);
+  };
+
   /* ─── WhatsApp ─────────────────────────────────────────── */
   const handleWhatsApp = () => {
     const lines = items.filter(i => i.name.trim())
@@ -320,6 +345,67 @@ export default function NoHeaderQuotationPage() {
             }}>
             <RotateCcw style={{ width: 14, height: 14 }} />
           </button>
+
+          <button onClick={addItem}
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "6px 12px", borderRadius: 8,
+              background: "#f1f5f9", color: "#374151",
+              border: "1px solid #e2e8f0", cursor: "pointer",
+              fontSize: 13, fontWeight: 600, fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            <Plus style={{ width: 14, height: 14 }} /> إضافة صف
+          </button>
+
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowPlantPicker(v => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "6px 12px", borderRadius: 8,
+                background: showPlantPicker ? "#dcfce7" : "#f0fdf4",
+                color: "#16a34a",
+                border: "1px solid #bbf7d0", cursor: "pointer",
+                fontSize: 13, fontWeight: 600, fontFamily: "Cairo, Arial, sans-serif",
+              }}>
+              🌿 من النباتات
+            </button>
+            {showPlantPicker && (
+              <div style={{
+                position: "absolute", top: "110%", right: 0, zIndex: 200,
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                width: 280, maxHeight: 360, overflowY: "auto", padding: 8,
+              }}>
+                {(siteData?.sections ?? []).length === 0 && (
+                  <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نباتات في الموقع</div>
+                )}
+                {(siteData?.sections ?? []).map(s => (
+                  <div key={s.id} style={{ marginBottom: 6 }}>
+                    <div style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#475569", background: "#f1f5f9", borderRadius: 4, marginBottom: 2, fontFamily: "Cairo, Arial, sans-serif" }}>
+                      {s.nameAr}
+                    </div>
+                    {s.photos.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => addItemFromPlant({ nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "" })}
+                        style={{
+                          display: "block", width: "100%", textAlign: "right",
+                          padding: "5px 12px", background: "none", border: "none",
+                          cursor: "pointer", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
+                          borderRadius: 4, color: "#1e293b",
+                        }}
+                        onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
+                        onMouseOut={e => (e.currentTarget.style.background = "none")}
+                      >
+                        {p.nameAr}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button onClick={handleWhatsApp} title="إرسال واتساب"
             style={{
@@ -536,17 +622,49 @@ export default function NoHeaderQuotationPage() {
 
           {/* ── Totals ────────────────────────────────── */}
           <div style={{ margin: "12px 28px 0" }}>
-            <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", padding: "8px 12px", gap: 16 }}>
-              <span style={{ fontSize: 13, color: "#374151", fontWeight: 600, minWidth: 120, fontFamily: "Cairo, Arial, sans-serif" }}>المجموع الفرعي</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(subtotal)}</span>
+            {(discountPct > 0 || taxPct > 0) && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 12px", fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>المجموع الفرعي</span>
+                <span style={{ fontWeight: 600 }}>{fmt(subtotal)}</span>
+              </div>
+            )}
+            <div className="pdf-hide" style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 12px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>خصم %</span>
+              <input
+                type="number" min={0} max={100} step={0.5}
+                value={discountPct || ""}
+                onChange={e => setDiscountPct(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
+              />
+              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif", marginRight: 8 }}>ضريبة %</span>
+              <input
+                type="number" min={0} max={100} step={0.5}
+                value={taxPct || ""}
+                onChange={e => setTaxPct(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
+              />
             </div>
+            {discountPct > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 12px", fontSize: 12, color: "#16a34a", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>خصم {discountPct}%</span>
+                <span style={{ fontWeight: 700 }}>− {fmt(discountAmt)}</span>
+              </div>
+            )}
+            {taxPct > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 12px", fontSize: 12, color: "#ea580c", fontFamily: "Cairo, Arial, sans-serif" }}>
+                <span>ضريبة {taxPct}%</span>
+                <span style={{ fontWeight: 700 }}>+ {fmt(taxAmt)}</span>
+              </div>
+            )}
             <div style={{
               background: C.accent, borderRadius: 8, padding: "12px 16px",
               display: "flex", justifyContent: "space-between", alignItems: "center",
               marginTop: 4,
             }}>
               <span style={{ fontSize: 15, fontWeight: 800, color: "#ffffff", fontFamily: "Cairo, Arial, sans-serif" }}>الإجمالي الكلي</span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: "#ffffff", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(subtotal)}</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: "#ffffff", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(grandTotal)}</span>
             </div>
           </div>
 
@@ -604,22 +722,6 @@ export default function NoHeaderQuotationPage() {
         </div>
       </div>
 
-      {/* Floating add row button */}
-      <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 40 }}>
-        <button
-          onClick={addItem}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "10px 24px", borderRadius: 9999,
-            background: C.accent, color: "#fff",
-            border: "none", cursor: "pointer",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-            fontFamily: "Cairo, Arial, sans-serif", fontSize: 13, fontWeight: 700,
-          }}>
-          <Plus style={{ width: 15, height: 15 }} />
-          إضافة صف جديد
-        </button>
-      </div>
     </div>
   );
 }
