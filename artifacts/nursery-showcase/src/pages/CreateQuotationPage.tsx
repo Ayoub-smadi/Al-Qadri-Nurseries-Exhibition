@@ -48,7 +48,7 @@ const defaultDetails = (): Details => ({
   notes: "",
   phone: "00962777772211",
   email: "tamerqadri@gmail.com",
-  website: "www.alkadri-plants.com",
+  website: "https://alkadrionline.com",
   closingText: "واقبلوا فائق الاحترام....",
   signerTitle: "المدير العام/ ثامر احمد القادري",
   footerCompany: "مؤسسة ومشاتل القادري الزراعية",
