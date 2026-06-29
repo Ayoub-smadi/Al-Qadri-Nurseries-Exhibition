@@ -125,6 +125,7 @@ export default function QadriOldQuotationPage() {
   const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
   const [taxPct, setTaxPct] = useState<number>(draft?.taxPct ?? 0);
   const [showPlantPicker, setShowPlantPicker] = useState(false);
+  const [plantSearch, setPlantSearch] = useState("");
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -292,7 +293,14 @@ export default function QadriOldQuotationPage() {
   };
 
   /* ─── Plants ────────────────────────────────────────────── */
-  const addItemFromPlant = (plant: { nameAr: string; descriptionAr: string; sectionName: string }) => {
+  const allPlants = (siteData?.sections ?? []).flatMap(s =>
+    s.photos.map(p => ({ id: p.id, nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "", sectionName: s.nameAr, image: p.image }))
+  );
+  const allFilteredPlants = plantSearch.trim()
+    ? allPlants.filter(p => p.nameAr.includes(plantSearch) || p.sectionName.includes(plantSearch))
+    : allPlants;
+
+  const addItemFromPlant = (plant: { nameAr: string; descriptionAr: string; sectionName: string; image: string }) => {
     setItems(prev => {
       const clean = prev.filter(i => i.name.trim());
       return [...clean, {
@@ -303,10 +311,11 @@ export default function QadriOldQuotationPage() {
         quantity: 1,
         price: 0,
         total: 0,
-        imageUrl: undefined,
+        imageUrl: plant.image || undefined,
       }];
     });
     setShowPlantPicker(false);
+    setPlantSearch("");
   };
 
   /* ─── WhatsApp ───────────────────────────────────────── */
@@ -398,36 +407,56 @@ export default function QadriOldQuotationPage() {
             {showPlantPicker && (
               <div style={{
                 position: "absolute", top: "110%", right: 0, zIndex: 200,
-                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-                width: 280, maxHeight: 360, overflowY: "auto", padding: 8,
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12,
+                boxShadow: "0 8px 30px rgba(0,0,0,0.14)",
+                width: 340, maxHeight: 420, display: "flex", flexDirection: "column",
               }}>
-                {(siteData?.sections ?? []).length === 0 && (
-                  <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نباتات في الموقع</div>
-                )}
-                {(siteData?.sections ?? []).map(s => (
-                  <div key={s.id} style={{ marginBottom: 6 }}>
-                    <div style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#475569", background: "#f1f5f9", borderRadius: 4, marginBottom: 2, fontFamily: "Cairo, Arial, sans-serif" }}>
-                      {s.nameAr}
-                    </div>
-                    {s.photos.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => addItemFromPlant({ nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "", sectionName: s.nameAr })}
-                        style={{
-                          display: "block", width: "100%", textAlign: "right",
-                          padding: "5px 12px", background: "none", border: "none",
-                          cursor: "pointer", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
-                          borderRadius: 4, color: "#1e293b",
-                        }}
-                        onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
-                        onMouseOut={e => (e.currentTarget.style.background = "none")}
-                      >
-                        {p.nameAr}
-                      </button>
-                    ))}
+                {/* Search bar */}
+                <div style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      autoFocus
+                      placeholder="ابحث عن نبات لإضافته..."
+                      value={plantSearch}
+                      onChange={e => setPlantSearch(e.target.value)}
+                      style={{
+                        width: "100%", border: "1px solid #e2e8f0", borderRadius: 8,
+                        padding: "7px 12px 7px 34px", fontSize: 13, boxSizing: "border-box",
+                        fontFamily: "Cairo, Arial, sans-serif", outline: "none", background: "#f8fafc", direction: "rtl",
+                      }}
+                    />
+                    <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
                   </div>
-                ))}
+                </div>
+                {/* List */}
+                <div style={{ overflowY: "auto", flex: 1 }}>
+                  {allFilteredPlants.length === 0 && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نتائج</div>
+                  )}
+                  {allFilteredPlants.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => addItemFromPlant(p)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        width: "100%", textAlign: "right", direction: "rtl",
+                        padding: "8px 12px", background: "none", border: "none",
+                        borderBottom: "1px solid #f8fafc",
+                        cursor: "pointer",
+                      }}
+                      onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
+                      onMouseOut={e => (e.currentTarget.style.background = "none")}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>{p.nameAr}</div>
+                        <div style={{ fontSize: 11, color: "#64748b", fontFamily: "Cairo, Arial, sans-serif", marginTop: 1 }}>{p.sectionName}</div>
+                      </div>
+                      {p.image && (
+                        <img src={p.image} alt={p.nameAr} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, flexShrink: 0 }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -820,8 +849,8 @@ export default function QadriOldQuotationPage() {
             />
           </div>
 
-          {/* ── التوقيع والختم — يمين الصفحة ────────────────── */}
-          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-start", direction: "rtl" }}>
+          {/* ── التوقيع والختم — يسار الصفحة ────────────────── */}
+          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
             <div style={{ textAlign: "center", minWidth: 140 }}>
               <div style={{ marginBottom: 6 }}>
                 <input

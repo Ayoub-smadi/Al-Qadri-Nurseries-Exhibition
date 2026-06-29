@@ -118,6 +118,7 @@ export default function NoHeaderQuotationPage() {
   const [discountPct, setDiscountPct] = useState<number>(initial?.discountPct ?? 0);
   const [taxPct, setTaxPct] = useState<number>(initial?.taxPct ?? 0);
   const [showPlantPicker, setShowPlantPicker] = useState(false);
+  const [plantSearch, setPlantSearch] = useState("");
 
   const C = SCHEMES[colorKey];
 
@@ -233,16 +234,14 @@ export default function NoHeaderQuotationPage() {
           cloned.style.top = "0";
         },
       });
-      /* Fit content to A4 width; extend page height if content is taller */
+      /* Single-page PDF: page height = content height exactly */
       const A4_W_MM = 210;
-      const A4_H_MM = 297;
       const PX = 3.7795275591;
       const contentW = canvas.width  / PX;
       const contentH = canvas.height / PX;
       const scale    = A4_W_MM / contentW;
       const scaledH  = contentH * scale;
-      const pageH    = Math.max(A4_H_MM, scaledH);
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [A4_W_MM, pageH] });
+      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [A4_W_MM, scaledH + 0.5] });
       pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, A4_W_MM, scaledH);
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
       pdf.save(`${name}_${details.date}.pdf`);
@@ -255,13 +254,20 @@ export default function NoHeaderQuotationPage() {
         div.parentNode?.removeChild(div);
         input.style.display = "";
       });
-      savedClasses.forEach(({ node, cls }) => (node.className = cls));
+      savedClasses.forEach(({ node, cls }) => cls ? node.setAttribute("class", cls) : node.removeAttribute("class"));
       window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
     }
   };
 
   /* ─── Plants ───────────────────────────────────────────── */
+  const allPlants = (siteData?.sections ?? []).flatMap(s =>
+    s.photos.map(p => ({ id: p.id, nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "", sectionName: s.nameAr, image: p.image }))
+  );
+  const allFilteredPlants = plantSearch.trim()
+    ? allPlants.filter(p => p.nameAr.includes(plantSearch) || p.sectionName.includes(plantSearch))
+    : allPlants;
+
   const addItemFromPlant = (plant: { nameAr: string; descriptionAr: string }) => {
     setItems(prev => {
       const clean = prev.filter(i => i.name.trim());
@@ -275,6 +281,7 @@ export default function NoHeaderQuotationPage() {
       }];
     });
     setShowPlantPicker(false);
+    setPlantSearch("");
   };
 
   /* ─── WhatsApp ─────────────────────────────────────────── */
@@ -373,36 +380,56 @@ export default function NoHeaderQuotationPage() {
             {showPlantPicker && (
               <div style={{
                 position: "absolute", top: "110%", right: 0, zIndex: 200,
-                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10,
-                boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-                width: 280, maxHeight: 360, overflowY: "auto", padding: 8,
+                background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12,
+                boxShadow: "0 8px 30px rgba(0,0,0,0.14)",
+                width: 340, maxHeight: 420, display: "flex", flexDirection: "column",
               }}>
-                {(siteData?.sections ?? []).length === 0 && (
-                  <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نباتات في الموقع</div>
-                )}
-                {(siteData?.sections ?? []).map(s => (
-                  <div key={s.id} style={{ marginBottom: 6 }}>
-                    <div style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "#475569", background: "#f1f5f9", borderRadius: 4, marginBottom: 2, fontFamily: "Cairo, Arial, sans-serif" }}>
-                      {s.nameAr}
-                    </div>
-                    {s.photos.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => addItemFromPlant({ nameAr: p.nameAr, descriptionAr: p.descriptionAr ?? "" })}
-                        style={{
-                          display: "block", width: "100%", textAlign: "right",
-                          padding: "5px 12px", background: "none", border: "none",
-                          cursor: "pointer", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
-                          borderRadius: 4, color: "#1e293b",
-                        }}
-                        onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
-                        onMouseOut={e => (e.currentTarget.style.background = "none")}
-                      >
-                        {p.nameAr}
-                      </button>
-                    ))}
+                {/* Search bar */}
+                <div style={{ padding: "10px 12px", borderBottom: "1px solid #f1f5f9", flexShrink: 0 }}>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      autoFocus
+                      placeholder="ابحث عن نبات لإضافته..."
+                      value={plantSearch}
+                      onChange={e => setPlantSearch(e.target.value)}
+                      style={{
+                        width: "100%", border: "1px solid #e2e8f0", borderRadius: 8,
+                        padding: "7px 12px 7px 34px", fontSize: 13, boxSizing: "border-box",
+                        fontFamily: "Cairo, Arial, sans-serif", outline: "none", background: "#f8fafc", direction: "rtl",
+                      }}
+                    />
+                    <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
                   </div>
-                ))}
+                </div>
+                {/* List */}
+                <div style={{ overflowY: "auto", flex: 1 }}>
+                  {allFilteredPlants.length === 0 && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#94a3b8", fontSize: 12, fontFamily: "Cairo, Arial, sans-serif" }}>لا توجد نتائج</div>
+                  )}
+                  {allFilteredPlants.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => addItemFromPlant(p)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        width: "100%", textAlign: "right", direction: "rtl",
+                        padding: "8px 12px", background: "none", border: "none",
+                        borderBottom: "1px solid #f8fafc",
+                        cursor: "pointer",
+                      }}
+                      onMouseOver={e => (e.currentTarget.style.background = "#f0fdf4")}
+                      onMouseOut={e => (e.currentTarget.style.background = "none")}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>{p.nameAr}</div>
+                        <div style={{ fontSize: 11, color: "#64748b", fontFamily: "Cairo, Arial, sans-serif", marginTop: 1 }}>{p.sectionName}</div>
+                      </div>
+                      {p.image && (
+                        <img src={p.image} alt={p.nameAr} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, flexShrink: 0 }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
