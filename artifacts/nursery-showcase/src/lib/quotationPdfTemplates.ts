@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { sliceCanvasToPdf } from "./pdfMultiPage";
 
 export type PdfTemplate = "modern" | "qadri-old" | "no-header";
 
@@ -61,8 +62,9 @@ async function captureAndSave(html: string, width: number, filename: string) {
   await document.fonts.ready;
   await new Promise(r => setTimeout(r, 200));
 
+  const root = wrapper.firstElementChild as HTMLElement;
   try {
-    const canvas = await html2canvas(wrapper.firstElementChild as HTMLElement, {
+    const canvas = await html2canvas(root, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
@@ -72,12 +74,8 @@ async function captureAndSave(html: string, width: number, filename: string) {
       scrollX: 0,
       scrollY: 0,
     });
-    const PX = 3.7795275591;
-    const w = canvas.width / PX;
-    const h = canvas.height / PX;
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
-    pdf.save(filename);
+    /* Multi-page: slice at tbody row boundaries so rows are never cut */
+    await sliceCanvasToPdf(canvas, root, filename, width);
   } finally {
     document.body.removeChild(wrapper);
   }

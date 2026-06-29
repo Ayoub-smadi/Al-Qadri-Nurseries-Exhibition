@@ -7,8 +7,8 @@ import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
   RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save,
 } from "lucide-react";
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
@@ -263,20 +263,17 @@ export default function QadriOldQuotationPage() {
       await new Promise(r => setTimeout(r, 60));
 
       /* 4. Capture the full element at its natural size */
+      const docW = el.scrollWidth;
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
         scrollX: 0, scrollY: 0,
-        width: el.scrollWidth,
+        width: docW,
         height: el.scrollHeight,
       });
-      const PX = 3.7795275591;
-      const w  = canvas.width  / PX;
-      const h  = canvas.height / PX;
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
+      /* Multi-page: smart slice at row boundaries → proper A4 pages */
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
-      pdf.save(`${name}_${details.date}.pdf`);
+      await sliceCanvasToPdf(canvas, el, `${name}_${details.date}.pdf`, docW);
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);

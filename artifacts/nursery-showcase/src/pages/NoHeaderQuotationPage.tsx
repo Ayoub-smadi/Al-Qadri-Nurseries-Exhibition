@@ -7,8 +7,8 @@ import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
   RotateCcw, MessageCircle, Upload, Save,
 } from "lucide-react";
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
 
 /* ─── Color schemes ─────────────────────────────────────── */
 const SCHEMES = {
@@ -234,23 +234,9 @@ export default function NoHeaderQuotationPage() {
           cloned.style.top = "0";
         },
       });
-      /* Fixed A4 page: scale content to fit exactly in 210×297mm */
-      const A4_W_MM = 210;
-      const A4_H_MM = 297;
-      const PX = 3.7795275591;
-      const contentW = canvas.width  / PX;
-      const contentH = canvas.height / PX;
-      const scaleW   = A4_W_MM / contentW;
-      const scaleH   = A4_H_MM / contentH;
-      const fitScale = Math.min(scaleW, scaleH);
-      const imgW     = contentW * fitScale;
-      const imgH     = contentH * fitScale;
-      const offsetX  = (A4_W_MM - imgW) / 2;
-      const offsetY  = (A4_H_MM - imgH) / 2;
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", offsetX, offsetY, imgW, imgH);
+      /* Multi-page: smart slice at row boundaries → proper A4 pages */
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
-      pdf.save(`${name}_${details.date}.pdf`);
+      await sliceCanvasToPdf(canvas, el, `${name}_${details.date}.pdf`, docW);
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
