@@ -306,7 +306,7 @@ export default function QadriOldQuotationPage() {
       return [...clean, {
         id: Date.now().toString() + Math.random(),
         name: plant.nameAr,
-        description: plant.descriptionAr,
+        description: "",
         category: plant.sectionName,
         quantity: 1,
         price: 0,
