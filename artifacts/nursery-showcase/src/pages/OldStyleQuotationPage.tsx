@@ -8,8 +8,8 @@ import {
   Phone, Mail, Globe, RotateCcw, MessageCircle, ChevronDown,
 } from "lucide-react";
 import stampImage from "@assets/لقطة_شاشة_2026-03-08_023328_1773047188235.png";
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
 
 /* ─── Types ────────────────────────────────────────────── */
 type Item = {
@@ -164,20 +164,20 @@ export default function OldStyleQuotationPage() {
     if (file) { const r = new FileReader(); r.onloadend = () => setLogoUrl(r.result as string); r.readAsDataURL(file); }
   };
 
-  /* ─── PDF export (in-place, no off-screen tricks) ──── */
+  /* ─── PDF export — multi-page A4 split ─────────────── */
   const handlePDF = async () => {
     if (!docRef.current) return;
     setIsPdf(true);
     const el = docRef.current;
-    type HiddenEl  = { node: HTMLElement; was: string };
-    type ReplacedInput = { input: HTMLElement; div: HTMLElement };
-    type SavedClass = { node: Element; cls: string };
-    const hiddenEls:    HiddenEl[]      = [];
-    const replacedInputs: ReplacedInput[] = [];
-    const savedClasses: SavedClass[]    = [];
+    const hiddenEls:      { node: HTMLElement; was: string }[]       = [];
+    const replacedInputs: { input: HTMLElement; div: HTMLElement }[] = [];
+    const savedClasses:   { node: Element; cls: string }[]           = [];
+    const savedScrollY = window.scrollY;
     try {
       await document.fonts.ready;
-      el.scrollIntoView({ block: "start" });
+
+      /* Scroll to top so html2canvas captures from y=0 */
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
       await new Promise(r => setTimeout(r, 120));
 
       /* 1. Hide UI-only controls */
@@ -187,7 +187,7 @@ export default function OldStyleQuotationPage() {
         h.style.display = "none";
       });
 
-      /* 2. Replace inputs/textareas with baked text divs in-place (skip file inputs) */
+      /* 2. Replace inputs/textareas with baked text divs (skip file inputs) */
       Array.from(el.querySelectorAll("input, textarea")).forEach(n => {
         const inp = n as HTMLInputElement | HTMLTextAreaElement;
         if ((inp as HTMLInputElement).type === "file") return;
@@ -201,6 +201,11 @@ export default function OldStyleQuotationPage() {
           `color:${cs.color}`, `text-align:${cs.textAlign}`,
           "width:100%", "white-space:pre-wrap", "word-break:break-word",
           `min-height:${cs.height}`,
+          `margin-top:${cs.marginTop}`,
+          `margin-bottom:${cs.marginBottom}`,
+          `margin-left:${cs.marginLeft}`,
+          `margin-right:${cs.marginRight}`,
+          `padding:${cs.padding}`,
         ].join(";");
         inp.parentNode!.insertBefore(div, inp);
         (inp as HTMLElement).style.display = "none";
@@ -209,35 +214,35 @@ export default function OldStyleQuotationPage() {
 
       /* 3. Strip Tailwind class names to avoid oklch colour errors */
       Array.from(el.querySelectorAll("[class]")).forEach(n => {
-        savedClasses.push({ node: n, cls: n.className });
+        const cls = n.getAttribute("class") ?? "";
+        savedClasses.push({ node: n, cls });
         n.removeAttribute("class");
       });
 
       await new Promise(r => setTimeout(r, 60));
 
-      /* 4. Capture element exactly where it sits in the page */
+      /* 4. Capture full element height → multi-page A4 PDF */
+      const docW = el.scrollWidth;
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
         backgroundColor: "#ffffff", logging: false,
+        scrollX: 0, scrollY: 0,
+        width: docW,
+        height: el.scrollHeight,
       });
-      const PX = 3.7795275591;
-      const w = canvas.width / PX;
-      const h = canvas.height / PX;
-      const pdf = new jsPDF({ orientation: "p", unit: "mm", format: [w, h] });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, w, h);
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
-      pdf.save(`${name}_${details.date}.pdf`);
+      await sliceCanvasToPdf(canvas, el, `${name}_${details.date}.pdf`, docW);
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
     } finally {
-      /* Restore everything */
       hiddenEls.forEach(({ node, was }) => (node.style.display = was));
       replacedInputs.forEach(({ input, div }) => {
         div.parentNode?.removeChild(div);
         (input as HTMLElement).style.display = "";
       });
-      savedClasses.forEach(({ node, cls }) => (node.className = cls));
+      savedClasses.forEach(({ node, cls }) => cls ? node.setAttribute("class", cls) : node.removeAttribute("class"));
+      window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
       setShowPdfMenu(false);
     }
