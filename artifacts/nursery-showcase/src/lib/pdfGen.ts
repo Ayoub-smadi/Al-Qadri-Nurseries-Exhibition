@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { sliceCanvasToPdf } from './pdfMultiPage';
 import { Section, Photo, QuoteItem, QuoteRequest, SiteData } from '@/lib/storage';
 
 export interface PDFSectionInput {
@@ -216,7 +217,7 @@ export async function downloadCatalogPDF(
 /* ── Quote PDF shared builder ───────────────────────────── */
 type QuoteSiteData = { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections?: SiteData['sections'] };
 
-async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<{ pdf: jsPDF; fileName: string }> {
+async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<{ canvas: HTMLCanvasElement; inner: HTMLElement; div: HTMLElement; fileName: string }> {
   const items = quote.items as QuoteItem[];
   const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
@@ -418,23 +419,23 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
   await document.fonts.ready;
 
   const inner = div.firstElementChild as HTMLElement;
-  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
-  document.body.removeChild(div);
-
-  const PX_PER_MM = 3.7795275591;
-  const pageW = canvas.width / PX_PER_MM;
-  const pageH = canvas.height / PX_PER_MM;
-  const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
-  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
+  const canvas = await html2canvas(inner, {
+    scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false,
+    width: inner.scrollWidth, height: inner.scrollHeight,
+  });
   const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
   const fileName = `${safeName}_${dateTag}.pdf`;
-  return { pdf, fileName };
+  return { canvas, inner, div, fileName };
 }
 
 export async function downloadQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
-  const { pdf, fileName } = await buildQuotePDF(quote, siteData);
-  pdf.save(fileName);
+  const { canvas, inner, div, fileName } = await buildQuotePDF(quote, siteData);
+  try {
+    await sliceCanvasToPdf(canvas, inner, fileName, inner.scrollWidth);
+  } finally {
+    document.body.removeChild(div);
+  }
 }
 
 /* ── Quote PDF — No Header (title only) ─────────────────── */
@@ -623,22 +624,29 @@ export async function downloadQuotePDFNoHeader(
 
   // inner is the <div dir="rtl"> (first element after the <style> tag)
   const inner = div.querySelector('[dir="rtl"]') as HTMLElement;
-  const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
-  document.body.removeChild(div);
+  const canvas = await html2canvas(inner, {
+    scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false,
+    width: inner.scrollWidth, height: inner.scrollHeight,
+  });
+  const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  const safeBrand = brandName ? brandName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') + '_' : '';
+  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
+  const filename = `${safeBrand}عرض_${safeName}_${dateTag}.pdf`;
+  try {
+    await sliceCanvasToPdf(canvas, inner, filename, inner.scrollWidth);
+  } finally {
+    document.body.removeChild(div);
+  }
+}
 
+export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
+  const { canvas, div, fileName } = await buildQuotePDF(quote, siteData);
+  document.body.removeChild(div);
   const PX_PER_MM = 3.7795275591;
   const pageW = canvas.width / PX_PER_MM;
   const pageH = canvas.height / PX_PER_MM;
   const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
   pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
-  const safeName = quote.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-  const safeBrand = brandName ? brandName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') + '_' : '';
-  const dateTag = new Date(quote.created_at).toLocaleDateString('en-CA');
-  pdf.save(`${safeBrand}عرض_${safeName}_${dateTag}.pdf`);
-}
-
-export async function shareQuotePDFToWhatsApp(quote: QuoteRequest, siteData: QuoteSiteData): Promise<void> {
-  const { pdf, fileName } = await buildQuotePDF(quote, siteData);
   const blob = pdf.output('blob');
   const file = new File([blob], fileName, { type: 'application/pdf' });
 
