@@ -117,7 +117,13 @@ export default function QadriOldQuotationPage() {
   };
   const draft = loadDraft();
 
-  const [details, setDetails] = useState<Details>(draft?.details ?? mkDefault());
+  const normalizeDetails = (d: Details): Details =>
+    d.website && d.website.includes("alkadri-plants.com")
+      ? { ...d, website: "https://alkadrionline.com" }
+      : d;
+  const [details, setDetails] = useState<Details>(
+    draft?.details ? normalizeDetails(draft.details) : mkDefault()
+  );
   const [items, setItems] = useState<Item[]>(draft?.items ?? [mkItem()]);
   const [logoUrl, setLogoUrl] = useState<string>(draft?.logoUrl ?? "");
   const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "");
