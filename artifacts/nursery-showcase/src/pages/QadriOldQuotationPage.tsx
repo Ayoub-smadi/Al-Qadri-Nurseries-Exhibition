@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
-  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save,
+  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save, FilePlus,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
+import { createInvoice, InvoiceItem } from "@/lib/storage";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
@@ -136,6 +137,7 @@ export default function QadriOldQuotationPage() {
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
   const [smartText, setSmartText] = useState("");
+  const [convertingToInvoice, setConvertingToInvoice] = useState(false);
 
   /* ─── Auto-save ─────────────────────────────────────── */
   const saveDraft = useCallback(() => {
@@ -149,6 +151,48 @@ export default function QadriOldQuotationPage() {
     setLogoUrl(""); setStampUrl("");
     setDiscountPct(0); setTaxPct(0);
     setCurrentRecordId(null);
+  };
+
+  const handleConvertToInvoice = async () => {
+    const validItems = items.filter(it => it.name.trim());
+    if (validItems.length === 0) {
+      toast.error('أضف عناصر أولاً قبل التحويل');
+      return;
+    }
+    setConvertingToInvoice(true);
+    try {
+      const subtotal = validItems.reduce((s, it) => s + Number(it.quantity) * Number(it.price), 0);
+      const discountAmt = subtotal * (discountPct / 100);
+      const invoiceItems: InvoiceItem[] = validItems.map(it => ({
+        description: it.name.trim() + (it.description?.trim() ? ` — ${it.description.trim()}` : ''),
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.price),
+      }));
+      let notes = details.notes || '';
+      if (taxPct > 0) {
+        const afterDiscount = subtotal - discountAmt;
+        const taxAmt = afterDiscount * (taxPct / 100);
+        const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        notes = `${notes ? notes + '\n' : ''}ضريبة ${taxPct.toFixed(0)}%: ${fmt(taxAmt)} د.أ`;
+      }
+      const result = await createInvoice({
+        customerName: details.customerName || 'عميل',
+        date: details.date || new Date().toISOString().slice(0, 10),
+        items: invoiceItems,
+        notes: notes.trim(),
+        discount: discountAmt,
+        status: 'receivable',
+      });
+      if (result && typeof result === 'object' && 'number' in result) {
+        toast.success(`✅ تم إنشاء الفاتورة رقم ${(result as { id: string; number: string }).number} بنجاح`);
+      } else {
+        toast.error('فشل إنشاء الفاتورة');
+      }
+    } catch (e: any) {
+      toast.error('خطأ: ' + e.message);
+    } finally {
+      setConvertingToInvoice(false);
+    }
   };
 
   /* ─── Save to records ────────────────────────────────── */
@@ -376,6 +420,27 @@ export default function QadriOldQuotationPage() {
             {showSmart
               ? <ChevronUp style={{ width: 12, height: 12 }} />
               : <ChevronDown style={{ width: 12, height: 12 }} />}
+          </button>
+
+          {/* Convert to Invoice */}
+          <button
+            onClick={handleConvertToInvoice}
+            disabled={convertingToInvoice}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              background: "#fffbeb",
+              color: "#92400e",
+              border: "1px solid #fcd34d",
+              cursor: convertingToInvoice ? "not-allowed" : "pointer",
+              fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+              opacity: convertingToInvoice ? 0.6 : 1,
+            }}>
+            {convertingToInvoice
+              ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+              : <FilePlus style={{ width: 14, height: 14 }} />}
+            تحويل إلى فاتورة
           </button>
 
           <button onClick={clearDraft} title="مسح وبدء من جديد"
