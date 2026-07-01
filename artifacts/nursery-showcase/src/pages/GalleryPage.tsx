@@ -3625,6 +3625,7 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
   const [pdfingId, setPdfingId] = useState<string | null>(null);
   const [qadriOldPdfingId, setQadriOldPdfingId] = useState<string | null>(null);
   const [noHeaderPdfingId, setNoHeaderPdfingId] = useState<string | null>(null);
+  const [convertingQuoteId, setConvertingQuoteId] = useState<string | null>(null);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [tab, setTab] = useState<'new' | 'priced' | 'trash'>('new');
@@ -3734,6 +3735,54 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
     setNoHeaderPdfingId(q.id);
     await downloadQuotePDFNoHeader(q, 'عرض سعر', siteData.sections, '#334155');
     setNoHeaderPdfingId(null);
+  };
+
+  const handleConvertToInvoice = async (q: QuoteRequest) => {
+    setConvertingQuoteId(q.id);
+    try {
+      const availableItems = (q.items as QuoteItem[]).filter(it => !it.unavailable);
+      if (availableItems.length === 0) {
+        toast.error('لا توجد عناصر متاحة لتحويلها إلى فاتورة');
+        return;
+      }
+      const subtotal = availableItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+      const discountAmt = subtotal * (Number(q.discount) / 100);
+      const invoiceItems: InvoiceItem[] = availableItems.map(it => ({
+        description: it.plantNameAr + (it.availableSize ? ` (${it.availableSize})` : it.size ? ` (${it.size})` : ''),
+        quantity: it.quantity,
+        unitPrice: it.price || 0,
+      }));
+      if (Number(q.shipping_fee) > 0) {
+        invoiceItems.push({ description: 'رسوم الشحن', quantity: 1, unitPrice: Number(q.shipping_fee) });
+      }
+      if (Number(q.planting_fee) > 0) {
+        invoiceItems.push({ description: 'رسوم الزراعة', quantity: 1, unitPrice: Number(q.planting_fee) });
+      }
+      let notes = q.notes || '';
+      if (Number(q.tax) > 0) {
+        const afterDiscount = subtotal - discountAmt;
+        const taxAmt = afterDiscount * (Number(q.tax) / 100);
+        const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        notes = `${notes ? notes + '\n' : ''}ضريبة ${Number(q.tax).toFixed(0)}%: ${fmt(taxAmt)} د.أ`;
+      }
+      const result = await createInvoice({
+        customerName: q.customer_name,
+        date: new Date().toISOString().slice(0, 10),
+        items: invoiceItems,
+        notes: notes.trim(),
+        discount: discountAmt,
+        status: 'receivable',
+      });
+      if (result && typeof result === 'object' && 'number' in result) {
+        toast.success(`✅ تم إنشاء الفاتورة رقم ${(result as { id: string; number: string }).number} بنجاح`);
+      } else {
+        toast.error('فشل إنشاء الفاتورة');
+      }
+    } catch (e: any) {
+      toast.error('خطأ: ' + e.message);
+    } finally {
+      setConvertingQuoteId(null);
+    }
   };
 
   const updateItemPrice = (itemIdx: number, price: number) => {
@@ -4065,10 +4114,13 @@ function AdminQuotesModal({ open, onClose, lang, siteData }: {
                     </button>
                   </div>
                 </div>
-                {/* Row 2: PDF download controls */}
+                {/* Row 2: PDF download controls + convert to invoice */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(editQuote)} disabled={pdfingId === editQuote.id} className="arabic text-xs h-7">
                     {pdfingId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FileDown className="w-3.5 h-3.5 me-1" />القادري</>}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleConvertToInvoice(editQuote)} disabled={convertingQuoteId === editQuote.id} className="arabic text-xs h-7 border-amber-300 text-amber-700 hover:bg-amber-50">
+                    {convertingQuoteId === editQuote.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><FilePlus className="w-3.5 h-3.5 me-1" />تحويل إلى فاتورة</>}
                   </Button>
                 </div>
               </div>
