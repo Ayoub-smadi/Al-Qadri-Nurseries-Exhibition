@@ -718,22 +718,24 @@ export default function NoHeaderQuotationPage() {
               </label>
             )}
 
-            {/* Notes (right) */}
-            <div style={{ flex: 1, textAlign: "right" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات</div>
-              <textarea
-                value={details.notes}
-                onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
-                placeholder="أي ملاحظات إضافية..."
-                rows={3}
-                style={{
-                  ...fieldStyle,
-                  resize: "none",
-                  fontSize: 12, color: "#374151",
-                  textAlign: "right", direction: "rtl",
-                }}
-              />
-            </div>
+            {/* Notes (right) — hidden in PDF when empty */}
+            {(!isPdf || details.notes.trim()) && (
+              <div style={{ flex: 1, textAlign: "right" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات</div>
+                <textarea
+                  value={details.notes}
+                  onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="أي ملاحظات إضافية..."
+                  rows={3}
+                  style={{
+                    ...fieldStyle,
+                    resize: "none",
+                    fontSize: 12, color: "#374151",
+                    textAlign: "right", direction: "rtl",
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Accent bottom bar */}
