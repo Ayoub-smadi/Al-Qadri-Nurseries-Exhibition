@@ -440,7 +440,7 @@ export interface Invoice {
   items: InvoiceItem[];
   notes: string;
   discount?: number;
-  status: 'paid' | 'receivable';
+  status: 'paid' | 'receivable' | 'pending';
   created_at: string;
 }
 
@@ -689,7 +689,7 @@ export async function createInvoice(data: { customerName: string; date: string; 
   return { error: `network: ${lastReason.slice(0, 100)}` };
 }
 
-export async function updateInvoiceStatus(id: string, status: 'paid' | 'receivable'): Promise<boolean> {
+export async function updateInvoiceStatus(id: string, status: 'paid' | 'receivable' | 'pending'): Promise<boolean> {
   const token = getToken();
   if (!token) return false;
   try {
