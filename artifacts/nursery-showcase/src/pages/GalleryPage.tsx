@@ -4952,7 +4952,7 @@ function AdminCreateQuoteModal({ open, onClose, siteData, lang, onCreated }: {
 function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onClose: () => void; lang: string; logoUrl: string }) {
   const isAr = lang === 'ar';
   const today = new Date().toLocaleDateString('ar-JO');
-  const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today });
+  const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today, phone: '+962 777 772 211' });
   const [generating, setGenerating] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -5016,6 +5016,10 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
             <div>
               <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ إصدار الشهادة</Label>
               <Input value={form.issueDate} onChange={set('issueDate')} dir="rtl" className="arabic text-right" />
+            </div>
+            <div>
+              <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">رقم الهاتف في الشهادة</Label>
+              <Input value={form.phone} onChange={set('phone')} dir="ltr" className="text-left" placeholder="+962 777 772 211" />
             </div>
           </div>
         </div>
