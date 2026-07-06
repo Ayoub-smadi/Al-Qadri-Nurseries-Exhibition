@@ -2561,7 +2561,7 @@ function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox, onI
       {/* image */}
       <img src={allImages[safeIdx] || photo.image}
         alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 
       {/* zoom hint (visitor) */}
       {!isAdmin && (
@@ -2679,8 +2679,8 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
         <div className="md:w-[55%] aspect-[4/5] md:aspect-auto md:max-h-[90vh] bg-muted shrink-0 relative">
           <img src={allImages[safeIdx] || photo.image}
             alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-            className="w-full h-full object-cover transition-opacity duration-300" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+            className="w-full h-full object-contain transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
 
           {/* image nav when multiple */}
           {allImages.length > 1 && (
