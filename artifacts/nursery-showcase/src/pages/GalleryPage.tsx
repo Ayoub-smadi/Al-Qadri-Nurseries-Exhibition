@@ -2672,11 +2672,11 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
 
       {/* card */}
-      <div className="relative z-10 w-full max-w-2xl bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
         onClick={e => e.stopPropagation()}>
 
         {/* image side */}
-        <div className="md:w-[55%] aspect-[4/5] md:aspect-auto bg-muted shrink-0 relative">
+        <div className="md:w-[55%] aspect-[4/5] md:aspect-auto md:max-h-[90vh] bg-muted shrink-0 relative">
           <img src={allImages[safeIdx] || photo.image}
             alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
             className="w-full h-full object-cover transition-opacity duration-300" />
@@ -2707,8 +2707,8 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
         </div>
 
         {/* info side */}
-        <div className="flex-1 flex flex-col justify-between p-6 md:p-8">
-          <div>
+        <div className="flex-1 min-w-0 flex flex-col justify-between p-6 md:p-8 overflow-y-auto">
+          <div className="min-w-0">
             {/* close */}
             <button onClick={onClose}
               className="absolute top-3 end-3 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
@@ -2716,11 +2716,11 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
             </button>
 
             {/* name */}
-            <h2 className="arabic text-2xl md:text-3xl font-bold text-foreground leading-tight mt-6 md:mt-0">
+            <h2 className="arabic text-2xl md:text-3xl font-bold text-foreground leading-tight mt-6 md:mt-0 break-words [overflow-wrap:anywhere]">
               {isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
             </h2>
             {photo.nameAr && photo.nameEn && (
-              <p className="text-muted-foreground text-sm latin mt-1">
+              <p className="text-muted-foreground text-sm latin mt-1 break-words [overflow-wrap:anywhere]">
                 {isAr ? photo.nameEn : photo.nameAr}
               </p>
             )}
@@ -2730,7 +2730,7 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
 
             {/* description */}
             {(photo.descriptionAr || photo.descriptionEn) ? (
-              <p className="arabic text-foreground/80 text-sm leading-relaxed">
+              <p className="arabic text-foreground/80 text-sm leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                 {isAr
                   ? (photo.descriptionAr || photo.descriptionEn)
                   : (photo.descriptionEn || photo.descriptionAr)}
