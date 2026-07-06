@@ -2561,7 +2561,7 @@ function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox, onI
       {/* image */}
       <img src={allImages[safeIdx] || photo.image}
         alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 
       {/* zoom hint (visitor) */}
       {!isAdmin && (
@@ -2672,11 +2672,11 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
 
       {/* card */}
-      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+      <div className="relative z-10 w-full max-w-5xl max-h-[92vh] bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
         onClick={e => e.stopPropagation()}>
 
         {/* image side */}
-        <div className="md:w-[55%] aspect-[4/5] md:aspect-auto md:max-h-[90vh] bg-muted shrink-0 relative">
+        <div className="md:w-[65%] aspect-[4/5] md:aspect-auto md:max-h-[92vh] bg-muted shrink-0 relative">
           <img src={allImages[safeIdx] || photo.image}
             alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
             className="w-full h-full object-contain transition-opacity duration-300" />
