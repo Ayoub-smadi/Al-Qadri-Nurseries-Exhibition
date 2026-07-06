@@ -6074,6 +6074,31 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
   );
 }
 
+/* ── Arabic month grouping helpers ───────────────────────── */
+const ARABIC_MONTH_NAMES = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'];
+
+function monthGroupKey(iso: string | undefined): string {
+  const key = (iso || '').slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(key) ? key : 'unknown';
+}
+
+function monthGroupLabel(key: string): string {
+  if (key === 'unknown') return 'غير محدد';
+  const [y, m] = key.split('-');
+  const idx = parseInt(m, 10) - 1;
+  return `${ARABIC_MONTH_NAMES[idx] ?? m} ${y}`;
+}
+
+function groupRecordsByMonth<T extends { createdAt?: string }>(records: T[]): [string, T[]][] {
+  const map = new Map<string, T[]>();
+  for (const r of records) {
+    const key = monthGroupKey(r.createdAt);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(r);
+  }
+  return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+}
+
 /* ── QadriOld Records Modal ──────────────────────────────── */
 type QadriOldRec = {
   id: string;
@@ -6088,6 +6113,7 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const EDIT_KEY  = 'aq_qadri_old_edit_id';
   const DRAFT_KEY = 'aq_qadri_old_inline_draft';
   const [records, setRecords] = React.useState<QadriOldRec[]>([]);
+  const groupedRecords = React.useMemo(() => groupRecordsByMonth(records), [records]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -6137,23 +6163,32 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
               <p className="text-xs arabic opacity-60">أنشئ عرضاً وانقر "حفظ" لتظهر هنا</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {records.map(rec => (
-                <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 dark:bg-blue-950/30">
-                    <FileText className="w-4 h-4 text-blue-600" />
+            <div>
+              {groupedRecords.map(([monthKey, recs]) => (
+                <div key={monthKey}>
+                  <div className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm px-4 py-1.5 text-xs font-bold text-muted-foreground arabic border-y border-border">
+                    {monthGroupLabel(monthKey)} <span className="opacity-60">({recs.length})</span>
                   </div>
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
-                    <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
-                    <p className="text-xs text-muted-foreground arabic">
-                      {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
-                    <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="divide-y divide-border">
+                    {recs.map(rec => (
+                      <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 dark:bg-blue-950/30">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
+                          <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
+                          <p className="text-xs text-muted-foreground arabic">
+                            {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
+                          <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -6179,6 +6214,7 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const EDIT_KEY  = 'aq_no_header_edit_id';
   const DRAFT_KEY = 'aq_no_header_draft';
   const [records, setRecords] = React.useState<NoHeaderRec[]>([]);
+  const groupedRecords = React.useMemo(() => groupRecordsByMonth(records), [records]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -6228,23 +6264,32 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
               <p className="text-xs arabic opacity-60">أنشئ عرضاً وانقر "حفظ" لتظهر هنا</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {records.map(rec => (
-                <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-green-100 dark:bg-green-950/30">
-                    <FileText className="w-4 h-4 text-green-600" />
+            <div>
+              {groupedRecords.map(([monthKey, recs]) => (
+                <div key={monthKey}>
+                  <div className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm px-4 py-1.5 text-xs font-bold text-muted-foreground arabic border-y border-border">
+                    {monthGroupLabel(monthKey)} <span className="opacity-60">({recs.length})</span>
                   </div>
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
-                    <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
-                    <p className="text-xs text-muted-foreground arabic">
-                      {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
-                    <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="divide-y divide-border">
+                    {recs.map(rec => (
+                      <div key={rec.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-green-100 dark:bg-green-950/30">
+                          <FileText className="w-4 h-4 text-green-600" />
+                        </div>
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openRec(rec)}>
+                          <p className="text-sm font-bold arabic text-foreground truncate">{rec.details.customerName || '—'}</p>
+                          <p className="text-xs text-muted-foreground arabic">
+                            {rec.details.date} · {rec.items.filter(i => String(i.name ?? '').trim()).length} بنود
+                          </p>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          <Button size="sm" variant="outline" onClick={() => openRec(rec)} className="arabic text-xs h-7 px-2">فتح</Button>
+                          <button onClick={() => deleteRec(rec.id)} title="حذف" className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
