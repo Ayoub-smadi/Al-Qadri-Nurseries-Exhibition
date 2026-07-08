@@ -127,7 +127,7 @@ export default function QadriOldQuotationPage() {
   );
   const [items, setItems] = useState<Item[]>(draft?.items ?? [mkItem()]);
   const [logoUrl, setLogoUrl] = useState<string>(draft?.logoUrl ?? "");
-  const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "");
+  const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "/stamp-qadri.png");
   const [isPdf, setIsPdf] = useState(false);
   const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
   const [taxPct, setTaxPct] = useState<number>(draft?.taxPct ?? 0);
@@ -148,7 +148,7 @@ export default function QadriOldQuotationPage() {
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     setDetails(mkDefault()); setItems([mkItem()]);
-    setLogoUrl(""); setStampUrl("");
+    setLogoUrl(""); setStampUrl("/stamp-qadri.png");
     setDiscountPct(0); setTaxPct(0);
     setCurrentRecordId(null);
   };
