@@ -794,13 +794,13 @@ export default function QadriOldQuotationPage() {
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt="" style={{ width: 120, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
                         ) : (
-                          <div className="pdf-hide-if-empty" style={{
+                          <div style={{
                             width: 120, height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
                             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                             background: "#f9fafb", margin: "0 auto", gap: 3,
                           }}>
-                            <Upload style={{ width: 14, height: 14, color: "#9ca3af" }} />
-                            <span style={{ fontSize: 10, color: "#9ca3af" }}>صورة</span>
+                            <Upload className="pdf-hide" style={{ width: 14, height: 14, color: "#9ca3af" }} />
+                            <span className="pdf-hide" style={{ fontSize: 10, color: "#9ca3af" }}>صورة</span>
                           </div>
                         )}
                       </div>

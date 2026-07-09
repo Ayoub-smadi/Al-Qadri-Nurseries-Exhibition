@@ -98,7 +98,9 @@ function buildRows(
       <td style="padding:8px 6px;text-align:center;font-weight:700;font-size:12px;">${fmt(item.price)}</td>
       <td style="padding:8px 6px;text-align:center;font-weight:800;font-size:12px;background:${totalBg};color:${totalColor};">${fmt(item.total)}</td>
       <td style="padding:4px;text-align:center;">
-        ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;" />` : ""}
+        ${item.imageUrl
+          ? `<img src="${item.imageUrl}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;" />`
+          : `<div style="width:56px;height:56px;border:1px dashed #d1d5db;border-radius:6px;background:#f9fafb;margin:0 auto;"></div>`}
       </td>
     </tr>
   `).join("");
