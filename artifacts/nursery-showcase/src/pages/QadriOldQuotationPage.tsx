@@ -104,8 +104,7 @@ const F: React.CSSProperties = {
 /* ══════════════════════════════════════════════════════════ */
 export default function QadriOldQuotationPage() {
   const { siteData } = useApp();
-  const docRef    = useRef<HTMLDivElement>(null);
-  const runHdrRef = useRef<HTMLDivElement>(null);
+  const docRef = useRef<HTMLDivElement>(null);
 
   /* ─── Load draft ────────────────────────────────────── */
   /* ─── Load edit ID (set by records modal) ───────────── */
@@ -313,36 +312,7 @@ export default function QadriOldQuotationPage() {
 
       await new Promise(r => setTimeout(r, 60));
 
-      /* 4. Capture running header (for continuation pages) */
-      let runHeaderCanvas: HTMLCanvasElement | undefined;
-      if (runHdrRef.current) {
-        const hdrEl = runHdrRef.current;
-        hdrEl.style.display = "block";
-        /* Wait for any logo image inside the header to fully load/decode */
-        await Promise.all(
-          Array.from(hdrEl.querySelectorAll("img")).map(img =>
-            img.complete && img.naturalWidth > 0
-              ? Promise.resolve()
-              : new Promise<void>(res => {
-                  img.onload = () => res();
-                  img.onerror = () => res();
-                  /* Fallback in case events already fired */
-                  setTimeout(res, 400);
-                })
-          )
-        );
-        await new Promise(r => setTimeout(r, 40));
-        runHeaderCanvas = await html2canvas(hdrEl, {
-          scale: 2, useCORS: true, allowTaint: true,
-          backgroundColor: "#ffffff", logging: false,
-          scrollX: 0, scrollY: 0,
-          width: hdrEl.scrollWidth,
-          height: hdrEl.scrollHeight,
-        });
-        hdrEl.style.display = "none";
-      }
-
-      /* 5. Capture the full document at its natural size */
+      /* 4. Capture the full document at its natural size */
       const docW = el.scrollWidth;
       const canvas = await html2canvas(el, {
         scale: 2, useCORS: true, allowTaint: true,
@@ -351,6 +321,48 @@ export default function QadriOldQuotationPage() {
         width: docW,
         height: el.scrollHeight,
       });
+
+      /* 5. Build + capture running header for continuation pages */
+      let runHeaderCanvas: HTMLCanvasElement | undefined;
+      {
+        const logoSrc = effectiveLogo
+          ? `<img src="${effectiveLogo}" alt="" style="width:55px;height:45px;object-fit:contain;flex-shrink:0;" />`
+          : "";
+        const hdrWrapper = document.createElement("div");
+        hdrWrapper.style.cssText = `position:absolute;left:-9999px;top:0;width:${docW}px;background:#fff;`;
+        hdrWrapper.innerHTML = `
+          <div style="direction:ltr;display:flex;align-items:center;justify-content:space-between;
+            padding:10px 20px;border-bottom:2px solid #e5e7eb;background:#fff;
+            font-family:Cairo,Arial,sans-serif;">
+            <div style="font-size:12px;font-weight:600;color:#374151;">${details.companyNameEn}</div>
+            <div style="display:flex;align-items:center;gap:12px;direction:rtl;">
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:700;color:#1e293b;">${details.companyNameAr}</div>
+                <div style="font-size:10px;color:#64748b;margin-top:2px;">${details.companyLocationAr}</div>
+              </div>
+              ${logoSrc}
+            </div>
+          </div>`;
+        document.body.appendChild(hdrWrapper);
+        try {
+          await Promise.all(
+            Array.from(hdrWrapper.querySelectorAll("img")).map(img =>
+              img.complete && img.naturalWidth > 0
+                ? Promise.resolve()
+                : new Promise<void>(res => { img.onload = () => res(); img.onerror = () => res(); setTimeout(res, 400); })
+            )
+          );
+          await new Promise(r => setTimeout(r, 40));
+          runHeaderCanvas = await html2canvas(hdrWrapper.firstElementChild as HTMLElement, {
+            scale: 2, useCORS: true, allowTaint: true,
+            backgroundColor: "#ffffff", logging: false,
+            scrollX: 0, scrollY: 0,
+            width: docW,
+          });
+        } finally {
+          document.body.removeChild(hdrWrapper);
+        }
+      }
 
       /* Multi-page: smart slice at row boundaries → proper A4 pages */
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
@@ -365,7 +377,6 @@ export default function QadriOldQuotationPage() {
         input.style.display = "";
       });
       savedClasses.forEach(({ node, cls }) => cls ? node.setAttribute("class", cls) : node.removeAttribute("class"));
-      if (runHdrRef.current) runHdrRef.current.style.display = "none";
       window.scrollTo({ top: savedScrollY, behavior: "instant" as ScrollBehavior });
       setIsPdf(false);
     }
@@ -1010,48 +1021,6 @@ export default function QadriOldQuotationPage() {
             </div>
           </div>
 
-        </div>
-      </div>
-
-      {/* ── Running header (hidden; captured for PDF continuation pages) ── */}
-      <div
-        ref={runHdrRef}
-        style={{
-          display: "none",
-          position: "fixed", left: -9999, top: 0,
-          width: 794, background: "#fff",
-          fontFamily: "Cairo, Arial, sans-serif",
-        }}
-      >
-        <div style={{
-          direction: "ltr",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "10px 20px",
-          borderBottom: "2px solid #e5e7eb",
-          background: "#fff",
-        }}>
-          {/* English — left */}
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
-            {details.companyNameEn}
-          </div>
-          {/* Arabic + logo — right */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, direction: "rtl" }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>
-                {details.companyNameAr}
-              </div>
-              <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>
-                {details.companyLocationAr}
-              </div>
-            </div>
-            {effectiveLogo && (
-              <img
-                src={effectiveLogo}
-                alt="logo"
-                style={{ width: 55, height: 45, objectFit: "contain", flexShrink: 0 }}
-              />
-            )}
-          </div>
         </div>
       </div>
 
