@@ -775,57 +775,57 @@ export default function QadriOldQuotationPage() {
                 {items.map((item, i) => (
                   <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
                     {/* # */}
-                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#374151", fontSize: 13, verticalAlign: "top", paddingTop: 12, border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       {i + 1}
                     </td>
                     {/* الاسم */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.name}
                         onChange={e => updateItem(item.id, "name", e.target.value)}
                         placeholder="اسم النبتة"
-                        style={{ ...F, fontSize: 12, fontWeight: 600, color: "#1e293b", textAlign: "right" }}
+                        style={{ ...F, fontSize: 12, fontWeight: 600, color: "#111827", textAlign: "right" }}
                       />
                     </td>
                     {/* الوصف */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.description}
                         onChange={e => updateItem(item.id, "description", e.target.value)}
                         placeholder="وصف"
-                        style={{ ...F, fontSize: 11, color: "#475569", textAlign: "right" }}
+                        style={{ ...F, fontSize: 11, color: "#111827", textAlign: "right" }}
                       />
                     </td>
                     {/* القسم */}
-                    <td style={{ padding: "8px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <input
                         value={item.category}
                         onChange={e => updateItem(item.id, "category", e.target.value)}
                         placeholder="قسم"
-                        style={{ ...F, fontSize: 11, color: "#475569", textAlign: "right" }}
+                        style={{ ...F, fontSize: 11, color: "#111827", textAlign: "center" }}
                       />
                     </td>
                     {/* الكمية */}
-                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={1}
                         value={item.quantity}
                         onChange={e => updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)}
-                        style={{ ...F, fontSize: 12, fontWeight: 700, textAlign: "center" }}
+                        style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
                       />
                     </td>
                     {/* السعر */}
-                    <td style={{ padding: "6px", verticalAlign: "top", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
                       <input
                         type="number" min={0} step={0.01}
                         value={item.price || ""}
                         onChange={e => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
                         placeholder="0"
-                        style={{ ...F, fontSize: 12, fontWeight: 700, textAlign: "center" }}
+                        style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
                       />
                     </td>
                     {/* الإجمالي */}
-                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, verticalAlign: "top", paddingTop: 12, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
                       {fmt(item.total)}
                     </td>
                     {/* الصورة */}
