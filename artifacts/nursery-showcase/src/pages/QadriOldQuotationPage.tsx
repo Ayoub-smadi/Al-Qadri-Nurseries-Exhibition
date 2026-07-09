@@ -253,7 +253,7 @@ export default function QadriOldQuotationPage() {
   };
 
   /* ─── Effective logo ─────────────────────────────────── */
-  const effectiveLogo = logoUrl || siteData?.logo?.customUrl || "";
+  const effectiveLogo = logoUrl || siteData?.logo?.customUrl || "/logo-alkadri.jpg";
 
   /* ─── PDF export ─────────────────────────────────────── */
   const handlePDF = async () => {
@@ -757,17 +757,17 @@ export default function QadriOldQuotationPage() {
 
           {/* ── Table ──────────────────────────────────── */}
           <div style={{ padding: "16px 20px 0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #cbd5e1" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
               <thead>
                 <tr style={{ background: "#1a2744", color: "#ffffff" }}>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>#</th>
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الاسم</th>
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الوصف</th>
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>القسم</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الكمية</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 72, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>السعر</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 84, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الإجمالي</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid rgba(255,255,255,0.25)" }}>الصورة</th>
+                  <th style={{ padding: "10px 6px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>#</th>
+                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الاسم</th>
+                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الوصف</th>
+                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>القسم</th>
+                  <th style={{ padding: "10px 6px", textAlign: "center", width: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الكمية</th>
+                  <th style={{ padding: "10px 6px", textAlign: "center", width: 72, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>السعر</th>
+                  <th style={{ padding: "10px 6px", textAlign: "center", width: 84, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الإجمالي</th>
+                  <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الصورة</th>
                   <th className="pdf-hide" style={{ width: 24 }} />
                 </tr>
               </thead>
@@ -775,11 +775,11 @@ export default function QadriOldQuotationPage() {
                 {items.map((item, i) => (
                   <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
                     {/* # */}
-                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #111827" }}>
                       {i + 1}
                     </td>
                     {/* الاسم */}
-                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
                         value={item.name}
                         onChange={e => updateItem(item.id, "name", e.target.value)}
@@ -788,7 +788,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الوصف */}
-                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
                         value={item.description}
                         onChange={e => updateItem(item.id, "description", e.target.value)}
@@ -797,7 +797,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* القسم */}
-                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
                         value={item.category}
                         onChange={e => updateItem(item.id, "category", e.target.value)}
@@ -806,7 +806,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الكمية */}
-                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
                         type="number" min={1}
                         value={item.quantity}
@@ -815,7 +815,7 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* السعر */}
-                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
                         type="number" min={0} step={0.01}
                         value={item.price || ""}
@@ -825,11 +825,11 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الإجمالي */}
-                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {fmt(item.total)}
                     </td>
                     {/* الصورة */}
-                    <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #d1d5db" }}>
+                    <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <div
                         style={{ cursor: "pointer", display: "block" }}
                         onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
