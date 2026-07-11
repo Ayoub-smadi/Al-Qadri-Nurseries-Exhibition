@@ -5103,7 +5103,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
 
   const handleDownloadPDF = async (inv: Invoice) => {
     setPdfingId(inv.id);
-    await downloadInvoicePDF(inv, siteData);
+    // Re-fetch the latest invoices before generating the PDF so a status
+    // change made moments earlier (toggle/edit) can never be missed due to
+    // stale local state.
+    const latest = await fetchInvoices();
+    const fresh = latest?.find(i => i.id === inv.id) ?? inv;
+    if (latest !== null) setInvoices(latest);
+    await downloadInvoicePDF(fresh, siteData);
     setPdfingId(null);
   };
 
