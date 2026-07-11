@@ -351,7 +351,7 @@ app.post("/api/invoices", async (req, res) => {
       finalNum = String(countRow.rows[0].next).padStart(6, "0");
     }
     const id = `inv-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const invoiceStatus = status === "paid" ? "paid" : "receivable";
+    const invoiceStatus = status === "paid" ? "paid" : status === "online" ? "online" : "receivable";
     await pool.query(
       `INSERT INTO invoices (id, number, customer_name, date, items, notes, status, discount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [id, finalNum, customerName, date ?? new Date().toISOString().slice(0, 10), JSON.stringify(items), notes ?? "", invoiceStatus, discount ?? 0]
@@ -369,7 +369,7 @@ app.put("/api/invoices/:id", async (req, res) => {
   try {
     await dbReady;
     if (items !== undefined) {
-      const invoiceStatus = status === "paid" ? "paid" : "receivable";
+      const invoiceStatus = status === "paid" ? "paid" : status === "online" ? "online" : "receivable";
       await pool.query(
         `UPDATE invoices SET number = COALESCE($1, number), discount = $2, customer_name = $3, date = $4, items = $5, notes = $6, status = $7 WHERE id = $8`,
         [number?.trim() || null, discount ?? 0, customerName, date, JSON.stringify(items), notes ?? "", invoiceStatus, id]
@@ -387,7 +387,7 @@ app.put("/api/invoices/:id/status", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
   const { status } = req.body ?? {};
-  if (status !== "paid" && status !== "receivable") {
+  if (status !== "paid" && status !== "receivable" && status !== "online") {
     res.status(400).json({ error: "Invalid status" });
     return;
   }
