@@ -527,7 +527,7 @@ export interface Receipt {
   amount: number;
   amount_text: string;
   description: string;
-  payment_method: 'cash' | 'check' | 'transfer';
+  payment_method: 'cash' | 'check' | 'transfer' | 'online';
   date: string;
   notes: string;
   created_at: string;
@@ -591,7 +591,7 @@ export interface Disbursement {
   amount: number;
   amount_text: string;
   description: string;
-  payment_method: 'cash' | 'check' | 'transfer';
+  payment_method: 'cash' | 'check' | 'transfer' | 'online';
   date: string;
   notes: string;
   created_at: string;

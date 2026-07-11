@@ -5554,7 +5554,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
 /* ── Receipt Form (standalone — must NOT be defined inside modal) ─── */
 type ReceiptDraft = {
   receivedFrom: string; amount: number; amountText: string;
-  description: string; paymentMethod: 'cash' | 'check' | 'transfer';
+  description: string; paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string; notes: string; receiptNumber: string;
 };
 
@@ -5599,10 +5599,10 @@ function ReceiptForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: {
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs arabic">{isAr ? 'طريقة الدفع' : 'Payment Method'}</Label>
         <div className="flex gap-4">
-          {(['cash', 'check', 'transfer'] as const).map(m => (
+          {(['cash', 'check', 'transfer', 'online'] as const).map(m => (
             <label key={m} className="flex items-center gap-1.5 cursor-pointer">
               <input type="radio" name="payMethod" checked={d.paymentMethod === m} onChange={() => setD(p => ({ ...p, paymentMethod: m }))} className="accent-primary" />
-              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : 'تحويل'}</span>
+              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : m === 'transfer' ? 'تحويل' : 'أونلاين'}</span>
             </label>
           ))}
         </div>
@@ -5817,7 +5817,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
 /* ── Disbursement Form (must NOT be defined inside modal) ── */
 type DisbursementDraft = {
   paidTo: string; amount: number; amountText: string;
-  description: string; paymentMethod: 'cash' | 'check' | 'transfer';
+  description: string; paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string; notes: string; disbursementNumber: string;
 };
 
@@ -5862,10 +5862,10 @@ function DisbursementForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs arabic">{isAr ? 'طريقة الدفع' : 'Payment Method'}</Label>
         <div className="flex gap-4">
-          {(['cash', 'check', 'transfer'] as const).map(m => (
+          {(['cash', 'check', 'transfer', 'online'] as const).map(m => (
             <label key={m} className="flex items-center gap-1.5 cursor-pointer">
               <input type="radio" name="disPayMethod" checked={d.paymentMethod === m} onChange={() => setD(p => ({ ...p, paymentMethod: m }))} className="accent-primary" />
-              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : 'تحويل'}</span>
+              <span className="text-sm arabic">{m === 'cash' ? 'نقداً' : m === 'check' ? 'شيك' : m === 'transfer' ? 'تحويل' : 'أونلاين'}</span>
             </label>
           ))}
         </div>
