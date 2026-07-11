@@ -829,6 +829,13 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
           </div>
           <span style="font-size:13px;font-weight:700;color:#d97706;">ذمم</span>
         </div>
+        <div style="width:1px;height:28px;background:#ddd;"></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:22px;height:22px;border:2px solid #2563eb;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;background:${invoice.status === 'online' ? '#2563eb' : '#fff'};color:${invoice.status === 'online' ? '#fff' : '#2563eb'};">
+            ${invoice.status === 'online' ? '✓' : ''}
+          </div>
+          <span style="font-size:13px;font-weight:700;color:#2563eb;">أونلاين</span>
+        </div>
       </div>
 
     </div>`;
