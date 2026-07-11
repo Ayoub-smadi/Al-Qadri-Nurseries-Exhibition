@@ -5050,13 +5050,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
-  const [tab, setTab] = useState<'receivable' | 'paid'>('receivable');
+  const [tab, setTab] = useState<'receivable' | 'paid' | 'online'>('receivable');
   const [editingInv, setEditingInv] = useState<Invoice | null>(null);
-  const [editDraft, setEditDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable'; discount: number; invoiceNumber: string }>({ customerName: '', date: '', items: [], notes: '', status: 'receivable', discount: 0, invoiceNumber: '' });
+  const [editDraft, setEditDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable' | 'online'; discount: number; invoiceNumber: string }>({ customerName: '', date: '', items: [], notes: '', status: 'receivable', discount: 0, invoiceNumber: '' });
   const [saving, setSaving] = useState(false);
 
   const emptyItem = (): InvoiceItem => ({ description: '', quantity: 1, unitPrice: 0 });
-  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable'; discount: number; invoiceNumber: string }>({
+  const [draft, setDraft] = useState<{ customerName: string; date: string; items: InvoiceItem[]; notes: string; status: 'paid' | 'receivable' | 'online'; discount: number; invoiceNumber: string }>({
     customerName: '', date: new Date().toISOString().slice(0, 10), items: [emptyItem()], notes: '', status: 'receivable', discount: 0, invoiceNumber: '',
   });
 
@@ -5109,11 +5109,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
 
   const handleToggleStatus = async (inv: Invoice) => {
     setTogglingId(inv.id);
-    const newStatus: 'paid' | 'receivable' = inv.status === 'paid' ? 'receivable' : 'paid';
-    const ok = await updateInvoiceStatus(inv.id, newStatus);
+    const cycle: Array<'receivable' | 'paid' | 'online'> = ['receivable', 'paid', 'online'];
+    const nextStatus = cycle[(cycle.indexOf(inv.status as 'receivable' | 'paid' | 'online') + 1) % 3];
+    const ok = await updateInvoiceStatus(inv.id, nextStatus);
     if (ok) {
-      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: newStatus } : i));
-      toast.success(isAr ? (newStatus === 'paid' ? 'تم تحديد الفاتورة كمدفوعة' : 'تم تحديد الفاتورة كذمم') : (newStatus === 'paid' ? 'Marked as paid' : 'Marked as receivable'));
+      setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: nextStatus } : i));
+      const labels: Record<string, string> = { paid: 'مدفوع', receivable: 'ذمم', online: 'أونلاين' };
+      toast.success(isAr ? `تم تحديد الفاتورة كـ${labels[nextStatus]}` : `Marked as ${nextStatus}`);
     }
     setTogglingId(null);
   };
@@ -5134,7 +5136,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
       date: inv.date ?? new Date().toISOString().slice(0, 10),
       items: (inv.items as InvoiceItem[]).map(it => ({ ...it })),
       notes: inv.notes ?? '',
-      status: (inv.status ?? 'receivable') as 'paid' | 'receivable',
+      status: (inv.status ?? 'receivable') as 'paid' | 'receivable' | 'online',
       discount: Number(inv.discount) || 0,
       invoiceNumber: inv.number ?? '',
     });
@@ -5264,7 +5266,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
             {/* Status selector */}
             <div>
               <Label className="arabic text-xs mb-2 block">{isAr ? 'نوع الفاتورة' : 'Invoice Type'}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setDraft({ ...draft, status: 'receivable' })}
@@ -5278,6 +5280,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                   className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${draft.status === 'paid' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400' : 'border-border text-muted-foreground hover:border-green-300'}`}
                 >
                   {isAr ? '✅ مدفوع' : '✅ Paid'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDraft({ ...draft, status: 'online' })}
+                  className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${draft.status === 'online' ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' : 'border-border text-muted-foreground hover:border-blue-300'}`}
+                >
+                  {isAr ? '🌐 أونلاين' : '🌐 Online'}
                 </button>
               </div>
             </div>
@@ -5380,12 +5389,15 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
               </div>
               <div>
                 <Label className="arabic text-xs mb-2 block">{isAr ? 'نوع الفاتورة' : 'Invoice Type'}</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button type="button" onClick={() => setEditDraft({ ...editDraft, status: 'receivable' })} className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${editDraft.status === 'receivable' ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' : 'border-border text-muted-foreground hover:border-amber-300'}`}>
                     {isAr ? '⏳ ذمم' : '⏳ Receivable'}
                   </button>
                   <button type="button" onClick={() => setEditDraft({ ...editDraft, status: 'paid' })} className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${editDraft.status === 'paid' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400' : 'border-border text-muted-foreground hover:border-green-300'}`}>
                     {isAr ? '✅ مدفوع' : '✅ Paid'}
+                  </button>
+                  <button type="button" onClick={() => setEditDraft({ ...editDraft, status: 'online' })} className={`py-2.5 rounded-xl border-2 text-sm font-bold arabic transition-all ${editDraft.status === 'online' ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' : 'border-border text-muted-foreground hover:border-blue-300'}`}>
+                    {isAr ? '🌐 أونلاين' : '🌐 Online'}
                   </button>
                 </div>
               </div>
@@ -5481,6 +5493,17 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setTab('online')}
+                className={`flex-1 py-3 text-sm font-bold arabic transition-colors ${tab === 'online' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                🌐 {isAr ? 'أونلاين' : 'Online'}
+                {invoices.filter(i => i.status === 'online').length > 0 && (
+                  <span className="ms-1.5 text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 rounded-full px-1.5 py-0.5">
+                    {invoices.filter(i => i.status === 'online').length}
+                  </span>
+                )}
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto">
               {loading ? (
@@ -5488,7 +5511,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
               ) : filteredInvoices.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
                   <FileText className="w-10 h-10 opacity-30" />
-                  <p className="text-sm arabic">{isAr ? (tab === 'receivable' ? 'لا توجد ذمم' : 'لا توجد فواتير مدفوعة') : (tab === 'receivable' ? 'No receivables' : 'No paid invoices')}</p>
+                  <p className="text-sm arabic">{isAr ? (tab === 'receivable' ? 'لا توجد ذمم' : tab === 'paid' ? 'لا توجد فواتير مدفوعة' : 'لا توجد فواتير أونلاين') : (tab === 'receivable' ? 'No receivables' : tab === 'paid' ? 'No paid invoices' : 'No online invoices')}</p>
                   {tab === 'receivable' && (
                     <Button size="sm" variant="outline" onClick={() => { resetDraft(); setView('create'); }} className="arabic text-xs">
                       <Plus className="w-3.5 h-3.5 me-1" />{isAr ? 'إنشاء فاتورة' : 'Create invoice'}
@@ -5502,10 +5525,13 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                     const invDiscount = Number(inv.discount) || 0;
                     const invTotal = Math.max(0, invSubtotal - invDiscount);
                     const isPaid = inv.status === 'paid';
+                    const isOnline = inv.status === 'online';
+                    const statusColor = isPaid ? 'bg-green-100 dark:bg-green-950/30' : isOnline ? 'bg-blue-100 dark:bg-blue-950/30' : 'bg-amber-100 dark:bg-amber-950/30';
+                    const iconColor = isPaid ? 'text-green-600' : isOnline ? 'text-blue-600' : 'text-amber-600';
                     return (
                       <div key={inv.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isPaid ? 'bg-green-100 dark:bg-green-950/30' : 'bg-amber-100 dark:bg-amber-950/30'}`}>
-                          <FileText className={`w-4.5 h-4.5 ${isPaid ? 'text-green-600' : 'text-amber-600'}`} />
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${statusColor}`}>
+                          <FileText className={`w-4.5 h-4.5 ${iconColor}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -5523,10 +5549,10 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                           <button
                             onClick={() => handleToggleStatus(inv)}
                             disabled={togglingId === inv.id}
-                            title={isAr ? (isPaid ? 'تحويل إلى ذمم' : 'تحديد كمدفوع') : (isPaid ? 'Mark as receivable' : 'Mark as paid')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold arabic transition-all border ${isPaid ? 'border-green-300 text-green-700 bg-green-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 dark:bg-green-950/20 dark:text-green-400' : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:bg-amber-950/20 dark:text-amber-400'}`}
+                            title={isAr ? 'تغيير الحالة' : 'Change status'}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold arabic transition-all border ${isPaid ? 'border-green-300 text-green-700 bg-green-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:bg-green-950/20 dark:text-green-400' : isOnline ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 dark:bg-blue-950/20 dark:text-blue-400' : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:bg-amber-950/20 dark:text-amber-400'}`}
                           >
-                            {togglingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : (isPaid ? (isAr ? 'مدفوع' : 'Paid') : (isAr ? 'ذمم' : 'Due'))}
+                            {togglingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : (isPaid ? (isAr ? 'مدفوع' : 'Paid') : isOnline ? (isAr ? 'أونلاين' : 'Online') : (isAr ? 'ذمم' : 'Due'))}
                           </button>
                           <button onClick={() => handleOpenEdit(inv)} title={isAr ? 'تعديل' : 'Edit'} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
