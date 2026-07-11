@@ -5113,15 +5113,16 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
     setPdfingId(null);
   };
 
-  const handleToggleStatus = async (inv: Invoice) => {
+  const handleSetStatus = async (inv: Invoice, nextStatus: 'receivable' | 'paid' | 'online') => {
+    if (inv.status === nextStatus) return;
     setTogglingId(inv.id);
-    const cycle: Array<'receivable' | 'paid' | 'online'> = ['receivable', 'paid', 'online'];
-    const nextStatus = cycle[(cycle.indexOf(inv.status as 'receivable' | 'paid' | 'online') + 1) % 3];
     const ok = await updateInvoiceStatus(inv.id, nextStatus);
     if (ok) {
       setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: nextStatus } : i));
       const labels: Record<string, string> = { paid: 'مدفوع', receivable: 'ذمم', online: 'أونلاين' };
       toast.success(isAr ? `تم تحديد الفاتورة كـ${labels[nextStatus]}` : `Marked as ${nextStatus}`);
+    } else {
+      toast.error(isAr ? 'فشل تغيير الحالة — حاول مجدداً' : 'Failed to change status — please try again');
     }
     setTogglingId(null);
   };
@@ -5552,14 +5553,22 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                           </p>
                         </div>
                         <div className="flex gap-1.5 shrink-0 items-center">
-                          <button
-                            onClick={() => handleToggleStatus(inv)}
-                            disabled={togglingId === inv.id}
-                            title={isAr ? 'تغيير الحالة' : 'Change status'}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold arabic transition-all border ${isPaid ? 'border-green-300 text-green-700 bg-green-50 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:bg-green-950/20 dark:text-green-400' : isOnline ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 dark:bg-blue-950/20 dark:text-blue-400' : 'border-amber-300 text-amber-700 bg-amber-50 hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:bg-amber-950/20 dark:text-amber-400'}`}
-                          >
-                            {togglingId === inv.id ? <Loader2 className="w-3 h-3 animate-spin" /> : (isPaid ? (isAr ? 'مدفوع' : 'Paid') : isOnline ? (isAr ? 'أونلاين' : 'Online') : (isAr ? 'ذمم' : 'Due'))}
-                          </button>
+                          <div className="relative">
+                            <select
+                              value={(inv.status ?? 'receivable') as 'paid' | 'receivable' | 'online'}
+                              onChange={e => handleSetStatus(inv, e.target.value as 'paid' | 'receivable' | 'online')}
+                              disabled={togglingId === inv.id}
+                              title={isAr ? 'تغيير الحالة' : 'Change status'}
+                              className={`appearance-none px-2.5 py-1 pe-5 rounded-lg text-[11px] font-bold arabic transition-all border cursor-pointer ${isPaid ? 'border-green-300 text-green-700 bg-green-50 dark:bg-green-950/20 dark:text-green-400' : isOnline ? 'border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/20 dark:text-blue-400' : 'border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400'}`}
+                            >
+                              <option value="receivable">{isAr ? 'ذمم' : 'Due'}</option>
+                              <option value="paid">{isAr ? 'مدفوع' : 'Paid'}</option>
+                              <option value="online">{isAr ? 'أونلاين' : 'Online'}</option>
+                            </select>
+                            {togglingId === inv.id && (
+                              <Loader2 className="w-3 h-3 animate-spin absolute inset-y-0 my-auto end-1.5 pointer-events-none" />
+                            )}
+                          </div>
                           <button onClick={() => handleOpenEdit(inv)} title={isAr ? 'تعديل' : 'Edit'} className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
