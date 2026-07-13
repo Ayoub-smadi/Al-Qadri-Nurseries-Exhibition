@@ -668,6 +668,7 @@ import type { Invoice, InvoiceItem } from '@/lib/storage';
 export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteData): Promise<void> {
   const logoDataUrl = siteData.logo.customUrl ? await toDataUrl(siteData.logo.customUrl) : '';
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
+  const signatureDataUrl = await toDataUrl('/signature-thamer.png').catch(() => '');
 
   const items = invoice.items as InvoiceItem[];
   const subtotal = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
@@ -807,6 +808,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
         </div>
         <div style="flex:1;text-align:center;">
           ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:80px;height:auto;object-fit:contain;display:inline-block;opacity:0.8;" />` : ''}
+          ${signatureDataUrl ? `<div><img src="${signatureDataUrl}" style="width:90px;height:auto;object-fit:contain;display:inline-block;margin-top:2px;" /></div>` : ''}
         </div>
         <div style="flex:1;text-align:center;">
           <div style="font-size:11px;color:#555;margin-bottom:4px;">حين الطلب وبتاريخ:</div>
