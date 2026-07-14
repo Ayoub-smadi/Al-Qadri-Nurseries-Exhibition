@@ -55,6 +55,9 @@ function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: st
     const idx = records.findIndex((r: any) => r.id === id);
     if (idx >= 0) {
       records[idx] = { ...records[idx], ...data, updatedAt: now };
+      // localStorage.setItem throws (uncaught, silently killing the click handler)
+      // when the quota is exceeded — most often from unmpressed image uploads.
+      // Surface a real error instead of letting the save silently vanish.
       localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
       return id;
     }
@@ -197,9 +200,17 @@ export default function QadriOldQuotationPage() {
 
   /* ─── Save to records ────────────────────────────────── */
   const handleSave = () => {
-    const id = persistQadriRecord({ details, items, logoUrl, stampUrl }, currentRecordId ?? undefined);
-    if (!currentRecordId) setCurrentRecordId(id);
-    toast.success("✅ تم الحفظ في السجل");
+    try {
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl }, currentRecordId ?? undefined);
+      if (!currentRecordId) setCurrentRecordId(id);
+      toast.success("✅ تم الحفظ في السجل");
+    } catch (e: any) {
+      if (e?.name === "QuotaExceededError") {
+        toast.error("فشل الحفظ: المساحة المحلية ممتلئة. احذف بعض الصور الكبيرة من البنود أو احذف عروضاً قديمة من السجل ثم أعد المحاولة.");
+      } else {
+        toast.error("فشل الحفظ: " + (e?.message || "خطأ غير معروف"));
+      }
+    }
   };
 
   /* ─── Totals ─────────────────────────────────────────── */
@@ -219,8 +230,39 @@ export default function QadriOldQuotationPage() {
   };
   const addItem = () => setItems(prev => [...prev, mkItem()]);
   const removeItem = (id: string) => { if (items.length > 1) setItems(prev => prev.filter(i => i.id !== id)); };
+  /* Resize + compress before stashing in localStorage — raw phone-camera photos
+     are multiple MB each and blow through the ~5–10MB per-origin quota after a
+     few items, which makes localStorage.setItem throw and silently kills the
+     save (see persistQadriRecord). */
   const toBase64 = (file: File, cb: (s: string) => void) => {
-    const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
+    const isPng = file.type === "image/png";
+    const MAX = isPng ? 700 : 500;
+    const objUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
+        else { width = Math.round((width * MAX) / height); height = MAX; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        // Fallback: raw base64 if canvas isn't available for some reason.
+        const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
+        return;
+      }
+      if (!isPng) { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, width, height); }
+      ctx.drawImage(img, 0, 0, width, height);
+      cb(isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.6));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objUrl);
+      const r = new FileReader(); r.onloadend = () => cb(r.result as string); r.readAsDataURL(file);
+    };
+    img.src = objUrl;
   };
 
   /* ─── Smart Analysis parser ──────────────────────────── */
