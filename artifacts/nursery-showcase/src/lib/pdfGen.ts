@@ -683,7 +683,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
 
   const rowsHtml = items.map((it, i) => {
     const rowTotal = it.quantity * it.unitPrice;
-    return `<tr style="border-bottom:1px solid #c8d4f0;${i % 2 === 1 ? 'background:#f7f9ff;' : ''}">
+    return `<tr data-row style="border-bottom:1px solid #c8d4f0;${i % 2 === 1 ? 'background:#f7f9ff;' : ''}">
       ${toDinarsHtml(rowTotal)}
       <td style="padding:5px 8px;text-align:right;font-weight:600;">${it.description}</td>
       <td style="padding:5px 8px;text-align:center;">${it.quantity}</td>
@@ -738,7 +738,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
       <!-- TABLE -->
       <table style="width:100%;border-collapse:collapse;border:2px solid #1a3a8a;font-size:12px;">
         <thead>
-          <tr style="background:#1a3a8a;color:#fff;text-align:center;">
+          <tr data-row style="background:#1a3a8a;color:#fff;text-align:center;">
             <th colspan="2" style="padding:7px 6px;border-left:2px solid #fff;">السعر الاجمالي<br/><span style="font-size:10px;font-weight:400;">فلس &nbsp;|&nbsp; دينار</span></th>
             <th style="padding:7px 6px;border-left:2px solid #fff;">البيـان</th>
             <th style="padding:7px 6px;border-left:2px solid #fff;">الوحدة</th>
@@ -748,7 +748,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
         <tbody>
           ${rowsHtml}
           ${Array.from({ length: Math.max(0, 10 - items.length) }).map((_, i) =>
-            `<tr style="border-bottom:1px solid #c8d4f0;${(items.length + i) % 2 === 1 ? 'background:#f7f9ff;' : ''}">
+            `<tr data-row style="border-bottom:1px solid #c8d4f0;${(items.length + i) % 2 === 1 ? 'background:#f7f9ff;' : ''}">
               <td style="padding:14px 8px;border-left:1px solid #c8d4f0;"></td>
               <td style="border-left:1px solid #c8d4f0;"></td>
               <td style="border-left:1px solid #c8d4f0;"></td>
@@ -764,7 +764,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
             const subFils = Math.round((subtotal - subDinars) * 1000);
             const discDinars = Math.floor(discountAmt);
             const discFils = Math.round((discountAmt - discDinars) * 1000);
-            return `<tr style="background:#fff8f0;border-top:1px solid #1a3a8a;">
+            return `<tr data-row style="background:#fff8f0;border-top:1px solid #1a3a8a;">
               <td colspan="2" style="padding:6px 12px;text-align:center;font-size:12px;border-left:1px solid #1a3a8a;color:#555;">
                 ${subFils > 0 ? subFils : '-'} &nbsp;|&nbsp; ${subDinars}
               </td>
@@ -772,7 +772,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
                 المجموع قبل الخصم
               </td>
             </tr>
-            <tr style="background:#fff0ee;border-top:1px dashed #e57373;">
+            <tr data-row style="background:#fff0ee;border-top:1px dashed #e57373;">
               <td colspan="2" style="padding:6px 12px;text-align:center;font-size:12px;border-left:1px solid #1a3a8a;color:#c62828;">
                 −${discFils > 0 ? discFils : '-'} &nbsp;|&nbsp; −${discDinars}
               </td>
@@ -781,7 +781,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
               </td>
             </tr>`;
           })() : ''}
-          <tr style="background:#eef2ff;border-top:2px solid #1a3a8a;font-weight:800;">
+          <tr data-row style="background:#eef2ff;border-top:2px solid #1a3a8a;font-weight:800;">
             <td colspan="2" style="padding:8px 12px;text-align:center;font-size:13px;border-left:1px solid #1a3a8a;">
               ${totalFils > 0 ? totalFils : '-'} &nbsp;|&nbsp; ${totalDinars}
             </td>
@@ -849,18 +849,59 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   await document.fonts.ready;
 
   const inner = div.firstElementChild as HTMLElement;
+
+  // Measure row bottoms BEFORE html2canvas (see downloadCatalogPDF for the same
+  // pattern) so a page break never lands in the middle of a table row.
+  const innerTop = inner.getBoundingClientRect().top;
+  const rows = Array.from(inner.querySelectorAll('[data-row]')) as HTMLElement[];
+  const rowBottomsCssPx = rows.map(r => r.getBoundingClientRect().bottom - innerTop);
+
   const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
+  const innerCssPx = inner.offsetHeight;
   document.body.removeChild(div);
 
-  // Fit onto a standard A4 page instead of a custom oversized page — a page wider
-  // than A4/Letter gets clipped by printers/viewers that print at "actual size".
+  // Fit onto standard A4 pages instead of one custom oversized page — a page wider
+  // than A4/Letter (or an image taller than one A4 page) gets clipped by printers/
+  // viewers that print at "actual size" instead of auto-scaling. If the invoice fits
+  // on one page it's rendered centered as before; longer invoices now flow onto
+  // additional pages instead of being cut off.
   const A4_W = 210;
   const A4_H = 297;
-  const imgW = A4_W;
-  const imgH = (canvas.height / canvas.width) * A4_W;
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-  const yOffset = imgH < A4_H ? (A4_H - imgH) / 2 : 0;
-  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH);
+  const ratio = A4_W / canvas.width;
+  const fullH = canvas.height * ratio;
+
+  if (fullH <= A4_H) {
+    const yOffset = (A4_H - fullH) / 2;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, A4_W, fullH);
+  } else {
+    const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
+    const cssToMm = ratio * renderScale;
+    const safeCutsMm = [...new Set(rowBottomsCssPx.map(b => Math.round(b * cssToMm)))].sort((a, b) => a - b);
+
+    let drawn = 0; // mm
+    let first = true;
+    while (drawn < fullH) {
+      if (!first) pdf.addPage();
+      first = false;
+
+      const idealCut = Math.min(drawn + A4_H, fullH);
+      const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
+      const cutAt = suitable.length > 0 ? Math.max(...suitable) : idealCut;
+
+      const sliceH = cutAt - drawn;   // mm
+      const srcY = drawn / ratio;     // canvas px
+      const srcH = sliceH / ratio;    // canvas px
+
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width;
+      slice.height = Math.ceil(srcH);
+      slice.getContext('2d')!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, A4_W, sliceH);
+      drawn = cutAt;
+    }
+  }
 
   const safeName = invoice.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
