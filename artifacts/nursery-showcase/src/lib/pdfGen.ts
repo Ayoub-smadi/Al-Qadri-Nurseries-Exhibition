@@ -852,11 +852,15 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   const canvas = await html2canvas(inner, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#fff', logging: false });
   document.body.removeChild(div);
 
-  const PX_PER_MM = 3.7795275591;
-  const pageW = canvas.width / PX_PER_MM;
-  const pageH = canvas.height / PX_PER_MM;
-  const pdf = new jsPDF({ orientation: pageW > pageH ? 'l' : 'p', unit: 'mm', format: [pageW, pageH] });
-  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, pageH);
+  // Fit onto a standard A4 page instead of a custom oversized page — a page wider
+  // than A4/Letter gets clipped by printers/viewers that print at "actual size".
+  const A4_W = 210;
+  const A4_H = 297;
+  const imgW = A4_W;
+  const imgH = (canvas.height / canvas.width) * A4_W;
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const yOffset = imgH < A4_H ? (A4_H - imgH) / 2 : 0;
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, imgW, imgH);
 
   const safeName = invoice.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
