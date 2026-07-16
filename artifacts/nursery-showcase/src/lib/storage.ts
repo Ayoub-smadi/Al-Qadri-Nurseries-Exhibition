@@ -78,6 +78,7 @@ export interface SiteData {
   searchNote: { ar: string; en: string };
   sections: Section[];
   branches: Branch[];
+  branchGallery?: { images: string[] };
   socialLinks: SocialLink[];
   shippingZones?: ShippingZone[];
   footer: {
