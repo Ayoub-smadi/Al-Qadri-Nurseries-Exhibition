@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
-  Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, MapPin,
+  Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
   TreePine, Package, Building2, Globe, Flower2, Share2,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
@@ -401,20 +401,6 @@ export default function GalleryPage() {
   const [branchLocation, setBranchLocation] = useState('');
   const [branchImageUrl, setBranchImageUrl] = useState('');
   const [branchImgUploading, setBranchImgUploading] = useState(false);
-
-  /* branch gallery carousel */
-  const [bgSlide, setBgSlide] = useState(0);
-  const [bgUploading, setBgUploading] = useState(false);
-  const bgImages = siteData.branchGallery?.images ?? [
-    '/branch-gallery/nursery1.jpg',
-    '/branch-gallery/nursery2.jpg',
-    '/branch-gallery/nursery3.jpg',
-  ];
-  useEffect(() => {
-    if (bgImages.length <= 1) return;
-    const t = setInterval(() => setBgSlide(s => (s + 1) % bgImages.length), 4000);
-    return () => clearInterval(t);
-  }, [bgImages.length]);
 
   /* social links */
   const [socialModalOpen, setSocialModalOpen] = useState(false);
@@ -991,24 +977,6 @@ export default function GalleryPage() {
   const handleDeleteBranch = (id: string) => {
     if (!confirm(isAr ? 'حذف الفرع؟' : 'Delete this branch?')) return;
     updateSiteData({ branches: (siteData.branches ?? []).filter(b => b.id !== id) });
-  };
-
-  /* branch gallery carousel handlers */
-  const handleAddBgImage = async (file: File) => {
-    setBgUploading(true);
-    try {
-      const url = await uploadImage(file);
-      const next = [...bgImages, url];
-      updateSiteData({ branchGallery: { images: next } });
-      setBgSlide(next.length - 1);
-    } catch { toast.error(isAr ? 'فشل رفع الصورة' : 'Upload failed'); }
-    finally { setBgUploading(false); }
-  };
-  const handleDeleteBgImage = (idx: number) => {
-    if (!confirm(isAr ? 'حذف هذه الصورة؟' : 'Delete this image?')) return;
-    const next = bgImages.filter((_, i) => i !== idx);
-    updateSiteData({ branchGallery: { images: next } });
-    setBgSlide(s => Math.min(s, Math.max(0, next.length - 1)));
   };
 
   const openAddSocial = () => {
@@ -1634,85 +1602,6 @@ export default function GalleryPage() {
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {/* ── BRANCH GALLERY CAROUSEL ── */}
-      {bgImages.length > 0 && (
-        <section className="relative overflow-hidden bg-black" style={{ height: 420 }}>
-          {/* Slides */}
-          {bgImages.map((src, idx) => (
-            <img
-              key={src + idx}
-              src={src}
-              alt={`nursery-${idx + 1}`}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-              style={{ opacity: idx === bgSlide ? 1 : 0, zIndex: idx === bgSlide ? 1 : 0 }}
-              loading="lazy"
-              decoding="async"
-            />
-          ))}
-
-          {/* Dark overlay for readability */}
-          <div className="absolute inset-0 bg-black/20" style={{ zIndex: 2 }} />
-
-          {/* Prev / Next arrows */}
-          {bgImages.length > 1 && (
-            <>
-              <button
-                onClick={() => setBgSlide(s => (s - 1 + bgImages.length) % bgImages.length)}
-                className="no-print absolute start-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
-                style={{ zIndex: 3 }}
-                aria-label="Previous"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setBgSlide(s => (s + 1) % bgImages.length)}
-                className="no-print absolute end-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
-                style={{ zIndex: 3 }}
-                aria-label="Next"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-            </>
-          )}
-
-          {/* Dot indicators */}
-          {bgImages.length > 1 && (
-            <div className="no-print absolute bottom-4 left-0 right-0 flex justify-center gap-2" style={{ zIndex: 3 }}>
-              {bgImages.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setBgSlide(idx)}
-                  className={`rounded-full transition-all ${idx === bgSlide ? 'w-6 h-2 bg-white' : 'w-2 h-2 bg-white/50 hover:bg-white/80'}`}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Admin controls */}
-          {isAdmin && (
-            <div className="no-print absolute top-3 end-3 flex gap-2" style={{ zIndex: 4 }}>
-              <label className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary text-primary-foreground text-xs font-medium cursor-pointer hover:bg-primary/90 transition-colors">
-                {bgUploading
-                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="arabic">{isAr ? 'جارٍ الرفع…' : 'Uploading…'}</span></>
-                  : <><Plus className="w-3.5 h-3.5" /><span className="arabic">{isAr ? 'إضافة صورة' : 'Add photo'}</span></>}
-                <input type="file" accept="image/*" className="hidden" disabled={bgUploading}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleAddBgImage(f); e.target.value = ''; }} />
-              </label>
-              {bgImages.length > 0 && (
-                <button
-                  onClick={() => handleDeleteBgImage(bgSlide)}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span className="arabic">{isAr ? 'حذف هذه' : 'Delete'}</span>
-                </button>
-              )}
-            </div>
-          )}
-
         </section>
       )}
 
