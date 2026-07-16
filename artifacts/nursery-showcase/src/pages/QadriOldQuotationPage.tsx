@@ -407,8 +407,8 @@ export default function QadriOldQuotationPage() {
       }
 
       /* Multi-page: smart slice at row boundaries → proper A4 pages */
-      const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عرض_سعر";
-      await sliceCanvasToPdf(canvas, el, `${name}_${details.date}.pdf`, docW, runHeaderCanvas);
+      const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_") || "عميل";
+      await sliceCanvasToPdf(canvas, el, `عرض سعر_${name}_${details.date}.pdf`, docW, runHeaderCanvas);
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
       toast.error("فشل إنشاء PDF: " + e.message);
