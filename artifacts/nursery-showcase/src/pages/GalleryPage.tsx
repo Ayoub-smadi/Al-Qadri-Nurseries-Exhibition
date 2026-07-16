@@ -5585,6 +5585,34 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
                 </div>
               )}
             </div>
+
+          {/* ── Online invoices summary bar ────────────────────── */}
+          {tab === 'online' && filteredInvoices.length > 0 && (() => {
+            const onlineTotal = filteredInvoices.reduce((sum, inv) => {
+              const sub = (inv.items as InvoiceItem[]).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+              return sum + Math.max(0, sub - (Number(inv.discount) || 0));
+            }, 0);
+            const onlineTotalNoDelivery = filteredInvoices.reduce((sum, inv) => {
+              const sub = (inv.items as InvoiceItem[])
+                .filter(it => !/توصيل|delivery/i.test(it.description))
+                .reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+              return sum + Math.max(0, sub - (Number(inv.discount) || 0));
+            }, 0);
+            return (
+              <div className="shrink-0 border-t border-blue-100 dark:border-blue-900/40 bg-blue-50/80 dark:bg-blue-950/20 px-4 py-3 flex flex-wrap gap-3 justify-between items-center">
+                <div className="flex flex-col items-center flex-1 min-w-[120px]">
+                  <span className="text-[10px] text-blue-500 dark:text-blue-400 arabic font-medium mb-0.5">مجموع المبيعات</span>
+                  <span className="text-base font-bold text-blue-700 dark:text-blue-300 arabic tabular-nums">{onlineTotal.toFixed(3)} <span className="text-xs font-semibold">د.أ</span></span>
+                </div>
+                <div className="w-px h-8 bg-blue-200 dark:bg-blue-800 shrink-0" />
+                <div className="flex flex-col items-center flex-1 min-w-[120px]">
+                  <span className="text-[10px] text-blue-500 dark:text-blue-400 arabic font-medium mb-0.5 text-center">مجموع المبيعات دون رسوم توصيل</span>
+                  <span className="text-base font-bold text-blue-700 dark:text-blue-300 arabic tabular-nums">{onlineTotalNoDelivery.toFixed(3)} <span className="text-xs font-semibold">د.أ</span></span>
+                </div>
+              </div>
+            );
+          })()}
+
           </div>
         )}
       </div>
