@@ -48,7 +48,7 @@ function loadQadriRecords(): any[] {
   try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
 
-function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string }, id?: string): string {
+function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number }, id?: string): string {
   const records = loadQadriRecords();
   const now = new Date().toISOString();
   if (id) {
@@ -201,7 +201,7 @@ export default function QadriOldQuotationPage() {
   /* ─── Save to records ────────────────────────────────── */
   const handleSave = () => {
     try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl }, currentRecordId ?? undefined);
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
       toast.success("✅ تم الحفظ في السجل");
     } catch (e: any) {

@@ -6178,6 +6178,7 @@ type QadriOldRec = {
   details: { customerName: string; date: string; quotationNumber: string; [k: string]: string };
   items: { id: string; name: string; [k: string]: unknown }[];
   logoUrl: string; stampUrl: string;
+  discountPct?: number; taxPct?: number;
   createdAt: string; updatedAt: string;
 };
 
@@ -6196,7 +6197,7 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const openRec = (rec: QadriOldRec) => {
     try {
       sessionStorage.setItem(EDIT_KEY, rec.id);
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, stampUrl: rec.stampUrl }));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, stampUrl: rec.stampUrl, discountPct: rec.discountPct ?? 0, taxPct: rec.taxPct ?? 0 }));
     } catch {}
     navigate('/qadri-old-quotation');
     onClose();
