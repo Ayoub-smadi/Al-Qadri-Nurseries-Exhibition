@@ -296,19 +296,19 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       <!-- INFO ROW -->
       <div style="display:flex;gap:12px;margin-bottom:16px;background:#f5f9f5;border-radius:8px;padding:10px 14px;border:1px solid #c8e6c9;">
         <div style="flex:1;text-align:right;">
-          <div style="font-size:10px;color:#888;">العميل</div>
-          <div style="font-size:13px;font-weight:700;">${quote.customer_name}</div>
-          ${quote.phone ? `<div style="font-size:11px;color:#555;direction:ltr;text-align:right;">${quote.phone}</div>` : ''}
+          <div style="font-size:13px;color:#888;">العميل</div>
+          <div style="font-size:18px;font-weight:700;">${quote.customer_name}</div>
+          ${quote.phone ? `<div style="font-size:13px;color:#555;direction:ltr;text-align:right;">${quote.phone}</div>` : ''}
         </div>
         <div style="width:1px;background:#ccc;"></div>
         <div style="flex:1;text-align:center;">
-          <div style="font-size:10px;color:#888;">عرض سعر رقم</div>
-          <div style="font-size:14px;font-weight:800;color:#2e7d32;">${quoteNum}</div>
+          <div style="font-size:13px;color:#888;">عرض سعر رقم</div>
+          <div style="font-size:19px;font-weight:800;color:#2e7d32;">${quoteNum}</div>
         </div>
         <div style="width:1px;background:#ccc;"></div>
         <div style="flex:1;text-align:left;direction:ltr;">
-          <div style="font-size:10px;color:#888;direction:rtl;text-align:right;">التاريخ</div>
-          <div style="font-size:13px;font-weight:700;">${dateStr}</div>
+          <div style="font-size:13px;color:#888;direction:rtl;text-align:right;">التاريخ</div>
+          <div style="font-size:18px;font-weight:700;">${dateStr}</div>
         </div>
       </div>
 
@@ -387,6 +387,9 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
           <div style="font-size:10px;color:#888;margin-bottom:4px;">ملاحظات:</div>
           <div style="font-size:12px;line-height:1.6;">${quote.notes}</div>
         </div>` : ''}
+
+      <!-- CLOSING -->
+      <div style="margin-top:16px;text-align:right;font-size:15px;color:#444;">واقبلوا فائق الاحترام،،،</div>
 
       <!-- FOOTER -->
       <div style="margin-top:16px;padding-top:10px;border-top:2px solid #2e7d32;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
