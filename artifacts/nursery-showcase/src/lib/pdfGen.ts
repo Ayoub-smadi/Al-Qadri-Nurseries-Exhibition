@@ -388,8 +388,14 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
           <div style="font-size:12px;line-height:1.6;">${quote.notes}</div>
         </div>` : ''}
 
-      <!-- CLOSING -->
-      <div style="margin-top:16px;text-align:right;font-size:15px;color:#444;">واقبلوا فائق الاحترام،،،</div>
+      <!-- CLOSING + SIGNATURE -->
+      <div style="margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="font-size:13px;font-weight:700;color:#1e293b;text-decoration:underline;text-align:center;">المدير العام/ ثامر احمد القادري</div>
+        <div style="font-size:14px;color:#444;text-align:center;">واقبلوا فائق الاحترام،،،</div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:flex-end;padding:0 24px;">
+        ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:120px;height:110px;object-fit:contain;display:block;" />` : ''}
+      </div>
 
       <!-- FOOTER -->
       <div style="margin-top:16px;padding-top:10px;border-top:2px solid #2e7d32;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
