@@ -1686,7 +1686,7 @@ export default function GalleryPage() {
         </div>
 
         {/* 6-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 max-w-7xl mx-auto">
           {/* Branch 1 – بوابة الشمال */}
           <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
             <div className="relative overflow-hidden" style={{ height: 260 }}>
