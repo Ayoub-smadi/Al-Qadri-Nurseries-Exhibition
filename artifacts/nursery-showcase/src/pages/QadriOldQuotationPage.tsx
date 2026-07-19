@@ -1003,7 +1003,7 @@ export default function QadriOldQuotationPage() {
           </div>
 
           {/* ── التوقيع والختم — يسار الصفحة ────────────────── */}
-          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-start" }}>
+          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
             <div style={{ textAlign: "right", minWidth: 140 }}>
               <div style={{ marginBottom: 6 }}>
                 <input
