@@ -1321,11 +1321,11 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
         <div style="font-size:15px;line-height:2.2;color:#222;text-align:justify;">
           <p style="margin-bottom:16px;">
             تشهد <strong>مؤسسة القادري الزراعية</strong> بأن الموظف
-            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.employeeName}&nbsp;</strong>${data.nationalId ? `،
+            <strong style="color:#1a3a8a;">&nbsp;${data.employeeName}&nbsp;</strong>${data.nationalId ? `،
             حامل الرقم الوطني
             <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>` : ''}،
             قد عمل لدينا في وظيفة
-            <strong style="color:#1a3a8a;border-bottom:1px solid #1a3a8a;padding-bottom:1px;">&nbsp;${data.jobTitle}&nbsp;</strong>
+            <strong style="color:#1a3a8a;">&nbsp;${data.jobTitle}&nbsp;</strong>
             خلال الفترة الممتدة من
             <strong>&nbsp;${data.startDate}&nbsp;</strong>
             إلى
