@@ -1685,8 +1685,8 @@ export default function GalleryPage() {
           <div className="w-16 h-0.5 rounded-full bg-emerald-500/60 mt-1" />
         </div>
 
-        {/* 5-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
+        {/* 6-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {/* Branch 1 – بوابة الشمال */}
           <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
             <div className="relative overflow-hidden" style={{ height: 260 }}>
@@ -1822,6 +1822,35 @@ export default function GalleryPage() {
               </div>
               <a
                 href="https://maps.app.goo.gl/cq5ndF9QjdZ3Ko3h7"
+                target="_blank"
+                rel="noreferrer"
+                className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                الاتجاهات
+              </a>
+            </div>
+          </div>
+
+          {/* Branch 6 – الأغوار */}
+          <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="relative overflow-hidden" style={{ height: 260 }}>
+              <iframe
+                title="مزرعة الأغوار"
+                src="https://maps.google.com/maps?q=%D9%85%D8%B2%D8%B1%D8%B9%D8%A9+%D8%A7%D9%84%D9%82%D8%A7%D8%AF%D8%B1%D9%8A+%D8%A7%D9%84%D8%B4%D9%88%D9%86%D8%A9+%D8%A7%D9%84%D8%B4%D9%85%D8%A7%D9%84%D9%8A%D8%A9&z=14&output=embed&hl=ar"
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+            </div>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="arabic text-white font-semibold text-sm leading-tight">مزرعة الاغوار — الشونة الشمالية</span>
+                <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
+              </div>
+              <a
+                href="https://share.google/qKy3QZErdK1cNaUOg"
                 target="_blank"
                 rel="noreferrer"
                 className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
