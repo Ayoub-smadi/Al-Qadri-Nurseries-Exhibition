@@ -767,32 +767,32 @@ export default function QadriOldQuotationPage() {
           {/* ── Info row (date / number / customer) ────── */}
           <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", padding: "14px 0" }}>
             <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>التاريخ</div>
+              <div style={{ fontSize: 15, color: "#6b7280", marginBottom: 4 }}>التاريخ</div>
               <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
               <input
                 type="date"
                 value={details.date}
                 onChange={e => setDetails(p => ({ ...p, date: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
+                style={{ ...F, fontSize: 17, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
               />
             </div>
             <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>عرض سعر رقم</div>
+              <div style={{ fontSize: 15, color: "#6b7280", marginBottom: 4 }}>عرض سعر رقم</div>
               <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
               <input
                 value={details.quotationNumber}
                 onChange={e => setDetails(p => ({ ...p, quotationNumber: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                style={{ ...F, fontSize: 17, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
               />
             </div>
             <div style={{ flex: 1, padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>العميل</div>
+              <div style={{ fontSize: 15, color: "#6b7280", marginBottom: 4 }}>العميل</div>
               <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
               <input
                 value={details.customerName}
                 onChange={e => setDetails(p => ({ ...p, customerName: e.target.value }))}
                 placeholder="اسم العميل"
-                style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
+                style={{ ...F, fontSize: 17, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
               />
             </div>
           </div>
@@ -998,7 +998,7 @@ export default function QadriOldQuotationPage() {
             <input
               value={details.closingText}
               onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-              style={{ ...F, fontSize: 13, color: "#374151", textAlign: "center" }}
+              style={{ ...F, fontSize: 17, color: "#374151", textAlign: "center" }}
             />
           </div>
 
@@ -1014,7 +1014,7 @@ export default function QadriOldQuotationPage() {
               </div>
               {stampUrl ? (
                 <div style={{ position: "relative", display: "inline-block" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 90, height: 70, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                  <img src={stampUrl} alt="stamp" style={{ width: 140, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
                       position: "absolute", top: -6, right: -6,
@@ -1026,7 +1026,7 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 90, height: 70, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 140, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
