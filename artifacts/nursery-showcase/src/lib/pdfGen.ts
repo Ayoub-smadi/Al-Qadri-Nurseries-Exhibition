@@ -923,7 +923,6 @@ export interface ReceiptPDFData {
 export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
   const logoDataUrl = data.logoUrl ? await toDataUrl(data.logoUrl).catch(() => '') : '';
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
-  const signatureDataUrl = await toDataUrl('/signature-thamer.png').catch(() => '');
 
   const dinars = Math.floor(data.amount);
   const fils = Math.round((data.amount - dinars) * 1000);
@@ -1038,7 +1037,6 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
             </td>
             <td style="text-align:center;vertical-align:middle;width:34%;">
               ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:110px;height:auto;object-fit:contain;opacity:0.85;" />` : '<div style="width:110px;height:90px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
-              ${signatureDataUrl ? `<div><img src="${signatureDataUrl}" style="width:100px;height:auto;object-fit:contain;display:inline-block;margin-top:4px;" /></div>` : ''}
             </td>
             <td style="text-align:center;vertical-align:top;width:33%;">
               <div style="font-size:11px;color:#555;margin-bottom:8px;">توقيع المستلم</div>
@@ -1105,7 +1103,6 @@ export interface DisbursementPDFData {
 export async function downloadDisbursementPDF(data: DisbursementPDFData): Promise<void> {
   const logoDataUrl = data.logoUrl ? await toDataUrl(data.logoUrl).catch(() => '') : '';
   const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
-  const signatureDataUrl = await toDataUrl('/signature-thamer.png').catch(() => '');
 
   const dinars = Math.floor(data.amount);
   const fils = Math.round((data.amount - dinars) * 1000);
@@ -1220,7 +1217,6 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
             </td>
             <td style="text-align:center;vertical-align:middle;width:34%;">
               ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:110px;height:auto;object-fit:contain;opacity:0.85;" />` : '<div style="width:110px;height:90px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
-              ${signatureDataUrl ? `<div><img src="${signatureDataUrl}" style="width:100px;height:auto;object-fit:contain;display:inline-block;margin-top:4px;" /></div>` : ''}
             </td>
             <td style="text-align:center;vertical-align:top;width:33%;">
               <div style="font-size:11px;color:#555;margin-bottom:8px;">توقيع الصارف</div>
