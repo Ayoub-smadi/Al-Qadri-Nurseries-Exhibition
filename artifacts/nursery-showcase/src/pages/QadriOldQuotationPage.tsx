@@ -1016,31 +1016,26 @@ export default function QadriOldQuotationPage() {
 
           {/* ── التوقيع والختم ────────────────────── */}
           <div style={{ margin: "16px 24px 8px", borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-            {/* signer title — right-aligned */}
-            <div style={{ textAlign: "right", marginBottom: 4 }}>
+            {/* signer title — centered + underlined */}
+            <div style={{ textAlign: "center", marginBottom: 4 }}>
               <input
                 value={details.signerTitle}
                 onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "right", textDecoration: "underline", cursor: "text" }}
+                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center", textDecoration: "underline", cursor: "text" }}
               />
             </div>
-            {/* closing text — right */}
-            <div style={{ textAlign: "right", marginBottom: 16 }}>
+            {/* closing text — centered */}
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
               <input
                 value={details.closingText}
                 onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-                style={{ ...F, fontSize: 13, color: "#6b7280", textAlign: "right" }}
+                style={{ ...F, fontSize: 13, color: "#6b7280", textAlign: "center" }}
               />
             </div>
-            {/* stamp (center-right) + logo (left) */}
+            {/* stamp (left) + logo (right) */}
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-              {/* stamp */}
-              <div style={{ minWidth: 120 }}>
-                {effectiveLogo && (
-                  <img src={effectiveLogo} alt="logo" style={{ width: 70, height: 70, objectFit: "contain" }} />
-                )}
-              </div>
-              <div style={{ textAlign: "center" }}>
+              {/* stamp — left */}
+              <div style={{ minWidth: 130, textAlign: "left" }}>
                 {stampUrl ? (
                   <div style={{ position: "relative", display: "inline-block" }}>
                     <img src={stampUrl} alt="stamp" style={{ width: 130, height: 110, objectFit: "contain", display: "block" }} />
@@ -1065,6 +1060,12 @@ export default function QadriOldQuotationPage() {
                     <input type="file" accept="image/*" style={{ display: "none" }}
                       onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
                   </label>
+                )}
+              </div>
+              {/* logo — right */}
+              <div style={{ minWidth: 80, textAlign: "right" }}>
+                {effectiveLogo && (
+                  <img src={effectiveLogo} alt="logo" style={{ width: 70, height: 70, objectFit: "contain" }} />
                 )}
               </div>
             </div>
