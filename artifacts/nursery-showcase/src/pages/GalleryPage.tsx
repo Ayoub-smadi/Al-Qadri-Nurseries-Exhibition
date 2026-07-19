@@ -5649,12 +5649,15 @@ function ReceiptForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: {
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs arabic">{isAr ? 'اللقب' : 'Title'}</Label>
-        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))}>
+        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={['السيد','السيدة','السادة','أخرى'].includes(d.namePrefix) ? d.namePrefix : 'أخرى'} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value === 'أخرى' ? '' : e.target.value }))}>
           <option value="السيد">السيد</option>
           <option value="السيدة">السيدة</option>
-          <option value="الشركة">الشركة</option>
-          <option value="المؤسسة">المؤسسة</option>
+          <option value="السادة">السادة</option>
+          <option value="أخرى">أخرى (أكتب بنفسك)</option>
         </select>
+        {!['السيد','السيدة','السادة'].includes(d.namePrefix) && (
+          <Input className="arabic text-sm mt-1" placeholder="اكتب اللقب..." value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))} />
+        )}
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs arabic">{isAr ? 'الاسم *' : 'Name *'}</Label>
@@ -5921,12 +5924,15 @@ function DisbursementForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: 
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs arabic">{isAr ? 'اللقب' : 'Title'}</Label>
-        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))}>
+        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={['السيد','السيدة','السادة','أخرى'].includes(d.namePrefix) ? d.namePrefix : 'أخرى'} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value === 'أخرى' ? '' : e.target.value }))}>
           <option value="السيد">السيد</option>
           <option value="السيدة">السيدة</option>
-          <option value="الشركة">الشركة</option>
-          <option value="المؤسسة">المؤسسة</option>
+          <option value="السادة">السادة</option>
+          <option value="أخرى">أخرى (أكتب بنفسك)</option>
         </select>
+        {!['السيد','السيدة','السادة'].includes(d.namePrefix) && (
+          <Input className="arabic text-sm mt-1" placeholder="اكتب اللقب..." value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))} />
+        )}
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs arabic">{isAr ? 'الاسم *' : 'Name *'}</Label>
