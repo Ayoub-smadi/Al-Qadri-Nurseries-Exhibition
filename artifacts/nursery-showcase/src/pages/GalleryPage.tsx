@@ -1673,6 +1673,109 @@ export default function GalleryPage() {
         </section>
       )}
 
+      {/* ── BRANCH MAP SECTION ── */}
+      <section className="bg-[#0d2614] py-14 px-4 md:px-12">
+        {/* Header */}
+        <div className="flex flex-col items-center gap-2 mb-10">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-6 h-6 text-emerald-400" />
+            <h2 className="arabic text-2xl font-bold text-white tracking-wide">فروعنا على الخريطة</h2>
+            <MapPin className="w-6 h-6 text-emerald-400" />
+          </div>
+          <div className="w-16 h-0.5 rounded-full bg-emerald-500/60 mt-1" />
+        </div>
+
+        {/* 3-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {/* Branch 1 – بوابة الشمال */}
+          <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="relative overflow-hidden" style={{ height: 260 }}>
+              <iframe
+                title="مشتل بوابة الشمال"
+                src="https://maps.google.com/maps?q=6V8M%2B8F5+%D8%AC%D8%B1%D8%B4%2C+%D8%A7%D9%84%D8%A3%D8%B1%D8%AF%D9%86&z=16&output=embed&hl=ar"
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+            </div>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل بوابة الشمال</span>
+                <span className="arabic text-emerald-300/70 text-xs">أبو عقاب — جرش</span>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/wAR3tZPQFRTC8Lcm6"
+                target="_blank"
+                rel="noreferrer"
+                className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                الاتجاهات
+              </a>
+            </div>
+          </div>
+
+          {/* Branch 2 – الرشايدة */}
+          <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="relative overflow-hidden" style={{ height: 260 }}>
+              <iframe
+                title="مشتل الرشايدة"
+                src="https://maps.google.com/maps?q=32.2645247,35.8972786&z=16&output=embed&hl=ar"
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+            </div>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل الرشايدة</span>
+                <span className="arabic text-emerald-300/70 text-xs">أبو عقاب — الرشايدة</span>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/NYeaSdKKni6mXKVv8"
+                target="_blank"
+                rel="noreferrer"
+                className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                الاتجاهات
+              </a>
+            </div>
+          </div>
+
+          {/* Branch 3 – المشتل الرئيسي */}
+          <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="relative overflow-hidden" style={{ height: 260 }}>
+              <iframe
+                title="المشتل الرئيسي"
+                src="https://maps.google.com/maps?q=32.554679,35.796279&z=15&output=embed&hl=ar"
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+            </div>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="arabic text-white font-semibold text-sm leading-tight">المشتل الرئيسي</span>
+                <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/6gCRmpEuGQqFP6iD8"
+                target="_blank"
+                rel="noreferrer"
+                className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                الاتجاهات
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
