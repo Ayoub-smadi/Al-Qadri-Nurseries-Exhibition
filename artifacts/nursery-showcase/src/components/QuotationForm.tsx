@@ -656,41 +656,29 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
         </div>
 
         {/* Closing + Stamp */}
-        <div className="pt-4 border-t border-slate-200 flex flex-col items-center gap-2">
-          {/* signer title — centered + underlined */}
-          <input
-            value={details.signerTitle}
-            onChange={e => setDetails({ ...details, signerTitle: e.target.value })}
-            className="text-center text-sm font-bold text-slate-900 bg-transparent border-b-2 border-slate-400 focus:border-green-600 outline-none px-2 py-1 underline decoration-slate-500 underline-offset-2 w-full max-w-xs"
-            placeholder="المدير العام / الاسم"
-          />
-          {/* closing text — centered below */}
-          <input
-            value={details.closingText}
-            onChange={e => setDetails({ ...details, closingText: e.target.value })}
-            className="text-center text-sm text-slate-600 bg-transparent border-none focus:outline-none w-full max-w-sm px-2 py-1"
-            placeholder="نص الختام"
-          />
-          {/* stamp (left) + logo (right) */}
-          <div className="w-full flex items-end justify-between mt-2">
-            {/* stamp — left */}
-            <div className="min-w-[120px]">
-              {stampDataUrl ? (
-                <img
-                  data-stamp="1"
-                  src={stampDataUrl}
-                  alt="ختم المؤسسة"
-                  className="w-28 h-28 object-contain drop-shadow-sm"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : (
-                <div className="w-28 h-28 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center text-xs text-slate-400">ختم</div>
-              )}
+        <div className="pt-4 border-t border-slate-200 space-y-4">
+          <div className="text-center">
+            <input
+              value={details.closingText}
+              onChange={e => setDetails({ ...details, closingText: e.target.value })}
+              className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-sm text-slate-700 text-center w-full"
+            />
+          </div>
+          <div className="flex justify-end pt-1">
+            <div className="flex flex-col items-center gap-2 min-w-[160px]">
+              <input
+                value={details.signerTitle}
+                onChange={e => setDetails({ ...details, signerTitle: e.target.value })}
+                className="bg-transparent border-none focus:outline-none focus:border-b focus:border-slate-300 text-xs font-bold text-slate-800 text-center w-full"
+              />
+              <img
+                data-stamp="1"
+                src={stampDataUrl ?? '/stamp.png'}
+                alt="ختم المؤسسة"
+                className="w-48 h-48 object-contain drop-shadow-sm"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
             </div>
-            {/* logo — right */}
-            {logoBase64 && (
-              <img src={logoBase64} alt="logo" className="w-16 h-16 object-contain" />
-            )}
           </div>
         </div>
 

@@ -755,17 +755,14 @@ export default function CreateQuotationPage() {
             <div className="p-2 bg-slate-50 border border-slate-200 rounded text-slate-700 text-xs whitespace-pre-wrap break-words">{details.notes}</div>
           )}
 
-          {/* Closing + Stamp */}
-          <div className="pt-4 border-t border-slate-200 flex flex-col items-center gap-2">
-            <input value={details.signerTitle} onChange={e => setDetails({ ...details, signerTitle: e.target.value })} className="text-center text-sm font-bold text-slate-900 bg-transparent border-b-2 border-slate-400 focus:border-green-600 outline-none px-2 py-1 rounded-sm underline decoration-slate-500 underline-offset-2 w-full max-w-xs" placeholder="المدير العام / الاسم" />
-            <input value={details.closingText} onChange={e => setDetails({ ...details, closingText: e.target.value })} className="text-center text-sm text-slate-600 bg-transparent border-none focus:border-b focus:border-slate-300 outline-none w-full max-w-sm px-2 py-1" placeholder="نص الختام" />
-            <div className="w-full flex items-end justify-between mt-2">
-              {/* stamp — left */}
-              <img src={stampImage} alt="Stamp" className="w-28 h-auto" />
-              {/* logo — right */}
-              {logoBase64 && (
-                <img src={logoBase64} alt="logo" className="w-16 h-16 object-contain" />
-              )}
+          {/* Closing */}
+          <div className="pt-4 border-t border-slate-200 flex flex-col items-center gap-4">
+            <input value={details.closingText} onChange={e => setDetails({ ...details, closingText: e.target.value })} className="text-center text-base font-bold text-slate-900 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none w-full max-w-xs px-2 py-1 rounded-sm" placeholder="نص الختام" />
+            <div className="w-full flex justify-end">
+              <div className="flex flex-col items-center">
+                <input value={details.signerTitle} onChange={e => setDetails({ ...details, signerTitle: e.target.value })} className="text-center text-sm font-bold text-slate-900 bg-transparent border-b border-slate-300 focus:border-green-500 outline-none px-2 py-1 rounded-sm" placeholder="المدير العام / الاسم" />
+                <img src={stampImage} alt="Stamp" className="w-28 h-auto mt-4" />
+              </div>
             </div>
           </div>
 
