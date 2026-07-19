@@ -1759,7 +1759,7 @@ export default function GalleryPage() {
             </div>
             <div className="p-4 flex items-center justify-between gap-3">
               <div className="flex flex-col gap-0.5">
-                <span className="arabic text-white font-semibold text-sm leading-tight">المشتل الرئيسي</span>
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل اربد — كفر يوبا</span>
                 <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
               </div>
               <a
