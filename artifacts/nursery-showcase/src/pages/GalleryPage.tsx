@@ -1685,8 +1685,8 @@ export default function GalleryPage() {
           <div className="w-16 h-0.5 rounded-full bg-emerald-500/60 mt-1" />
         </div>
 
-        {/* 4-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        {/* 5-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
           {/* Branch 1 – بوابة الشمال */}
           <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
             <div className="relative overflow-hidden" style={{ height: 260 }}>
@@ -1793,6 +1793,35 @@ export default function GalleryPage() {
               </div>
               <a
                 href="https://share.google/Bo0YwWOPgtvuCLcAJ"
+                target="_blank"
+                rel="noreferrer"
+                className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                الاتجاهات
+              </a>
+            </div>
+          </div>
+
+          {/* Branch 5 – الكرك */}
+          <div className="group rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+            <div className="relative overflow-hidden" style={{ height: 260 }}>
+              <iframe
+                title="مشتل الكرك"
+                src="https://maps.google.com/maps?q=31.1709744,35.7330598&z=15&output=embed&hl=ar"
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+            </div>
+            <div className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل الكرك</span>
+                <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
+              </div>
+              <a
+                href="https://maps.app.goo.gl/cq5ndF9QjdZ3Ko3h7"
                 target="_blank"
                 rel="noreferrer"
                 className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
