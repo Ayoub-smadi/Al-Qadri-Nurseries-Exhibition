@@ -524,6 +524,7 @@ export interface Receipt {
   id: string;
   number: string;
   received_from: string;
+  name_prefix: string;
   amount: number;
   amount_text: string;
   description: string;
@@ -544,7 +545,7 @@ export async function fetchReceipts(): Promise<Receipt[] | 'unauthorized' | null
   return null;
 }
 
-export async function createReceipt(data: { receivedFrom: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
+export async function createReceipt(data: { receivedFrom: string; namePrefix?: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; receiptNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
   const token = getToken();
   if (!token) return 'unauthorized';
   try {
@@ -560,7 +561,7 @@ export async function createReceipt(data: { receivedFrom: string; amount: number
   } catch (e) { return { error: String(e) }; }
 }
 
-export async function updateReceipt(id: string, data: { receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
+export async function updateReceipt(id: string, data: { receivedFrom?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
   const token = getToken();
   if (!token) return 'unauthorized';
   try {
@@ -588,6 +589,7 @@ export interface Disbursement {
   id: string;
   number: string;
   paid_to: string;
+  name_prefix: string;
   amount: number;
   amount_text: string;
   description: string;
@@ -608,7 +610,7 @@ export async function fetchDisbursements(): Promise<Disbursement[] | 'unauthoriz
   return null;
 }
 
-export async function createDisbursement(data: { paidTo: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; disbursementNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
+export async function createDisbursement(data: { paidTo: string; namePrefix?: string; amount: number; amountText: string; description: string; paymentMethod: string; date: string; notes: string; disbursementNumber?: string }): Promise<{ id: string; number: string } | 'unauthorized' | { error: string } | null> {
   const token = getToken();
   if (!token) return 'unauthorized';
   try {
@@ -624,7 +626,7 @@ export async function createDisbursement(data: { paidTo: string; amount: number;
   } catch (e) { return { error: String(e) }; }
 }
 
-export async function updateDisbursement(id: string, data: { paidTo?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
+export async function updateDisbursement(id: string, data: { paidTo?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string }): Promise<boolean | 'unauthorized'> {
   const token = getToken();
   if (!token) return 'unauthorized';
   try {

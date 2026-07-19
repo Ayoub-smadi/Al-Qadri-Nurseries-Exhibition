@@ -34,6 +34,8 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
       await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`ALTER TABLE receipts ADD COLUMN IF NOT EXISTS name_prefix TEXT NOT NULL DEFAULT 'السيد'`);
+      await client.query(`ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS name_prefix TEXT NOT NULL DEFAULT 'السيد'`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
     } catch (e) {
@@ -370,8 +372,8 @@ router.get("/receipts", async (req, res) => {
 
 router.post("/receipts", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { receivedFrom, amount, amountText, description, paymentMethod, date, notes, receiptNumber } = req.body as {
-    receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; receiptNumber?: string;
+  const { receivedFrom, namePrefix, amount, amountText, description, paymentMethod, date, notes, receiptNumber } = req.body as {
+    receivedFrom?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; receiptNumber?: string;
   };
   if (!receivedFrom) { res.status(400).json({ error: "Missing receivedFrom" }); return; }
   try {
@@ -383,8 +385,8 @@ router.post("/receipts", async (req, res) => {
     }
     const id = `rec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     await pool.query(
-      `INSERT INTO receipts (id, number, received_from, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [id, finalNum, receivedFrom, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
+      `INSERT INTO receipts (id, number, received_from, name_prefix, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, finalNum, receivedFrom, namePrefix ?? 'السيد', amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
     );
     res.json({ id, number: finalNum });
   } catch (e) { res.status(500).json({ error: "Failed to save receipt", detail: (e as Error).message }); }
@@ -393,14 +395,14 @@ router.post("/receipts", async (req, res) => {
 router.put("/receipts/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { receivedFrom, amount, amountText, description, paymentMethod, date, notes, number } = req.body as {
-    receivedFrom?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string;
+  const { receivedFrom, namePrefix, amount, amountText, description, paymentMethod, date, notes, number } = req.body as {
+    receivedFrom?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string;
   };
   try {
     await dbReady;
     await pool.query(
-      `UPDATE receipts SET number=COALESCE($1,number), received_from=$2, amount=$3, amount_text=$4, description=$5, payment_method=$6, date=$7, notes=$8 WHERE id=$9`,
-      [number?.trim() || null, receivedFrom, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
+      `UPDATE receipts SET number=COALESCE($1,number), received_from=$2, name_prefix=COALESCE($3,name_prefix), amount=$4, amount_text=$5, description=$6, payment_method=$7, date=$8, notes=$9 WHERE id=$10`,
+      [number?.trim() || null, receivedFrom, namePrefix ?? null, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: "Failed to update receipt", detail: (e as Error).message }); }
@@ -429,8 +431,8 @@ router.get("/disbursements", async (req, res) => {
 
 router.post("/disbursements", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { paidTo, amount, amountText, description, paymentMethod, date, notes, disbursementNumber } = req.body as {
-    paidTo?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; disbursementNumber?: string;
+  const { paidTo, namePrefix, amount, amountText, description, paymentMethod, date, notes, disbursementNumber } = req.body as {
+    paidTo?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; disbursementNumber?: string;
   };
   if (!paidTo) { res.status(400).json({ error: "Missing paidTo" }); return; }
   try {
@@ -442,8 +444,8 @@ router.post("/disbursements", async (req, res) => {
     }
     const id = `dis-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     await pool.query(
-      `INSERT INTO disbursements (id, number, paid_to, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [id, finalNum, paidTo, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
+      `INSERT INTO disbursements (id, number, paid_to, name_prefix, amount, amount_text, description, payment_method, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, finalNum, paidTo, namePrefix ?? 'السيد', amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date ?? new Date().toISOString().slice(0, 10), notes ?? '']
     );
     res.json({ id, number: finalNum });
   } catch (e) { res.status(500).json({ error: "Failed to save disbursement", detail: (e as Error).message }); }
@@ -452,14 +454,14 @@ router.post("/disbursements", async (req, res) => {
 router.put("/disbursements/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id } = req.params;
-  const { paidTo, amount, amountText, description, paymentMethod, date, notes, number } = req.body as {
-    paidTo?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string;
+  const { paidTo, namePrefix, amount, amountText, description, paymentMethod, date, notes, number } = req.body as {
+    paidTo?: string; namePrefix?: string; amount?: number; amountText?: string; description?: string; paymentMethod?: string; date?: string; notes?: string; number?: string;
   };
   try {
     await dbReady;
     await pool.query(
-      `UPDATE disbursements SET number=COALESCE($1,number), paid_to=$2, amount=$3, amount_text=$4, description=$5, payment_method=$6, date=$7, notes=$8 WHERE id=$9`,
-      [number?.trim() || null, paidTo, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
+      `UPDATE disbursements SET number=COALESCE($1,number), paid_to=$2, name_prefix=COALESCE($3,name_prefix), amount=$4, amount_text=$5, description=$6, payment_method=$7, date=$8, notes=$9 WHERE id=$10`,
+      [number?.trim() || null, paidTo, namePrefix ?? null, amount ?? 0, amountText ?? '', description ?? '', paymentMethod ?? 'cash', date, notes ?? '', id]
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: "Failed to update disbursement", detail: (e as Error).message }); }

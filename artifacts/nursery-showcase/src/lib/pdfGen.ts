@@ -911,6 +911,7 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
 export interface ReceiptPDFData {
   number: string;
   receivedFrom: string;
+  namePrefix?: string;
   amount: number;
   amountText: string;
   description: string;
@@ -978,7 +979,7 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
 
         <!-- Received from -->
         <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #c8d4f0;border-radius:6px;background:#fafbff;"><tr>
-          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">استلمنا من السيد / السيدة:</td>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">استلمنا من ${data.namePrefix ?? 'السيد / السيدة'}:</td>
           <td style="padding:10px 14px 6px;font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #1a3a8a;vertical-align:bottom;">${data.receivedFrom}</td>
         </tr></table>
 
@@ -1091,6 +1092,7 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
 export interface DisbursementPDFData {
   number: string;
   paidTo: string;
+  namePrefix?: string;
   amount: number;
   amountText: string;
   description: string;
@@ -1158,7 +1160,7 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
 
         <!-- Paid to -->
         <table style="width:100%;border-collapse:collapse;margin-bottom:12px;border:1px solid #fcd5c8;border-radius:6px;background:#fff7f5;"><tr>
-          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">صرفنا للسيد / السيدة:</td>
+          <td style="padding:10px 14px;font-size:12px;color:#555;white-space:nowrap;vertical-align:middle;width:1%;">صرفنا للـ ${data.namePrefix ?? 'السيد / السيدة'}:</td>
           <td style="padding:10px 14px 6px;font-size:15px;font-weight:800;color:#1a1a1a;border-bottom:2px solid #7c2d12;vertical-align:bottom;">${data.paidTo}</td>
         </tr></table>
 

@@ -5622,7 +5622,7 @@ function AdminInvoicesModal({ open, onClose, lang, siteData, onSessionExpired }:
 
 /* ── Receipt Form (standalone — must NOT be defined inside modal) ─── */
 type ReceiptDraft = {
-  receivedFrom: string; amount: number; amountText: string;
+  receivedFrom: string; namePrefix: string; amount: number; amountText: string;
   description: string; paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string; notes: string; receiptNumber: string;
 };
@@ -5648,7 +5648,16 @@ function ReceiptForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: {
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <Label className="text-xs arabic">{isAr ? 'استلمنا من السيد/السيدة *' : 'Received From *'}</Label>
+        <Label className="text-xs arabic">{isAr ? 'اللقب' : 'Title'}</Label>
+        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))}>
+          <option value="السيد">السيد</option>
+          <option value="السيدة">السيدة</option>
+          <option value="الشركة">الشركة</option>
+          <option value="المؤسسة">المؤسسة</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'الاسم *' : 'Name *'}</Label>
         <Input className="arabic text-sm" placeholder={isAr ? 'اسم الدافع' : 'Payer name'} value={d.receivedFrom} onChange={e => setD(p => ({ ...p, receivedFrom: e.target.value }))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -5703,7 +5712,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
   const [editingRec, setEditingRec] = useState<Receipt | null>(null);
 
   const emptyDraft = (): ReceiptDraft => ({
-    receivedFrom: '', amount: 0, amountText: '', description: '',
+    receivedFrom: '', namePrefix: 'السيد', amount: 0, amountText: '', description: '',
     paymentMethod: 'cash',
     date: new Date().toISOString().slice(0, 10), notes: '', receiptNumber: '',
   });
@@ -5748,7 +5757,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
   const handleOpenEdit = (rec: Receipt) => {
     setEditingRec(rec);
     setEditDraft({
-      receivedFrom: rec.received_from, amount: Number(rec.amount),
+      receivedFrom: rec.received_from, namePrefix: rec.name_prefix || 'السيد', amount: Number(rec.amount),
       amountText: rec.amount_text, description: rec.description,
       paymentMethod: rec.payment_method, date: rec.date,
       notes: rec.notes, receiptNumber: rec.number,
@@ -5760,7 +5769,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
     if (!editingRec) return;
     setSaving(true);
     const ok = await updateReceipt(editingRec.id, {
-      receivedFrom: editDraft.receivedFrom, amount: editDraft.amount,
+      receivedFrom: editDraft.receivedFrom, namePrefix: editDraft.namePrefix, amount: editDraft.amount,
       amountText: editDraft.amountText, description: editDraft.description,
       paymentMethod: editDraft.paymentMethod, date: editDraft.date,
       notes: editDraft.notes, number: editDraft.receiptNumber,
@@ -5787,7 +5796,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
   const handleDownloadPDF = async (rec: Receipt) => {
     setPdfingId(rec.id);
     await downloadReceiptPDF({
-      number: rec.number, receivedFrom: rec.received_from,
+      number: rec.number, receivedFrom: rec.received_from, namePrefix: rec.name_prefix || 'السيد',
       amount: Number(rec.amount), amountText: rec.amount_text,
       description: rec.description, paymentMethod: rec.payment_method,
       date: rec.date, notes: rec.notes, logoUrl,
@@ -5885,7 +5894,7 @@ function AdminReceiptsModal({ open, onClose, lang, logoUrl, onSessionExpired }: 
 
 /* ── Disbursement Form (must NOT be defined inside modal) ── */
 type DisbursementDraft = {
-  paidTo: string; amount: number; amountText: string;
+  paidTo: string; namePrefix: string; amount: number; amountText: string;
   description: string; paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string; notes: string; disbursementNumber: string;
 };
@@ -5911,7 +5920,16 @@ function DisbursementForm({ d, setD, onSubmit, submitting, submitLabel, isAr }: 
         </div>
       </div>
       <div className="flex flex-col gap-1">
-        <Label className="text-xs arabic">{isAr ? 'صرفنا للسيد/السيدة *' : 'Paid To *'}</Label>
+        <Label className="text-xs arabic">{isAr ? 'اللقب' : 'Title'}</Label>
+        <select className="arabic text-sm border border-input rounded-md px-3 py-2 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={d.namePrefix} onChange={e => setD(p => ({ ...p, namePrefix: e.target.value }))}>
+          <option value="السيد">السيد</option>
+          <option value="السيدة">السيدة</option>
+          <option value="الشركة">الشركة</option>
+          <option value="المؤسسة">المؤسسة</option>
+        </select>
+      </div>
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs arabic">{isAr ? 'الاسم *' : 'Name *'}</Label>
         <Input className="arabic text-sm" placeholder={isAr ? 'اسم المستلم' : 'Payee name'} value={d.paidTo} onChange={e => setD(p => ({ ...p, paidTo: e.target.value }))} />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -5966,7 +5984,7 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
   const [editingDis, setEditingDis] = useState<Disbursement | null>(null);
 
   const emptyDraft = (): DisbursementDraft => ({
-    paidTo: '', amount: 0, amountText: '', description: '',
+    paidTo: '', namePrefix: 'السيد', amount: 0, amountText: '', description: '',
     paymentMethod: 'cash',
     date: new Date().toISOString().slice(0, 10), notes: '', disbursementNumber: '',
   });
@@ -6011,7 +6029,7 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
   const handleOpenEdit = (dis: Disbursement) => {
     setEditingDis(dis);
     setEditDraft({
-      paidTo: dis.paid_to, amount: Number(dis.amount),
+      paidTo: dis.paid_to, namePrefix: dis.name_prefix || 'السيد', amount: Number(dis.amount),
       amountText: dis.amount_text, description: dis.description,
       paymentMethod: dis.payment_method, date: dis.date,
       notes: dis.notes, disbursementNumber: dis.number,
@@ -6023,7 +6041,7 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
     if (!editingDis) return;
     setSaving(true);
     const ok = await updateDisbursement(editingDis.id, {
-      paidTo: editDraft.paidTo, amount: editDraft.amount,
+      paidTo: editDraft.paidTo, namePrefix: editDraft.namePrefix, amount: editDraft.amount,
       amountText: editDraft.amountText, description: editDraft.description,
       paymentMethod: editDraft.paymentMethod, date: editDraft.date,
       notes: editDraft.notes, number: editDraft.disbursementNumber,
@@ -6050,7 +6068,7 @@ function AdminDisbursementsModal({ open, onClose, lang, logoUrl, onSessionExpire
   const handleDownloadPDF = async (dis: Disbursement) => {
     setPdfingId(dis.id);
     await downloadDisbursementPDF({
-      number: dis.number, paidTo: dis.paid_to,
+      number: dis.number, paidTo: dis.paid_to, namePrefix: dis.name_prefix || 'السيد',
       amount: Number(dis.amount), amountText: dis.amount_text,
       description: dis.description, paymentMethod: dis.payment_method,
       date: dis.date, notes: dis.notes, logoUrl,
