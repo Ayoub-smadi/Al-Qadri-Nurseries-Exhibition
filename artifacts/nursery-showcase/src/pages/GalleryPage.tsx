@@ -1863,26 +1863,6 @@ export default function GalleryPage() {
         </div>
       </section>
 
-      {/* ── SIGNATURE BLOCK ── */}
-      <section className="bg-white border-t border-gray-200 px-8 md:px-16 py-8">
-        <div className="max-w-4xl mx-auto flex items-end justify-between gap-6">
-          {/* LEFT – name, greeting, stamp */}
-          <div className="flex flex-col items-start gap-1">
-            <p className="arabic text-gray-800 font-semibold text-base border-b border-gray-700 pb-0.5 pr-1">
-              المدير العام/ ثامر احمد القادري
-            </p>
-            <p className="arabic text-gray-500 text-sm mt-1">وافقوا فائق الاحترام...</p>
-            <div className="flex items-end gap-3 mt-2">
-              <img src="/stamp-qadri.png" alt="ختم القادري" className="h-20 w-auto object-contain opacity-90" />
-              <img src="/signature-thamer.png" alt="توقيع" className="h-14 w-auto object-contain" />
-            </div>
-          </div>
-
-          {/* RIGHT – logo */}
-          <img src="/logo-alkadri.jpg" alt="شعار القادري" className="h-20 w-auto object-contain opacity-90" />
-        </div>
-      </section>
-
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
