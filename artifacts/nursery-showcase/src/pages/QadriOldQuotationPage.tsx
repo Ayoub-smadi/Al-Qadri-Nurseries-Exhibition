@@ -1003,8 +1003,8 @@ export default function QadriOldQuotationPage() {
           </div>
 
           {/* ── التوقيع والختم — يسار الصفحة ────────────────── */}
-          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-start" }}>
-            <div style={{ textAlign: "right", minWidth: 140 }}>
+          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ textAlign: "center", minWidth: 140 }}>
               <div style={{ marginBottom: 6 }}>
                 <input
                   value={details.signerTitle}
@@ -1043,22 +1043,22 @@ export default function QadriOldQuotationPage() {
           {/* ── Footer ─────────────────────────────────── */}
           <div style={{
             marginTop: 20,
-            borderTop: "2px solid #16a34a",
+            borderTop: "1px solid #e5e7eb",
             background: "#f8fafc",
-            padding: "16px 24px",
+            padding: "12px 24px",
             display: "flex", justifyContent: "center", alignItems: "center",
-            flexDirection: "column", gap: 6,
+            flexDirection: "column", gap: 4,
           }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>
               <input
                 value={details.footerCompany}
                 onChange={e => setDetails(p => ({ ...p, footerCompany: e.target.value }))}
-                style={{ ...F, textAlign: "center", fontWeight: 800, fontSize: 18 }}
+                style={{ ...F, textAlign: "center", fontWeight: 700 }}
               />
             </div>
-            <div style={{ display: "flex", gap: 28, fontSize: 12, color: "#475569", flexWrap: "wrap", justifyContent: "center" }}>
-              {details.phone && <span>📞 {details.phone}</span>}
-              {details.email && <span>✉️ {details.email}</span>}
+            <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#64748b", flexWrap: "wrap", justifyContent: "center" }}>
+              {details.phone && <span>☎ {details.phone}</span>}
+              {details.email && <span>✉ {details.email}</span>}
               {details.website && <span>🌐 {details.website}</span>}
             </div>
           </div>
