@@ -1701,8 +1701,8 @@ export default function GalleryPage() {
             </div>
             <div className="p-4 flex items-center justify-between gap-3">
               <div className="flex flex-col gap-0.5">
-                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل بوابة الشمال</span>
-                <span className="arabic text-emerald-300/70 text-xs">أبو عقاب — جرش</span>
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل بوابة-جسر السيل</span>
+                <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
               </div>
               <a
                 href="https://maps.app.goo.gl/wAR3tZPQFRTC8Lcm6"
@@ -1731,7 +1731,7 @@ export default function GalleryPage() {
             <div className="p-4 flex items-center justify-between gap-3">
               <div className="flex flex-col gap-0.5">
                 <span className="arabic text-white font-semibold text-sm leading-tight">مشتل الرشايدة</span>
-                <span className="arabic text-emerald-300/70 text-xs">أبو عقاب — الرشايدة</span>
+                <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
               </div>
               <a
                 href="https://maps.app.goo.gl/NYeaSdKKni6mXKVv8"
@@ -1817,7 +1817,7 @@ export default function GalleryPage() {
             </div>
             <div className="p-4 flex items-center justify-between gap-3">
               <div className="flex flex-col gap-0.5">
-                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل الكرك</span>
+                <span className="arabic text-white font-semibold text-sm leading-tight">مشتل الكرك - الثنية</span>
                 <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
               </div>
               <a
