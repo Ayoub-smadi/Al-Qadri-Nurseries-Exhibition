@@ -998,13 +998,13 @@ export default function QadriOldQuotationPage() {
             <input
               value={details.closingText}
               onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-              style={{ ...F, fontSize: 13, color: "#374151", textAlign: "center" }}
+              style={{ ...F, fontSize: 17, color: "#374151", textAlign: "center" }}
             />
           </div>
 
           {/* ── التوقيع والختم — يسار الصفحة ────────────────── */}
-          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
-            <div style={{ textAlign: "center", minWidth: 140 }}>
+          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-start" }}>
+            <div style={{ textAlign: "right", minWidth: 140 }}>
               <div style={{ marginBottom: 6 }}>
                 <input
                   value={details.signerTitle}
@@ -1014,7 +1014,7 @@ export default function QadriOldQuotationPage() {
               </div>
               {stampUrl ? (
                 <div style={{ position: "relative", display: "inline-block" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 90, height: 70, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                  <img src={stampUrl} alt="stamp" style={{ width: 140, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
                   <button className="pdf-hide" onClick={() => setStampUrl("")}
                     style={{
                       position: "absolute", top: -6, right: -6,
@@ -1026,7 +1026,7 @@ export default function QadriOldQuotationPage() {
               ) : (
                 <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
                   <div style={{
-                    width: 90, height: 70, border: "2px dashed #d1d5db", borderRadius: 8,
+                    width: 140, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                     background: "#f9fafb", gap: 4, margin: "0 auto",
                   }}>
@@ -1043,22 +1043,22 @@ export default function QadriOldQuotationPage() {
           {/* ── Footer ─────────────────────────────────── */}
           <div style={{
             marginTop: 20,
-            borderTop: "1px solid #e5e7eb",
+            borderTop: "2px solid #16a34a",
             background: "#f8fafc",
-            padding: "12px 24px",
+            padding: "16px 24px",
             display: "flex", justifyContent: "center", alignItems: "center",
-            flexDirection: "column", gap: 4,
+            flexDirection: "column", gap: 6,
           }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>
               <input
                 value={details.footerCompany}
                 onChange={e => setDetails(p => ({ ...p, footerCompany: e.target.value }))}
-                style={{ ...F, textAlign: "center", fontWeight: 700 }}
+                style={{ ...F, textAlign: "center", fontWeight: 800, fontSize: 18 }}
               />
             </div>
-            <div style={{ display: "flex", gap: 24, fontSize: 11, color: "#64748b", flexWrap: "wrap", justifyContent: "center" }}>
-              {details.phone && <span>☎ {details.phone}</span>}
-              {details.email && <span>✉ {details.email}</span>}
+            <div style={{ display: "flex", gap: 28, fontSize: 12, color: "#475569", flexWrap: "wrap", justifyContent: "center" }}>
+              {details.phone && <span>📞 {details.phone}</span>}
+              {details.email && <span>✉️ {details.email}</span>}
               {details.website && <span>🌐 {details.website}</span>}
             </div>
           </div>
