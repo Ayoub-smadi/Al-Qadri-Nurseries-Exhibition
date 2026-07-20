@@ -401,7 +401,7 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       </div>
 
       <!-- FOOTER -->
-      <div style="margin-top:16px;padding-top:10px;border-top:2px solid #2e7d32;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
+      <div style="margin-top:16px;padding-top:10px;border-top:2px solid #1a3a8a;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
         ${siteData.footer.phone ? `<span>📞 ${siteData.footer.phone}</span>` : ''}
         ${siteData.footer.email ? `<span>✉ ${siteData.footer.email}</span>` : ''}
         ${siteData.footer.website ? `<span>🌐 ${siteData.footer.website}</span>` : ''}
