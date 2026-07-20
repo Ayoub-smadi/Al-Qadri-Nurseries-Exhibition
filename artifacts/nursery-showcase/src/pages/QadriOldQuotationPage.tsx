@@ -1043,7 +1043,7 @@ export default function QadriOldQuotationPage() {
           {/* ── Footer ─────────────────────────────────── */}
           <div style={{
             marginTop: 20,
-            borderTop: "2px solid #16a34a",
+            borderTop: "2px solid #1a3a8a",
             background: "#f8fafc",
             padding: "16px 24px",
             display: "flex", justifyContent: "center", alignItems: "center",
