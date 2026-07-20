@@ -279,7 +279,7 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
     <div style="font-family:'Cairo',sans-serif;background:#fff;padding:28px 24px;width:900px;direction:rtl;color:#111;font-size:13px;">
 
       <!-- HEADER -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #2e7d32;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #1a3a8a;">
         <div style="direction:ltr;text-align:left;">
           <div style="font-size:13px;font-weight:700;color:#333;font-family:'Cormorant Garamond',serif;">Al-Qadri Agricultural Establishment</div>
           <div style="font-size:11px;color:#666;margin-top:2px;">Jerash – Al-Rashaidah</div>
@@ -401,7 +401,7 @@ async function buildQuotePDF(quote: QuoteRequest, siteData: QuoteSiteData): Prom
       </div>
 
       <!-- FOOTER -->
-      <div style="margin-top:16px;padding-top:10px;border-top:2px solid #1a3a8a;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
+      <div style="margin-top:16px;padding-top:10px;border-top:2px solid #2e7d32;display:flex;justify-content:center;gap:28px;font-size:10px;color:#555;direction:ltr;text-align:center;">
         ${siteData.footer.phone ? `<span>📞 ${siteData.footer.phone}</span>` : ''}
         ${siteData.footer.email ? `<span>✉ ${siteData.footer.email}</span>` : ''}
         ${siteData.footer.website ? `<span>🌐 ${siteData.footer.website}</span>` : ''}
