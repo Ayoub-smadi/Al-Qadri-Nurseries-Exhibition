@@ -857,48 +857,12 @@ export async function downloadInvoicePDF(invoice: Invoice, siteData: QuoteSiteDa
   const innerCssPx = inner.offsetHeight;
   document.body.removeChild(div);
 
-  // Fit onto standard A4 pages instead of one custom oversized page — a page wider
-  // than A4/Letter (or an image taller than one A4 page) gets clipped by printers/
-  // viewers that print at "actual size" instead of auto-scaling. If the invoice fits
-  // on one page it's rendered centered as before; longer invoices now flow onto
-  // additional pages instead of being cut off.
+  // Always render as a single page sized to fit the invoice content exactly.
   const A4_W = 210;
-  const A4_H = 297;
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
   const ratio = A4_W / canvas.width;
   const fullH = canvas.height * ratio;
-
-  if (fullH <= A4_H) {
-    const yOffset = (A4_H - fullH) / 2;
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, yOffset, A4_W, fullH);
-  } else {
-    const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
-    const cssToMm = ratio * renderScale;
-    const safeCutsMm = [...new Set(rowBottomsCssPx.map(b => Math.round(b * cssToMm)))].sort((a, b) => a - b);
-
-    let drawn = 0; // mm
-    let first = true;
-    while (drawn < fullH) {
-      if (!first) pdf.addPage();
-      first = false;
-
-      const idealCut = Math.min(drawn + A4_H, fullH);
-      const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
-      const cutAt = suitable.length > 0 ? Math.max(...suitable) : idealCut;
-
-      const sliceH = cutAt - drawn;   // mm
-      const srcY = drawn / ratio;     // canvas px
-      const srcH = sliceH / ratio;    // canvas px
-
-      const slice = document.createElement('canvas');
-      slice.width = canvas.width;
-      slice.height = Math.ceil(srcH);
-      slice.getContext('2d')!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, A4_W, sliceH);
-      drawn = cutAt;
-    }
-  }
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [A4_W, fullH] });
+  pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, A4_W, fullH);
 
   const safeName = invoice.customer_name.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
   pdf.save(`فاتورة_${invoice.number}_${safeName}.pdf`);
