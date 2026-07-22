@@ -6408,15 +6408,33 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   React.useEffect(() => {
     if (!open) return;
     if (isAdmin) {
-      // Load from server — synced across all devices
       setLoading(true);
-      import('@/lib/storage').then(({ fetchQadriOldQuotations }) =>
-        fetchQadriOldQuotations()
-      ).then(recs => {
-        if (recs !== null) setRecords(recs as QadriOldRec[]);
-        else {
-          // Fallback to localStorage if API unavailable
-          try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
+      import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation }) => {
+        // 1) Load server records
+        const serverRecs = await fetchQadriOldQuotations();
+
+        // 2) Load any locally-stored records
+        let localRecs: QadriOldRec[] = [];
+        try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
+
+        if (serverRecs !== null) {
+          // 3) Auto-migrate: upload local records that don't exist on the server yet
+          if (localRecs.length > 0) {
+            const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
+            const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
+            for (const rec of toMigrate) {
+              const { id, ...rest } = rec;
+              await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
+            }
+            // 4) Reload from server after migration
+            const refreshed = await fetchQadriOldQuotations();
+            setRecords(refreshed ? (refreshed as QadriOldRec[]) : serverRecs as QadriOldRec[]);
+          } else {
+            setRecords(serverRecs as QadriOldRec[]);
+          }
+        } else {
+          // API unavailable — fall back to localStorage
+          setRecords(localRecs);
         }
       }).finally(() => setLoading(false));
     } else {
