@@ -783,14 +783,27 @@ export async function adminCreateQuote(data: {
 
 export async function fetchQadriOldQuotations(): Promise<any[] | null> {
   const token = getToken();
-  if (!token) return null;
+  if (!token) {
+    console.warn('[qadri-old] fetchQadriOldQuotations: no token — user not logged in');
+    return null;
+  }
   try {
-    const res = await fetch(`${getApiBase()}/qadri-old-quotations`, {
+    const url = `${getApiBase()}/qadri-old-quotations`;
+    console.log('[qadri-old] fetching', url);
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    console.log('[qadri-old] response status', res.status);
     if (res.ok) { const j = await res.json() as { records?: any[] }; return j.records ?? []; }
-    if (res.status === 401 || res.status === 403) return null;
-  } catch { /* ignore */ }
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[qadri-old] auth failed — token invalid or expired');
+      return null;
+    }
+    const errText = await res.text().catch(() => '');
+    console.error('[qadri-old] server error', res.status, errText);
+  } catch (e) {
+    console.error('[qadri-old] network error', e);
+  }
   return null;
 }
 

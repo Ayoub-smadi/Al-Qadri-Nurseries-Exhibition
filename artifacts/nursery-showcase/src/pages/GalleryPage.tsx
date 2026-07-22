@@ -6409,17 +6409,25 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
     if (!open) return;
     if (isAdmin) {
       setLoading(true);
-      import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation }) => {
+      import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation, loadSavedToken }) => {
         // 1) Load local records first
         let localRecs: QadriOldRec[] = [];
         try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
 
-        // 2) Try to reach the server
+        // 2) Check token before hitting the server
+        const token = loadSavedToken();
+        if (!token) {
+          toast.error("يجب تسجيل الدخول كأدمن أولاً لمزامنة السجلات");
+          setRecords(localRecs);
+          return;
+        }
+
+        // 3) Try to reach the server
         const serverRecs = await fetchQadriOldQuotations();
 
         if (serverRecs === null) {
-          // Server unreachable / token invalid — show local records as fallback
-          toast.error("تعذّر الاتصال بالخادم — عرض السجلات المحلية فقط");
+          // Server unreachable / token expired — show local records as fallback
+          toast.error("تعذّر الاتصال بالخادم — تحقق من تسجيل الدخول أو الاتصال بالإنترنت");
           setRecords(localRecs);
           return;
         }
