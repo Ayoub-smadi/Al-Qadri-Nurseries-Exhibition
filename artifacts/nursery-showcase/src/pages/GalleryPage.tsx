@@ -6407,55 +6407,39 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
 
   React.useEffect(() => {
     if (!open) return;
-    if (isAdmin) {
-      setLoading(true);
-      import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation, loadSavedToken }) => {
-        // 1) Load local records first
-        let localRecs: QadriOldRec[] = [];
-        try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
 
-        // 2) Check token before hitting the server
-        const token = loadSavedToken();
-        if (!token) {
-          toast.error("يجب تسجيل الدخول كأدمن أولاً لمزامنة السجلات");
-          setRecords(localRecs);
-          return;
+    // Always show local records immediately (fast)
+    let localRecs: QadriOldRec[] = [];
+    try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
+    setRecords(localRecs);
+
+    if (!isAdmin) return;
+
+    // Admin: sync with server in the background
+    setLoading(true);
+    import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation }) => {
+      const serverRecs = await fetchQadriOldQuotations();
+      if (serverRecs === null) {
+        // Server unreachable or not logged in — local records already shown, nothing to do
+        return;
+      }
+
+      // Migrate local-only records to server silently
+      const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
+      const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
+      if (toMigrate.length > 0) {
+        for (const rec of toMigrate) {
+          const { id, ...rest } = rec;
+          await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
         }
-
-        // 3) Try to reach the server
-        const serverRecs = await fetchQadriOldQuotations();
-
-        if (serverRecs === null) {
-          // Server unreachable / token expired — show local records as fallback
-          toast.error("تعذّر الاتصال بالخادم — تحقق من تسجيل الدخول أو الاتصال بالإنترنت");
-          setRecords(localRecs);
-          return;
-        }
-
-        // 3) Auto-migrate any local records not yet on the server
-        const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
-        const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
-
-        if (toMigrate.length > 0) {
-          toast.loading(`جاري نقل ${toMigrate.length} سجل إلى الخادم…`, { id: 'qadri-migrate' });
-          let migratedCount = 0;
-          for (const rec of toMigrate) {
-            const { id, ...rest } = rec;
-            const result = await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
-            if (result) migratedCount++;
-          }
-          toast.success(`✅ تم نقل ${migratedCount} سجل إلى الخادم`, { id: 'qadri-migrate' });
-
-          // 4) Reload from server after migration
-          const refreshed = await fetchQadriOldQuotations();
-          setRecords(refreshed ? (refreshed as QadriOldRec[]) : [...serverRecs as QadriOldRec[], ...toMigrate]);
-        } else {
-          setRecords(serverRecs as QadriOldRec[]);
-        }
-      }).finally(() => setLoading(false));
-    } else {
-      try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
-    }
+        // Reload after migration
+        const refreshed = await fetchQadriOldQuotations();
+        if (refreshed) setRecords(refreshed as QadriOldRec[]);
+      } else {
+        // No migration needed — show server records (may have records from other devices)
+        setRecords(serverRecs as QadriOldRec[]);
+      }
+    }).finally(() => setLoading(false));
   }, [open, isAdmin]);
 
   const openRec = (rec: QadriOldRec) => {
