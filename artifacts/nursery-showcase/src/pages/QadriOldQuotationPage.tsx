@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
-import { createInvoice, InvoiceItem } from "@/lib/storage";
+import { createInvoice, InvoiceItem, loadSavedToken, upsertQadriOldQuotation } from "@/lib/storage";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
@@ -212,7 +212,36 @@ export default function QadriOldQuotationPage() {
   };
 
   /* ─── Save to records ────────────────────────────────── */
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (saving) return;
+    const token = loadSavedToken();
+    const payload = { details, items: stripItemImages(items), logoUrl, stampUrl, discountPct, taxPct };
+
+    if (token) {
+      // Admin is authenticated — save to the server so all devices stay in sync
+      setSaving(true);
+      try {
+        const savedId = await upsertQadriOldQuotation(
+          payload as unknown as Record<string, unknown>,
+          currentRecordId ?? undefined
+        );
+        if (savedId) {
+          if (!currentRecordId) setCurrentRecordId(savedId);
+          toast.success("✅ تم الحفظ في السجل");
+          return;
+        }
+        toast.error("فشل الحفظ على الخادم — تحقق من الاتصال بالإنترنت");
+      } catch (e: any) {
+        toast.error("فشل الحفظ: " + (e?.message || "خطأ غير معروف"));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // Fallback for unauthenticated use: localStorage
     try {
       const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
@@ -633,7 +662,7 @@ export default function QadriOldQuotationPage() {
             <MessageCircle style={{ width: 14, height: 14 }} />
           </button>
 
-          <button onClick={handleSave}
+          <button onClick={handleSave} disabled={saving}
             title={currentRecordId ? "تحديث السجل" : "حفظ في السجل"}
             style={{
               display: "flex", alignItems: "center", gap: 5,
@@ -641,11 +670,15 @@ export default function QadriOldQuotationPage() {
               background: currentRecordId ? "#eff6ff" : "#f0fdf4",
               color: currentRecordId ? "#2563eb" : "#059669",
               border: currentRecordId ? "1px solid #bfdbfe" : "1px solid #6ee7b7",
-              cursor: "pointer", fontSize: 13, fontWeight: 600,
+              cursor: saving ? "not-allowed" : "pointer",
+              fontSize: 13, fontWeight: 600,
               fontFamily: "Cairo, Arial, sans-serif",
+              opacity: saving ? 0.6 : 1,
             }}>
-            <Save style={{ width: 14, height: 14 }} />
-            {currentRecordId ? "تحديث" : "حفظ"}
+            {saving
+              ? <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+              : <Save style={{ width: 14, height: 14 }} />}
+            {saving ? "جاري الحفظ..." : currentRecordId ? "تحديث" : "حفظ"}
           </button>
 
           <button onClick={handlePDF} disabled={isPdf}

@@ -36,6 +36,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`ALTER TABLE receipts ADD COLUMN IF NOT EXISTS name_prefix TEXT NOT NULL DEFAULT 'السيد'`);
       await client.query(`ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS name_prefix TEXT NOT NULL DEFAULT 'السيد'`);
+      await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
     } catch (e) {
@@ -475,6 +476,49 @@ router.delete("/disbursements/:id", async (req, res) => {
     await pool.query(`DELETE FROM disbursements WHERE id = $1`, [id]);
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to delete disbursement" }); }
+});
+
+/* ── Qadri Old Quotations — per-admin synced records ──── */
+
+router.get("/qadri-old-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    const result = await pool.query(
+      `SELECT id, data, created_at, updated_at FROM qadri_old_quotations ORDER BY updated_at DESC`
+    );
+    const records = result.rows.map((row: { id: string; data: Record<string, unknown>; created_at: string; updated_at: string }) => ({
+      id: row.id,
+      ...row.data,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+    res.json({ records });
+  } catch (e) { res.status(500).json({ error: "Failed to load records", detail: (e as Error).message }); }
+});
+
+router.post("/qadri-old-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: incomingId, ...data } = req.body as { id?: string; [k: string]: unknown };
+  const recordId = incomingId || `qoq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  try {
+    await pool.query(
+      `INSERT INTO qadri_old_quotations (id, data) VALUES ($1, $2)
+       ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [recordId, JSON.stringify(data)]
+    );
+    res.json({ id: recordId, ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to save record", detail: (e as Error).message }); }
+});
+
+router.delete("/qadri-old-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await pool.query(`DELETE FROM qadri_old_quotations WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch { res.status(500).json({ error: "Failed to delete record" }); }
 });
 
 router.post("/images/from-url", async (req, res) => {

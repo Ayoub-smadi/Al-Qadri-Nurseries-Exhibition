@@ -6400,13 +6400,29 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const RECS_KEY  = 'aq_qadri_old_records';
   const EDIT_KEY  = 'aq_qadri_old_edit_id';
   const DRAFT_KEY = 'aq_qadri_old_inline_draft';
+  const { isAdmin } = useApp();
   const [records, setRecords] = React.useState<QadriOldRec[]>([]);
+  const [loading, setLoading] = React.useState(false);
   const groupedRecords = React.useMemo(() => groupRecordsByMonth(records), [records]);
 
   React.useEffect(() => {
     if (!open) return;
-    try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
-  }, [open]);
+    if (isAdmin) {
+      // Load from server — synced across all devices
+      setLoading(true);
+      import('@/lib/storage').then(({ fetchQadriOldQuotations }) =>
+        fetchQadriOldQuotations()
+      ).then(recs => {
+        if (recs !== null) setRecords(recs as QadriOldRec[]);
+        else {
+          // Fallback to localStorage if API unavailable
+          try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
+        }
+      }).finally(() => setLoading(false));
+    } else {
+      try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
+    }
+  }, [open, isAdmin]);
 
   const openRec = (rec: QadriOldRec) => {
     try {
@@ -6417,10 +6433,15 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
     onClose();
   };
 
-  const deleteRec = (id: string) => {
-    const updated = records.filter(r => r.id !== id);
-    localStorage.setItem(RECS_KEY, JSON.stringify(updated));
-    setRecords(updated);
+  const deleteRec = async (id: string) => {
+    if (isAdmin) {
+      const { deleteQadriOldQuotation } = await import('@/lib/storage');
+      await deleteQadriOldQuotation(id);
+    } else {
+      const updated = records.filter(r => r.id !== id);
+      localStorage.setItem(RECS_KEY, JSON.stringify(updated));
+    }
+    setRecords(prev => prev.filter(r => r.id !== id));
   };
 
   const createNew = () => {

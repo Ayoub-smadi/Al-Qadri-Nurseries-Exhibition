@@ -779,6 +779,48 @@ export async function adminCreateQuote(data: {
   return null;
 }
 
+/* ── Qadri Old Quotations (server-synced) ───────────────── */
+
+export async function fetchQadriOldQuotations(): Promise<any[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/qadri-old-quotations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) { const j = await res.json() as { records?: any[] }; return j.records ?? []; }
+    if (res.status === 401 || res.status === 403) return null;
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function upsertQadriOldQuotation(data: Record<string, unknown>, id?: string): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const body = id ? { ...data, id } : data;
+    const res = await fetch(`${getApiBase()}/qadri-old-quotations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) { const j = await res.json() as { id?: string }; return j.id ?? null; }
+  } catch { /* ignore */ }
+  return null;
+}
+
+export async function deleteQadriOldQuotation(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/qadri-old-quotations/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
 export function resolveImageSrc(src: string): string {
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {
