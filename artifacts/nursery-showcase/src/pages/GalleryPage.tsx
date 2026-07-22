@@ -6410,31 +6410,39 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
     if (isAdmin) {
       setLoading(true);
       import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation }) => {
-        // 1) Load server records
-        const serverRecs = await fetchQadriOldQuotations();
-
-        // 2) Load any locally-stored records
+        // 1) Load local records first
         let localRecs: QadriOldRec[] = [];
         try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
 
-        if (serverRecs !== null) {
-          // 3) Auto-migrate: upload local records that don't exist on the server yet
-          if (localRecs.length > 0) {
-            const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
-            const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
-            for (const rec of toMigrate) {
-              const { id, ...rest } = rec;
-              await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
-            }
-            // 4) Reload from server after migration
-            const refreshed = await fetchQadriOldQuotations();
-            setRecords(refreshed ? (refreshed as QadriOldRec[]) : serverRecs as QadriOldRec[]);
-          } else {
-            setRecords(serverRecs as QadriOldRec[]);
-          }
-        } else {
-          // API unavailable — fall back to localStorage
+        // 2) Try to reach the server
+        const serverRecs = await fetchQadriOldQuotations();
+
+        if (serverRecs === null) {
+          // Server unreachable / token invalid — show local records as fallback
+          toast.error("تعذّر الاتصال بالخادم — عرض السجلات المحلية فقط");
           setRecords(localRecs);
+          return;
+        }
+
+        // 3) Auto-migrate any local records not yet on the server
+        const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
+        const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
+
+        if (toMigrate.length > 0) {
+          toast.loading(`جاري نقل ${toMigrate.length} سجل إلى الخادم…`, { id: 'qadri-migrate' });
+          let migratedCount = 0;
+          for (const rec of toMigrate) {
+            const { id, ...rest } = rec;
+            const result = await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
+            if (result) migratedCount++;
+          }
+          toast.success(`✅ تم نقل ${migratedCount} سجل إلى الخادم`, { id: 'qadri-migrate' });
+
+          // 4) Reload from server after migration
+          const refreshed = await fetchQadriOldQuotations();
+          setRecords(refreshed ? (refreshed as QadriOldRec[]) : [...serverRecs as QadriOldRec[], ...toMigrate]);
+        } else {
+          setRecords(serverRecs as QadriOldRec[]);
         }
       }).finally(() => setLoading(false));
     } else {
