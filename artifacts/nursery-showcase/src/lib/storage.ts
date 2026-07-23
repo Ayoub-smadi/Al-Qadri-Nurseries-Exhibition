@@ -318,6 +318,34 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
   }
 }
 
+/**
+ * Upload a base64 data-URL string to the server's /api/images endpoint.
+ * Returns the persistent server URL (e.g. /api/images/img-xxx).
+ * Throws if not authenticated or if the upload fails.
+ */
+export async function uploadImageBase64(dataUrl: string): Promise<string> {
+  const token = getToken();
+  if (!token) throw new Error("Not authenticated");
+  // Extract mime type from data URL header (e.g. "data:image/jpeg;base64,...")
+  const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
+  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  const res = await fetch(`${getApiBase()}/images`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ data: dataUrl, mimeType }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error ?? `Server error ${res.status}`);
+  }
+  const json = await res.json() as { url?: string };
+  if (!json.url) throw new Error("No URL returned");
+  return json.url;
+}
+
 export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
   const token = getToken();
   if (!token) throw new Error("Not authenticated");

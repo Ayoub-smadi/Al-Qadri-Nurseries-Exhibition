@@ -63,6 +63,7 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
     await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
   } catch (e) {
     console.error("DB init error:", e.message);
   } finally {
@@ -535,6 +536,49 @@ app.delete("/api/disbursements/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete disbursement" });
+  }
+});
+
+/* ── Qadri Old Quotations (عروض سعر قادري القديمة) ─────── */
+
+app.get("/api/qadri-old-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    const result = await pool.query(
+      `SELECT id, data, created_at, updated_at FROM qadri_old_quotations ORDER BY updated_at DESC`
+    );
+    res.json({ records: result.rows.map(r => ({ id: r.id, ...r.data, createdAt: r.created_at, updatedAt: r.updated_at })) });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load records", detail: e.message });
+  }
+});
+
+app.post("/api/qadri-old-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: bodyId, ...rest } = req.body ?? {};
+  const id = bodyId || `qoq-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  try {
+    await pool.query(
+      `INSERT INTO qadri_old_quotations (id, data) VALUES ($1, $2)
+       ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+      [id, JSON.stringify(rest)]
+    );
+    res.json({ id });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save record", detail: e.message });
+  }
+});
+
+app.delete("/api/qadri-old-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await pool.query(`DELETE FROM qadri_old_quotations WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete record" });
   }
 });
 

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
-import { createInvoice, InvoiceItem, loadSavedToken, upsertQadriOldQuotation } from "@/lib/storage";
+import { createInvoice, InvoiceItem, loadSavedToken, upsertQadriOldQuotation, uploadImageBase64 } from "@/lib/storage";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
@@ -214,15 +214,52 @@ export default function QadriOldQuotationPage() {
   /* ─── Save to records ────────────────────────────────── */
   const [saving, setSaving] = useState(false);
 
+  /** Upload a base64 data-URL to the server and return the /api/images/… URL.
+   *  If the value is already a server URL (or empty) it is returned as-is. */
+  const ensureServerUrl = async (src: string): Promise<string> => {
+    if (!src || !src.startsWith("data:")) return src;
+    try {
+      return await uploadImageBase64(src);
+    } catch {
+      // If upload fails, fall back to stripping the base64 so save still works
+      return "";
+    }
+  };
+
   const handleSave = async () => {
     if (saving) return;
     const token = loadSavedToken();
-    const payload = { details, items: stripItemImages(items), logoUrl, stampUrl, discountPct, taxPct };
 
     if (token) {
       // Admin is authenticated — save to the server so all devices stay in sync
       setSaving(true);
       try {
+        // Upload any base64 images to the server first so they persist across devices
+        const [resolvedLogo, resolvedStamp, resolvedItems] = await Promise.all([
+          ensureServerUrl(logoUrl),
+          ensureServerUrl(stampUrl),
+          Promise.all(
+            items.map(async (item) => ({
+              ...item,
+              imageUrl: item.imageUrl ? await ensureServerUrl(item.imageUrl) : undefined,
+            }))
+          ),
+        ]);
+
+        const payload = {
+          details,
+          items: resolvedItems,
+          logoUrl: resolvedLogo,
+          stampUrl: resolvedStamp,
+          discountPct,
+          taxPct,
+        };
+
+        // Update local state to reflect the uploaded URLs so the UI stays consistent
+        if (resolvedLogo !== logoUrl) setLogoUrl(resolvedLogo);
+        if (resolvedStamp !== stampUrl) setStampUrl(resolvedStamp);
+        setItems(resolvedItems);
+
         const savedId = await upsertQadriOldQuotation(
           payload as unknown as Record<string, unknown>,
           currentRecordId ?? undefined
