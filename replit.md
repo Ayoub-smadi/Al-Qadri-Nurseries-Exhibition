@@ -4,6 +4,13 @@
 
 ## تشغيل المشروع
 
+Run `pnpm install` once after cloning, then start both workflows:
+
+- **Al-Qadri Nurseries Website** workflow → `PORT=5000 BASE_PATH=/ pnpm --filter @workspace/nursery-showcase run dev` (port 5000)
+- **API Server** workflow → `PORT=8080 pnpm --filter @workspace/api-server run dev` (port 8080)
+
+Or via CLI:
+
 - `pnpm --filter @workspace/api-server run dev` — تشغيل API server (port 8080)
 - `pnpm --filter @workspace/nursery-showcase run dev` — تشغيل الواجهة (port 5000)
 - `pnpm run typecheck` — فحص الأنواع على كل الحزم
@@ -14,7 +21,7 @@
 - pnpm workspaces, Node.js 20, TypeScript 5.9
 - Frontend: React + Vite, Tailwind CSS v4, shadcn/ui
 - API: Express 5
-- DB: PostgreSQL (Replit built-in) — `DATABASE_URL` تُضبط تلقائياً
+- DB: PostgreSQL (Replit built-in, `postgresql-16` module) — `DATABASE_URL` تُضبط تلقائياً
 - Fonts: Cairo (Arabic), Cormorant Garamond (Latin)
 - PDF export: html2canvas + jsPDF
 
@@ -47,7 +54,14 @@
 - البيانات تُحفظ في قاعدة البيانات وتظهر من أي جهاز
 - الأدمن: زر صغير في الزاوية العلوية اليمنى
 - جلسات الأدمن تدوم 8 ساعات وتُخزن في الذاكرة (تنتهي عند إعادة تشغيل الـ server)
-- `ADMIN_SETUP_SECRET` مضبوطة كـ env var (ليست secret)
+- `ADMIN_SETUP_SECRET` مضبوطة كـ env var (ليست secret) — يُنصح بنقلها إلى Replit Secrets
+
+## Setup verification (2025-07-25)
+
+- `pnpm install` ran successfully — 525 packages installed
+- Frontend (port 5000): Vite dev server started, app renders correctly
+- API server (port 8080): Express listening, build completed without errors
+- `postgresql-16` Nix module enabled for `DATABASE_URL` auto-provisioning
 
 ## User preferences
 
