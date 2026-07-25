@@ -221,8 +221,9 @@ export default function QadriOldQuotationPage() {
     try {
       return await uploadImageBase64(src);
     } catch {
-      // If upload fails, fall back to stripping the base64 so save still works
-      return "";
+      // If upload fails, keep the original data URL so the image isn't lost
+      // from the UI. The quotation will still be saved with the embedded image.
+      return src;
     }
   };
 
