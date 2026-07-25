@@ -6376,14 +6376,23 @@ function monthGroupLabel(key: string): string {
   return `${ARABIC_MONTH_NAMES[idx] ?? m} ${y}`;
 }
 
-function groupRecordsByMonth<T extends { createdAt?: string }>(records: T[]): [string, T[]][] {
+function groupRecordsByMonth<T extends { createdAt?: string; updatedAt?: string }>(records: T[]): [string, T[]][] {
   const map = new Map<string, T[]>();
   for (const r of records) {
     const key = monthGroupKey(r.createdAt);
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(r);
   }
-  return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  return Array.from(map.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([key, recs]) => [
+      key,
+      [...recs].sort((a, b) => {
+        const ta = a.updatedAt ?? a.createdAt ?? '';
+        const tb = b.updatedAt ?? b.createdAt ?? '';
+        return tb.localeCompare(ta);
+      }),
+    ]);
 }
 
 /* ── QadriOld Records Modal ──────────────────────────────── */
