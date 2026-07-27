@@ -31,6 +31,7 @@ export interface Branch {
   image: string;
   locationUrl: string;
   mapEmbedUrl?: string;
+  coordinates?: string; // "lat, lon" e.g. "31.9234, 35.9234"
 }
 
 export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'youtube' | 'website' | 'email' | 'catalog';

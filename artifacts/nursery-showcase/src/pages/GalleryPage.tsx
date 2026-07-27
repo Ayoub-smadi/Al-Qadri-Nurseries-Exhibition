@@ -400,6 +400,7 @@ export default function GalleryPage() {
   const [branchNameEn, setBranchNameEn] = useState('');
   const [branchLocation, setBranchLocation] = useState('');
   const [branchMapEmbed, setBranchMapEmbed] = useState('');
+  const [branchCoords, setBranchCoords] = useState('');
   const [branchImageUrl, setBranchImageUrl] = useState('');
   const [branchImgUploading, setBranchImgUploading] = useState(false);
 
@@ -969,9 +970,10 @@ export default function GalleryPage() {
       image: branchImageUrl,
       locationUrl: branchLocation,
       mapEmbedUrl: branchMapEmbed || undefined,
+      coordinates: branchCoords.trim() || undefined,
     };
     updateSiteData({ branches: [...(siteData.branches ?? []), branch] });
-    setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchImageUrl('');
+    setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchCoords(''); setBranchImageUrl('');
     setAddBranchOpen(false);
     toast.success(isAr ? 'تمت إضافة الفرع' : 'Branch added');
   };
@@ -1775,10 +1777,10 @@ export default function GalleryPage() {
           {(siteData.branches ?? []).map(branch => (
             <div key={branch.id} className="group relative rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
               <div className="relative overflow-hidden" style={{ height: 260 }}>
-                {branch.mapEmbedUrl ? (
+                {(branch.mapEmbedUrl || branch.coordinates) ? (
                   <iframe
                     title={branch.nameAr}
-                    src={branch.mapEmbedUrl}
+                    src={branch.mapEmbedUrl || `https://maps.google.com/maps?q=${encodeURIComponent(branch.coordinates!)}&z=16&output=embed`}
                     className="w-full h-full border-0"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
@@ -2027,7 +2029,7 @@ export default function GalleryPage() {
       </Dialog>
 
       {/* Add Branch */}
-      <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchImageUrl(''); } }}>
+      <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchCoords(''); setBranchImageUrl(''); } }}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
           <DialogHeader>
             <DialogTitle className="arabic">{isAr ? 'إضافة فرع جديد' : 'Add New Branch'}</DialogTitle>
@@ -2042,15 +2044,15 @@ export default function GalleryPage() {
               <Input value={branchNameEn} onChange={e => setBranchNameEn(e.target.value)} dir="ltr" placeholder="e.g. Amman Branch" />
             </div>
             <div className="space-y-1.5">
-              <Label>{isAr ? 'رابط تضمين الخريطة (Embed)' : 'Map Embed URL'}</Label>
+              <Label>{isAr ? 'إحداثيات الموقع' : 'Location Coordinates'}</Label>
               <Input
-                value={branchMapEmbed}
-                onChange={e => setBranchMapEmbed(e.target.value)}
+                value={branchCoords}
+                onChange={e => setBranchCoords(e.target.value)}
                 dir="ltr"
-                placeholder="https://www.google.com/maps/embed?pb=..."
+                placeholder="31.9234, 35.9234"
               />
               <p className="text-xs text-muted-foreground arabic leading-relaxed">
-                Google Maps → شارك → تضمين خريطة → انسخ الرابط من داخل src="..."
+                افتح Google Maps → اضغط على الموقع بالزر الأيمن → انسخ الإحداثيات
               </p>
             </div>
             <div className="space-y-1.5">
