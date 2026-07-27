@@ -399,6 +399,7 @@ export default function GalleryPage() {
   const [branchNameAr, setBranchNameAr] = useState('');
   const [branchNameEn, setBranchNameEn] = useState('');
   const [branchLocation, setBranchLocation] = useState('');
+  const [branchMapEmbed, setBranchMapEmbed] = useState('');
   const [branchImageUrl, setBranchImageUrl] = useState('');
   const [branchImgUploading, setBranchImgUploading] = useState(false);
 
@@ -967,9 +968,10 @@ export default function GalleryPage() {
       nameEn: branchNameEn,
       image: branchImageUrl,
       locationUrl: branchLocation,
+      mapEmbedUrl: branchMapEmbed || undefined,
     };
     updateSiteData({ branches: [...(siteData.branches ?? []), branch] });
-    setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchImageUrl('');
+    setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchImageUrl('');
     setAddBranchOpen(false);
     toast.success(isAr ? 'تمت إضافة الفرع' : 'Branch added');
   };
@@ -1513,98 +1515,6 @@ export default function GalleryPage() {
         )}
       </main>
 
-      {/* ── BRANCHES ── */}
-      {((siteData.branches ?? []).length > 0 || isAdmin) && (
-        <section className="px-4 md:px-12 py-12 border-t border-border bg-muted/30">
-          {/* Section header */}
-          <div className="flex items-center justify-center gap-4 mb-10">
-            <div className="flex-1 h-px bg-foreground/15" />
-            <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'فروعنا' : 'Our Branches'}</h2>
-              <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Branches' : 'فروعنا'}</p>
-            </div>
-            <div className="flex-1 h-px bg-foreground/15" />
-            {isAdmin && (
-              <button
-                onClick={() => setAddBranchOpen(true)}
-                className="no-print shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="arabic">{isAr ? 'إضافة فرع' : 'Add Branch'}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Branches grid */}
-          {(siteData.branches ?? []).length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed border-border rounded-2xl arabic">
-              {isAr ? 'لا توجد فروع بعد — اضغط "إضافة فرع" لإضافة أول فرع' : 'No branches yet — click "Add Branch" to add one'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {(siteData.branches ?? []).map(branch => (
-                <a
-                  key={branch.id}
-                  href={branch.locationUrl || '#'}
-                  target={branch.locationUrl ? '_blank' : undefined}
-                  rel="noreferrer"
-                  onClick={e => { if (!branch.locationUrl) e.preventDefault(); }}
-                  className="group relative flex flex-col rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 bg-card border border-border cursor-pointer"
-                >
-                  {/* Branch image */}
-                  <div className="aspect-[4/3] overflow-hidden bg-muted">
-                    {branch.image ? (
-                      <img
-                        src={branch.image}
-                        alt={isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading="lazy" decoding="async"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <MapPin className="w-10 h-10 opacity-30" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Branch info */}
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
-                      <MapPin className="w-4 h-4 text-foreground/70" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold arabic text-foreground text-sm leading-tight truncate">
-                        {isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}
-                      </p>
-                      {branch.nameAr && branch.nameEn && (
-                        <p className="text-xs text-muted-foreground latin truncate">
-                          {isAr ? branch.nameEn : branch.nameAr}
-                        </p>
-                      )}
-                    </div>
-                    {branch.locationUrl && (
-                      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors latin shrink-0">
-                        ↗
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Admin delete button */}
-                  {isAdmin && (
-                    <button
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); handleDeleteBranch(branch.id); }}
-                      className="no-print absolute top-2 end-2 w-7 h-7 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
       {/* ── SOCIAL LINKS ── */}
       {((siteData.socialLinks ?? []).length > 0 || isAdmin) && (
         <section className="px-4 md:px-12 py-12 border-t border-border bg-background">
@@ -1860,6 +1770,55 @@ export default function GalleryPage() {
               </a>
             </div>
           </div>
+
+          {/* Dynamic branches added via admin */}
+          {(siteData.branches ?? []).map(branch => (
+            <div key={branch.id} className="group relative rounded-2xl overflow-hidden shadow-xl border border-white/10 bg-white/5 backdrop-blur-sm flex flex-col transition-transform hover:-translate-y-1 duration-300">
+              <div className="relative overflow-hidden" style={{ height: 260 }}>
+                {branch.mapEmbedUrl ? (
+                  <iframe
+                    title={branch.nameAr}
+                    src={branch.mapEmbedUrl}
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                  />
+                ) : branch.image ? (
+                  <img src={branch.image} alt={branch.nameAr} className="w-full h-full object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <MapPin className="w-12 h-12 text-emerald-400/40" />
+                  </div>
+                )}
+                <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-t-2xl" />
+              </div>
+              <div className="p-4 flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="arabic text-white font-semibold text-sm leading-tight">{isAr ? branch.nameAr : (branch.nameEn || branch.nameAr)}</span>
+                  <span className="arabic text-emerald-300/70 text-xs">مشاتل القادري الزراعية</span>
+                </div>
+                {branch.locationUrl && (
+                  <a
+                    href={branch.locationUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="arabic shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    الاتجاهات
+                  </a>
+                )}
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => handleDeleteBranch(branch.id)}
+                  className="no-print absolute top-2 end-2 w-7 h-7 bg-black/55 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 backdrop-blur-sm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       </section>
 
@@ -2068,7 +2027,7 @@ export default function GalleryPage() {
       </Dialog>
 
       {/* Add Branch */}
-      <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchImageUrl(''); } }}>
+      <Dialog open={addBranchOpen} onOpenChange={o => { setAddBranchOpen(o); if (!o) { setBranchNameAr(''); setBranchNameEn(''); setBranchLocation(''); setBranchMapEmbed(''); setBranchImageUrl(''); } }}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
           <DialogHeader>
             <DialogTitle className="arabic">{isAr ? 'إضافة فرع جديد' : 'Add New Branch'}</DialogTitle>
@@ -2076,27 +2035,38 @@ export default function GalleryPage() {
           <form onSubmit={handleAddBranch} className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>{isAr ? 'اسم الفرع (عربي)' : 'Branch Name (AR)'}</Label>
-              <Input value={branchNameAr} onChange={e => setBranchNameAr(e.target.value)} dir="rtl" className="arabic" placeholder="مثال: فرع الرياض" />
+              <Input value={branchNameAr} onChange={e => setBranchNameAr(e.target.value)} dir="rtl" className="arabic" placeholder="مثال: فرع عمّان" />
             </div>
             <div className="space-y-1.5">
               <Label>{isAr ? 'اسم الفرع (إنجليزي)' : 'Branch Name (EN)'}</Label>
-              <Input value={branchNameEn} onChange={e => setBranchNameEn(e.target.value)} dir="ltr" placeholder="e.g. Riyadh Branch" />
+              <Input value={branchNameEn} onChange={e => setBranchNameEn(e.target.value)} dir="ltr" placeholder="e.g. Amman Branch" />
             </div>
             <div className="space-y-1.5">
-              <Label>{isAr ? 'رابط الموقع على الخريطة' : 'Google Maps Link'}</Label>
+              <Label>{isAr ? 'رابط تضمين الخريطة (Embed)' : 'Map Embed URL'}</Label>
+              <Input
+                value={branchMapEmbed}
+                onChange={e => setBranchMapEmbed(e.target.value)}
+                dir="ltr"
+                placeholder="https://www.google.com/maps/embed?pb=..."
+              />
+              <p className="text-xs text-muted-foreground arabic leading-relaxed">
+                Google Maps → شارك → تضمين خريطة → انسخ الرابط من داخل src="..."
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{isAr ? 'رابط الاتجاهات' : 'Directions Link'}</Label>
               <Input
                 value={branchLocation}
                 onChange={e => setBranchLocation(e.target.value)}
                 dir="ltr"
-                placeholder="https://maps.google.com/..."
-                type="url"
+                placeholder="https://maps.app.goo.gl/..."
               />
               <p className="text-xs text-muted-foreground arabic">
-                {isAr ? 'افتح الموقع في Google Maps → شارك → انسخ الرابط' : 'Open location in Google Maps → Share → Copy link'}
+                Google Maps → شارك → انسخ الرابط (يظهر على زر "الاتجاهات")
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label>{isAr ? 'صورة الفرع' : 'Branch Photo'}</Label>
+              <Label>{isAr ? 'صورة الفرع (اختياري)' : 'Branch Photo (optional)'}</Label>
               <div className="flex gap-2">
                 <Input value={branchImageUrl} onChange={e => setBranchImageUrl(e.target.value)} dir="ltr" placeholder={isAr ? 'رابط الصورة...' : 'Image URL...'} className="flex-1" />
                 <FileUploadBtn onFile={url => setBranchImageUrl(url)} onLoading={setBranchImgUploading}>

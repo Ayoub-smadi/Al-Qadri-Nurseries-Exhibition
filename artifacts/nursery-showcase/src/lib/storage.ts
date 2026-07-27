@@ -30,6 +30,7 @@ export interface Branch {
   nameEn: string;
   image: string;
   locationUrl: string;
+  mapEmbedUrl?: string;
 }
 
 export type SocialPlatform = 'facebook' | 'instagram' | 'whatsapp' | 'youtube' | 'website' | 'email' | 'catalog';
