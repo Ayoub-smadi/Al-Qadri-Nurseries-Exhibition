@@ -1783,8 +1783,8 @@ export default function GalleryPage() {
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
-                ) : branch.image ? (
-                  <img src={branch.image} alt={branch.nameAr} className="w-full h-full object-cover" loading="lazy" />
+                ) : (branch.image || siteData.owner.bgImage) ? (
+                  <img src={branch.image || siteData.owner.bgImage} alt={branch.nameAr} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <MapPin className="w-12 h-12 text-emerald-400/40" />
