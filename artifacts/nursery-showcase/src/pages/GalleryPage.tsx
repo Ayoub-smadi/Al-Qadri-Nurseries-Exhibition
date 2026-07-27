@@ -10,7 +10,7 @@ import * as XLSX from 'xlsx';
 import {
   X, Plus, LogOut, Settings, ImagePlus, Moon, Sun,
   Pencil, Trash2, FolderPlus, FileDown, Loader2, ChevronDown, ChevronUp, MapPin,
-  TreePine, Package, Building2, Globe, Flower2, Share2,
+  TreePine, Package, Building2, Globe, Flower2, Share2, Phone, Mail,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera,
@@ -1822,14 +1822,49 @@ export default function GalleryPage() {
             </div>
           ))}
         </div>
+
+        {/* Contact bar */}
+        {(siteData.footer.website || siteData.footer.phone || siteData.footer.email) && (
+          <div className="mt-10 pt-8 border-t border-white/10 flex flex-wrap items-center justify-center gap-6 sm:gap-12">
+            {siteData.footer.website && (
+              <a
+                href={siteData.footer.website.startsWith('http') ? siteData.footer.website : `https://${siteData.footer.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group flex items-center gap-3 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-600/50 transition-colors">
+                  <Globe className="w-5 h-5 text-emerald-300" />
+                </div>
+                <span className="text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.website}</span>
+              </a>
+            )}
+            {siteData.footer.phone && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                  <Phone className="w-5 h-5 text-emerald-300" />
+                </div>
+                <span dir="ltr" className="text-white/90 text-base font-medium font-mono tracking-wide">{siteData.footer.phone}</span>
+              </div>
+            )}
+            {siteData.footer.email && (
+              <a
+                href={`mailto:${siteData.footer.email}`}
+                className="group flex items-center gap-3 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-600/50 transition-colors">
+                  <Mail className="w-5 h-5 text-emerald-300" />
+                </div>
+                <span className="text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.email}</span>
+              </a>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-border py-4 px-8 bg-card">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
-          {siteData.footer.email && <a href={`mailto:${siteData.footer.email}`} className="hover:text-foreground transition-colors whitespace-nowrap">{siteData.footer.email}</a>}
-          {siteData.footer.phone && <span dir="ltr" className="whitespace-nowrap font-mono">{siteData.footer.phone}</span>}
-          {siteData.footer.website && <a href={siteData.footer.website.startsWith('http') ? siteData.footer.website : `https://${siteData.footer.website}`} target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors whitespace-nowrap">{siteData.footer.website}</a>}
           {(isAr ? siteData.footer.noteAr : siteData.footer.noteEn) && (
             <span className="arabic whitespace-nowrap">{isAr ? siteData.footer.noteAr : siteData.footer.noteEn}</span>
           )}
