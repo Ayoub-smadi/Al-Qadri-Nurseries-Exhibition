@@ -159,6 +159,9 @@ export default function QadriOldQuotationPage() {
     colIndex: boolean;
     colPrice: boolean;
     colTotal: boolean;
+    infoDate: boolean;
+    infoQuotationNumber: boolean;
+    infoCustomer: boolean;
     grandTotal: boolean;
     subtotalRows: boolean;
     notes: boolean;
@@ -169,6 +172,7 @@ export default function QadriOldQuotationPage() {
   const [hiddenParts, setHiddenParts] = useState<HiddenParts>({
     colDescription: false, colCategory: false, colImage: false, colIndex: false,
     colPrice: false, colTotal: false,
+    infoDate: false, infoQuotationNumber: false, infoCustomer: false,
     grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false,
   });
   const [deleteMode, setDeleteMode] = useState(false);
@@ -626,7 +630,7 @@ export default function QadriOldQuotationPage() {
           {/* استعادة المحذوف */}
           {Object.values(hiddenParts).some(Boolean) && (
             <button
-              onClick={() => setHiddenParts({ colDescription: false, colCategory: false, colImage: false, colIndex: false, colPrice: false, colTotal: false, grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false })}
+              onClick={() => setHiddenParts({ colDescription: false, colCategory: false, colImage: false, colIndex: false, colPrice: false, colTotal: false, infoDate: false, infoQuotationNumber: false, infoCustomer: false, grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false })}
               title="استعادة كل الأجزاء المحذوفة"
               style={{
                 display: "flex", alignItems: "center", gap: 5,
@@ -923,37 +927,51 @@ export default function QadriOldQuotationPage() {
           </div>
 
           {/* ── Info row (date / number / customer) ────── */}
-          <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", padding: "14px 0" }}>
-            <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>التاريخ</div>
-              <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
-              <input
-                type="date"
-                value={details.date}
-                onChange={e => setDetails(p => ({ ...p, date: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
-              />
+          {(!hiddenParts.infoDate || !hiddenParts.infoQuotationNumber || !hiddenParts.infoCustomer) && (
+            <div style={{ display: "flex", borderBottom: "1px solid #e5e7eb", padding: "14px 0" }}>
+              {!hiddenParts.infoDate && (
+                <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    {hidePartBtn("infoDate", "خانة التاريخ")}التاريخ
+                  </div>
+                  <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
+                  <input
+                    type="date"
+                    value={details.date}
+                    onChange={e => setDetails(p => ({ ...p, date: e.target.value }))}
+                    style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
+                  />
+                </div>
+              )}
+              {!hiddenParts.infoQuotationNumber && (
+                <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    {hidePartBtn("infoQuotationNumber", "خانة رقم عرض السعر")}عرض سعر رقم
+                  </div>
+                  <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
+                  <input
+                    value={details.quotationNumber}
+                    onChange={e => setDetails(p => ({ ...p, quotationNumber: e.target.value }))}
+                    style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                  />
+                </div>
+              )}
+              {!hiddenParts.infoCustomer && (
+                <div style={{ flex: 1, padding: "0 20px", textAlign: "center" }}>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    {hidePartBtn("infoCustomer", "خانة العميل")}العميل
+                  </div>
+                  <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
+                  <input
+                    value={details.customerName}
+                    onChange={e => setDetails(p => ({ ...p, customerName: e.target.value }))}
+                    placeholder="اسم العميل"
+                    style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
+                  />
+                </div>
+              )}
             </div>
-            <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>عرض سعر رقم</div>
-              <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
-              <input
-                value={details.quotationNumber}
-                onChange={e => setDetails(p => ({ ...p, quotationNumber: e.target.value }))}
-                style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
-              />
-            </div>
-            <div style={{ flex: 1, padding: "0 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4 }}>العميل</div>
-              <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
-              <input
-                value={details.customerName}
-                onChange={e => setDetails(p => ({ ...p, customerName: e.target.value }))}
-                placeholder="اسم العميل"
-                style={{ ...F, fontSize: 13, fontWeight: 600, color: "#1e293b", textAlign: "center" }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* ── Table ──────────────────────────────────── */}
           <div style={{ padding: "16px 20px 0" }}>
