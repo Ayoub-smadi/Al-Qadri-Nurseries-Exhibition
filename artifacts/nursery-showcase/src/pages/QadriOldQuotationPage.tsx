@@ -1023,7 +1023,7 @@ export default function QadriOldQuotationPage() {
 
           {/* ── Table ──────────────────────────────────── */}
           <div style={{ padding: "16px 20px 0" }}>
-            <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
               <thead>
                 <tr style={{ background: "#1a2744", color: "#ffffff" }}>
                   {!hiddenParts.colIndex && (
