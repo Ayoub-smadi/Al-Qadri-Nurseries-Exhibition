@@ -122,10 +122,6 @@ async function buildPrintContainer(
       </div>
       <!-- Sections -->
       ${sectionsHtml}
-      <!-- Footer -->
-      <div style="text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid #e5d5c0;font-size:10px;color:#999;font-family:'Cormorant Garamond',serif;letter-spacing:.05em;">
-        ${new Date().getFullYear()} · ${isAr ? titleAr : titleEn}
-      </div>
     </div>`;
 
   const div = document.createElement('div');
