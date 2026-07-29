@@ -180,6 +180,12 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
 
   const [sel, setSel] = useState<PdfSel>(() => buildFullSelection(visibleSections));
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(visibleSections.map(s => s.id)));
+  // photoOrder: sectionId → ordered array of photoIds (controls catalog order)
+  const [photoOrder, setPhotoOrder] = useState<Map<string, string[]>>(() => {
+    const m = new Map<string, string[]>();
+    for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
+    return m;
+  });
   const [loading, setLoading] = useState(false);
 
   // Re-init when opened
@@ -187,6 +193,9 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
     if (open) {
       setSel(buildFullSelection(visibleSections));
       setExpanded(new Set(visibleSections.map(s => s.id)));
+      const m = new Map<string, string[]>();
+      for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
+      setPhotoOrder(m);
     }
   }, [open, targetSectionId]); // eslint-disable-line
 
@@ -213,11 +222,28 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
     });
   };
 
+  const movePhoto = (sId: string, pId: string, dir: 'up' | 'down') => {
+    setPhotoOrder(prev => {
+      const next = new Map(prev);
+      const arr = [...(next.get(sId) ?? [])];
+      const idx = arr.indexOf(pId);
+      if (idx < 0) return prev;
+      const target = dir === 'up' ? idx - 1 : idx + 1;
+      if (target < 0 || target >= arr.length) return prev;
+      [arr[idx], arr[target]] = [arr[target], arr[idx]];
+      next.set(sId, arr);
+      return next;
+    });
+  };
+
   const handleDownload = async () => {
     const inputs: PDFSectionInput[] = [];
     for (const s of visibleSections) {
       const chosen = sel.get(s.id) ?? new Set();
-      const photos = s.photos.filter(p => chosen.has(p.id));
+      const order = photoOrder.get(s.id) ?? s.photos.map(p => p.id);
+      // Build a lookup map for O(1) access
+      const photoMap = new Map(s.photos.map(p => [p.id, p]));
+      const photos = order.map(id => photoMap.get(id)!).filter(p => p && chosen.has(p.id));
       if (photos.length > 0) inputs.push({ section: s, photos });
     }
     if (inputs.length === 0) {
@@ -250,13 +276,16 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
           </DialogTitle>
         </DialogHeader>
 
-        {/* Section + photo checkboxes */}
+        {/* Section + photo list */}
         <div className="overflow-y-auto flex-1 space-y-3 pr-1 my-2">
           {visibleSections.map(sec => {
             const secSel = sel.get(sec.id) ?? new Set();
             const allChecked = secSel.size === sec.photos.length;
             const someChecked = secSel.size > 0 && !allChecked;
             const isExpanded = expanded.has(sec.id);
+            const order = photoOrder.get(sec.id) ?? sec.photos.map(p => p.id);
+            const photoMap = new Map(sec.photos.map(p => [p.id, p]));
+            const orderedPhotos = order.map(id => photoMap.get(id)!).filter(Boolean);
 
             return (
               <div key={sec.id} className="border border-border rounded-xl overflow-hidden">
@@ -279,31 +308,47 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                   </button>
                 </div>
 
-                {/* Photos grid */}
-                {isExpanded && sec.photos.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2.5 p-3 bg-background/50">
-                    {sec.photos.map(photo => {
+                {/* Photos list with reorder */}
+                {isExpanded && orderedPhotos.length > 0 && (
+                  <div className="divide-y divide-border">
+                    {orderedPhotos.map((photo, idx) => {
                       const checked = secSel.has(photo.id);
                       return (
-                        <label key={photo.id}
-                          className={`relative cursor-pointer rounded-lg overflow-hidden aspect-square border-2 transition-all ${checked ? 'border-primary shadow-sm' : 'border-transparent opacity-50'}`}
-                          onClick={() => togglePhoto(sec.id, photo.id)}>
+                        <div key={photo.id}
+                          className={`flex items-center gap-3 px-3 py-2 transition-colors ${checked ? 'bg-background' : 'bg-background/40 opacity-60'}`}>
+                          {/* Order number */}
+                          <span className={`w-5 text-center text-xs font-bold shrink-0 ${checked ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {checked ? idx + 1 : '—'}
+                          </span>
+                          {/* Thumbnail */}
                           <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-                            className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                          <div className={`absolute inset-0 bg-primary/20 transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`} />
-                          <div className="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-1">
-                            <p className="text-white text-[10px] font-semibold truncate arabic text-center leading-tight">
-                              {isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
-                            </p>
+                            className="w-10 h-10 rounded-md object-cover shrink-0 ring-1 ring-border" loading="lazy" />
+                          {/* Name */}
+                          <span className="flex-1 text-sm arabic truncate">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</span>
+                          {/* Up/Down */}
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => movePhoto(sec.id, photo.id, 'up')}
+                              disabled={idx === 0}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => movePhoto(sec.id, photo.id, 'down')}
+                              disabled={idx === orderedPhotos.length - 1}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          {checked && (
-                            <div className="absolute top-1 end-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
-                        </label>
+                          {/* Checkbox */}
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => togglePhoto(sec.id, photo.id)}
+                            className="shrink-0"
+                          />
+                        </div>
                       );
                     })}
                   </div>
