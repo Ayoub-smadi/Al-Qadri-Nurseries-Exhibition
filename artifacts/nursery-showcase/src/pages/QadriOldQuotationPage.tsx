@@ -170,12 +170,15 @@ export default function QadriOldQuotationPage() {
     stamp: boolean;
     footer: boolean;
   };
-  const [hiddenParts, setHiddenParts] = useState<HiddenParts>({
+  const defaultHiddenParts: HiddenParts = {
     colDescription: false, colCategory: false, colImage: false, colIndex: false,
     colQuantity: false, colPrice: false, colTotal: false,
     infoDate: false, infoQuotationNumber: false, infoCustomer: false,
     grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false,
-  });
+  };
+  const [hiddenParts, setHiddenParts] = useState<HiddenParts>(
+    draft?.hiddenParts ? { ...defaultHiddenParts, ...draft.hiddenParts } : defaultHiddenParts
+  );
   const [deleteMode, setDeleteMode] = useState(false);
   const hidePartBtn = (key: keyof HiddenParts, label: string) => (
     deleteMode ? (
@@ -198,10 +201,10 @@ export default function QadriOldQuotationPage() {
   const saveDraft = useCallback(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        details, items: stripItemImages(items), logoUrl, stampUrl, discountPct, taxPct,
+        details, items: stripItemImages(items), logoUrl, stampUrl, discountPct, taxPct, hiddenParts,
       }));
     } catch {}
-  }, [details, items, logoUrl, stampUrl, discountPct, taxPct]);
+  }, [details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
@@ -297,6 +300,7 @@ export default function QadriOldQuotationPage() {
           stampUrl: resolvedStamp,
           discountPct,
           taxPct,
+          hiddenParts,
         };
 
         // Update local state to reflect the uploaded URLs so the UI stays consistent
@@ -324,7 +328,7 @@ export default function QadriOldQuotationPage() {
 
     // Fallback for unauthenticated use: localStorage
     try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct }, currentRecordId ?? undefined);
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
       toast.success("✅ تم الحفظ في السجل");
     } catch (e: any) {
@@ -1132,16 +1136,16 @@ export default function QadriOldQuotationPage() {
                     )}
                     {/* الصورة */}
                     {!hiddenParts.colImage && (
-                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", width: 160, border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", width: 160, maxWidth: 160, border: "1px solid #111827" }}>
                         <div
                           style={{ cursor: "pointer", display: "block" }}
                           onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
                         >
                           {item.imageUrl ? (
-                            <img src={item.imageUrl} alt="" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto", display: "block" }} />
+                            <img src={item.imageUrl} alt="" style={{ width: 148, maxWidth: "100%", height: 140, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto", display: "block" }} />
                           ) : (
                             <div style={{
-                              width: "100%", height: 140, border: "1px dashed #d1d5db", borderRadius: 6,
+                              width: 148, maxWidth: "100%", height: 140, border: "1px dashed #d1d5db", borderRadius: 6,
                               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                               background: "#f9fafb", margin: "0 auto", gap: 3,
                             }}>
