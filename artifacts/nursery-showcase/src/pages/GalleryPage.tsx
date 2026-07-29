@@ -6535,7 +6535,7 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const openRec = (rec: QadriOldRec) => {
     try {
       sessionStorage.setItem(EDIT_KEY, rec.id);
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, stampUrl: rec.stampUrl, discountPct: rec.discountPct ?? 0, taxPct: rec.taxPct ?? 0 }));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, stampUrl: rec.stampUrl, discountPct: rec.discountPct ?? 0, taxPct: rec.taxPct ?? 0, hiddenParts: rec.hiddenParts ?? {} }));
     } catch {}
     navigate('/qadri-old-quotation');
     onClose();
