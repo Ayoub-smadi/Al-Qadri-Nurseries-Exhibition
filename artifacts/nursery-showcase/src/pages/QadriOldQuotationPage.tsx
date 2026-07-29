@@ -1043,17 +1043,17 @@ export default function QadriOldQuotationPage() {
                     </th>
                   )}
                   {!hiddenParts.colQuantity && (
-                    <th style={{ padding: "10px 6px", textAlign: "center", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                    <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colQuantity", "عمود الكمية")}الكمية
                     </th>
                   )}
                   {!hiddenParts.colPrice && (
-                    <th style={{ padding: "10px 6px", textAlign: "center", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                    <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 80, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colPrice", "عمود السعر")}السعر
                     </th>
                   )}
                   {!hiddenParts.colTotal && (
-                    <th style={{ padding: "10px 6px", textAlign: "center", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                    <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 80, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colTotal", "عمود الإجمالي")}الإجمالي
                     </th>
                   )}
@@ -1107,30 +1107,30 @@ export default function QadriOldQuotationPage() {
                     )}
                     {/* الكمية */}
                     {!hiddenParts.colQuantity && (
-                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", minWidth: 60, border: "1px solid #111827" }}>
                         <input
                           type="number" min={1}
                           value={item.quantity}
                           onChange={e => updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)}
-                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap" }}
+                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap", minWidth: 48 }}
                         />
                       </td>
                     )}
                     {/* السعر */}
                     {!hiddenParts.colPrice && (
-                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", minWidth: 80, border: "1px solid #111827" }}>
                         <input
                           type="number" min={0} step={0.01}
                           value={item.price || ""}
                           onChange={e => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap" }}
+                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap", minWidth: 68 }}
                         />
                       </td>
                     )}
                     {/* الإجمالي */}
                     {!hiddenParts.colTotal && (
-                      <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", whiteSpace: "nowrap", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", whiteSpace: "nowrap", minWidth: 80, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                         {fmt(item.total)}
                       </td>
                     )}
