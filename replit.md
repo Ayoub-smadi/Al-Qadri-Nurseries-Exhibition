@@ -1,68 +1,29 @@
-# مشاتل القادري الزراعية — Al-Qadri Agricultural Nurseries
+# Al-Qadri Nurseries — Workspace
 
-موقع عرض ثنائي اللغة (عربي/إنجليزي) لمشاتل القادري الزراعية. يتضمن وضع أدمن، معرض نباتات، تصدير PDF، وضع ليلي، وتبديل RTL/LTR.
+## Project overview
+A pnpm monorepo for the Al-Qadri Agricultural Establishment (مؤسسة ومشاتل القادري الزراعية). It contains:
 
-## تشغيل المشروع
+- **`artifacts/nursery-showcase`** — React + Vite + Tailwind frontend. The main customer-facing website with a gallery, quotation builder, and smart-text-to-table analysis.
+- **`artifacts/api-server`** — Express + TypeScript API server. Connects to PostgreSQL (via `DATABASE_URL`). Handles quotations, site data, and admin routes.
+- **`artifacts/mockup-sandbox`** — Vite sandbox used for design work and component previews on the canvas.
+- **`lib/`** — Shared libraries (API client, Zod schemas, DB layer with Drizzle ORM).
 
-Run `pnpm install` once after cloning, then start both workflows:
+## Running the project
+| Workflow | Command | Port |
+|---|---|---|
+| Nursery website | `pnpm --filter @workspace/nursery-showcase run dev` | 5000 |
+| API server | `pnpm --filter @workspace/api-server run dev` | 8080 |
 
-- **Al-Qadri Nurseries Website** workflow → `PORT=5000 BASE_PATH=/ pnpm --filter @workspace/nursery-showcase run dev` (port 5000)
-- **API Server** workflow → `PORT=8080 pnpm --filter @workspace/api-server run dev` (port 8080)
+The API server requires `DATABASE_URL` (PostgreSQL), `ADMIN_SETUP_SECRET`, and `SESSION_SECRET` (already set as a secret).
 
-Or via CLI:
-
-- `pnpm --filter @workspace/api-server run dev` — تشغيل API server (port 8080)
-- `pnpm --filter @workspace/nursery-showcase run dev` — تشغيل الواجهة (port 5000)
-- `pnpm run typecheck` — فحص الأنواع على كل الحزم
-- `pnpm run build` — بناء كل الحزم
-
-## المكدس التقني (Stack)
-
-- pnpm workspaces, Node.js 20, TypeScript 5.9
-- Frontend: React + Vite, Tailwind CSS v4, shadcn/ui
-- API: Express 5
-- DB: PostgreSQL (Replit built-in, `postgresql-16` module) — `DATABASE_URL` تُضبط تلقائياً
-- Fonts: Cairo (Arabic), Cormorant Garamond (Latin)
-- PDF export: html2canvas + jsPDF
-
-## هيكل المشروع
-
-- `artifacts/nursery-showcase/` — واجهة React + Vite
-- `artifacts/api-server/` — Express API server
-- `artifacts/api-server/src/routes/nursery.ts` — جميع جداول قاعدة البيانات وإنشاؤها
-- `artifacts/api-server/src/routes/quotations.ts` — عروض السعر الجديدة (aq_quotations)
-- `artifacts/nursery-showcase/src/lib/storage.ts` — أنواع البيانات وعمليات الجلب
-- `artifacts/nursery-showcase/src/lib/context.tsx` — الحالة العامة (lang, dark, isAdmin, siteData)
-- `lib/db/` — Drizzle ORM schema
-
-## قواعد البيانات (الجداول)
-
-- `site_config` — بيانات الموقع كـ JSONB
-- `admins` — بيانات الأدمن (كلمات المرور مشفرة)
-- `qadri_old_quotations` — **عروض سعر قادري القديمة** (JSONB blobs مستقلة)
-- `admin_quotations` + `admin_quotation_items` — عروض السعر الأدمن المفصلة
-- `aq_quotations` + `aq_quotation_items` + `aq_products` — نظام عروض السعر الجديد
-- `invoices` — الفواتير
-- `receipts` — سندات القبض
-- `disbursements` — سندات الصرف
-- `quote_requests` — طلبات العروض من الزوار
-- `images` — صور base64
-
-## ملاحظات مهمة
-
-- قاعدة البيانات ثابتة على Replit — `DATABASE_URL` تُضبط تلقائياً، لا تحتاج ضبطاً يدوياً
-- البيانات تُحفظ في قاعدة البيانات وتظهر من أي جهاز
-- الأدمن: زر صغير في الزاوية العلوية اليمنى
-- جلسات الأدمن تدوم 8 ساعات وتُخزن في الذاكرة (تنتهي عند إعادة تشغيل الـ server)
-- `ADMIN_SETUP_SECRET` مضبوطة كـ env var (ليست secret) — يُنصح بنقلها إلى Replit Secrets
-
-## Setup verification (2025-07-25)
-
-- `pnpm install` ran successfully — 525 packages installed
-- Frontend (port 5000): Vite dev server started, app renders correctly
-- API server (port 8080): Express listening, build completed without errors
-- `postgresql-16` Nix module enabled for `DATABASE_URL` auto-provisioning
+## Key pages (nursery-showcase)
+- `/` — Gallery / home
+- `/create-quotation` — New quotation builder (modern style)
+- `/qadri-old-quotation` — Qadri legacy quotation (inline editing, PDF export, smart analysis side panel, delete-parts mode)
+- `/quotation-history` — Saved quotations
+- `/old-quotation` — OldStyle quotation template
+- `/no-header-quotation` — Headerless quotation template
 
 ## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Arabic-language UI throughout (RTL, Cairo font)
+- Keep inline editing style — no modal popups for field edits

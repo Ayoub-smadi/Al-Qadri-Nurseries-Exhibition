@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import {
   Plus, Trash2, FileText, ArrowRight, Loader2,
-  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save, FilePlus,
+  RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save, FilePlus, Scissors, RefreshCw,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
@@ -150,6 +150,41 @@ export default function QadriOldQuotationPage() {
   const [showSmart, setShowSmart] = useState(false);
   const [smartText, setSmartText] = useState("");
   const [convertingToInvoice, setConvertingToInvoice] = useState(false);
+
+  /* ─── Hidden parts (حذف الأجزاء) ────────────────────── */
+  type HiddenParts = {
+    colDescription: boolean;
+    colCategory: boolean;
+    colImage: boolean;
+    colIndex: boolean;
+    grandTotal: boolean;
+    subtotalRows: boolean;
+    notes: boolean;
+    closing: boolean;
+    stamp: boolean;
+    footer: boolean;
+  };
+  const [hiddenParts, setHiddenParts] = useState<HiddenParts>({
+    colDescription: false, colCategory: false, colImage: false, colIndex: false,
+    grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false,
+  });
+  const [deleteMode, setDeleteMode] = useState(false);
+  const hidePartBtn = (key: keyof HiddenParts, label: string) => (
+    deleteMode ? (
+      <button
+        onClick={() => setHiddenParts(p => ({ ...p, [key]: true }))}
+        title={`حذف: ${label}`}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 3,
+          background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5",
+          borderRadius: 6, padding: "2px 6px", fontSize: 10, fontWeight: 700,
+          cursor: "pointer", fontFamily: "Cairo, Arial, sans-serif", marginRight: 4,
+          whiteSpace: "nowrap",
+        }}>
+        <X style={{ width: 10, height: 10 }} /> حذف
+      </button>
+    ) : null
+  );
 
   /* ─── Auto-save ─────────────────────────────────────── */
   const saveDraft = useCallback(() => {
@@ -569,6 +604,40 @@ export default function QadriOldQuotationPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* حذف الأجزاء */}
+          <button
+            onClick={() => setDeleteMode(v => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              background: deleteMode ? "#fee2e2" : "#f8fafc",
+              color: deleteMode ? "#dc2626" : "#475569",
+              border: deleteMode ? "1px solid #fca5a5" : "1px solid #e2e8f0",
+              cursor: "pointer", fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            <Scissors style={{ width: 14, height: 14 }} />
+            {deleteMode ? "إيقاف الحذف" : "حذف الأجزاء"}
+          </button>
+
+          {/* استعادة المحذوف */}
+          {Object.values(hiddenParts).some(Boolean) && (
+            <button
+              onClick={() => setHiddenParts({ colDescription: false, colCategory: false, colImage: false, colIndex: false, grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false })}
+              title="استعادة كل الأجزاء المحذوفة"
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "6px 10px", borderRadius: 8,
+                background: "#f0fdf4", color: "#16a34a",
+                border: "1px solid #bbf7d0",
+                cursor: "pointer", fontSize: 12, fontWeight: 600,
+                fontFamily: "Cairo, Arial, sans-serif",
+              }}>
+              <RefreshCw style={{ width: 13, height: 13 }} />
+              استعادة الكل
+            </button>
+          )}
+
           {/* Smart Analysis toggle */}
           <button
             onClick={() => setShowSmart(v => !v)}
@@ -734,47 +803,49 @@ export default function QadriOldQuotationPage() {
         </div>
       </div>
 
-      {/* ── Smart Analysis Panel ──────────────────────────── */}
-      {showSmart && (
-        <div style={{
-          margin: "12px auto", maxWidth: 794,
-          background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12,
-          padding: "16px 20px",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div>
+      {/* ── Main area: side-by-side smart panel + document ── */}
+      <div style={{ padding: "16px", display: "flex", gap: 16, alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap" }}>
+
+        {/* ── Smart Analysis Side Panel ─────────────────── */}
+        {showSmart && (
+          <div style={{
+            width: 320, flexShrink: 0,
+            background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12,
+            padding: "16px", position: "sticky", top: 72,
+            alignSelf: "flex-start",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>
-                <Sparkles style={{ width: 15, height: 15 }} /> التحليل الذكي — تعبئة تلقائية
+                <Sparkles style={{ width: 15, height: 15 }} /> التحليل الذكي
               </div>
-              <div style={{ fontSize: 12, color: "#78350f", marginTop: 3 }}>
-                أدخل كل عنصر في سطر بالتنسيق: <strong>الكمية / الاسم / الوصف / القسم / السعر</strong>
-              </div>
-              <div style={{ fontSize: 11, color: "#92400e", marginTop: 2, opacity: 0.8 }}>
-                مثال: 3 / نخيل تمري / صحراوي / نخيل / 150
-              </div>
+              <button onClick={() => setShowSmart(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#92400e" }}>
+                <X style={{ width: 16, height: 16 }} />
+              </button>
             </div>
-            <button onClick={() => setShowSmart(false)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#92400e" }}>
-              <X style={{ width: 16, height: 16 }} />
-            </button>
-          </div>
-          <textarea
-            value={smartText}
-            onChange={e => setSmartText(e.target.value)}
-            placeholder={"3 / نخيل تمري / صحراوي / نخيل / 150\n5 / زيتون / شجرة محلية / زيتون / 80\n10 / ورد جوري / / زهور / 12"}
-            rows={5}
-            style={{
-              width: "100%", borderRadius: 8, border: "1px solid #fcd34d",
-              padding: "10px 12px", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
-              background: "#fff", color: "#1e293b", direction: "rtl",
-              resize: "vertical", boxSizing: "border-box",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+            <div style={{ fontSize: 11, color: "#78350f", marginBottom: 8 }}>
+              كل سطر: <strong>الكمية / الاسم / الوصف / القسم / السعر</strong>
+            </div>
+            <div style={{ fontSize: 11, color: "#92400e", marginBottom: 10, opacity: 0.8 }}>
+              مثال: 3 / نخيل تمري / صحراوي / نخيل / 150
+            </div>
+            <textarea
+              value={smartText}
+              onChange={e => setSmartText(e.target.value)}
+              placeholder={"3 / نخيل تمري / صحراوي / نخيل / 150\n5 / زيتون / شجرة محلية / زيتون / 80\n10 / ورد جوري / / زهور / 12"}
+              rows={8}
+              style={{
+                width: "100%", borderRadius: 8, border: "1px solid #fcd34d",
+                padding: "10px 12px", fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
+                background: "#fff", color: "#1e293b", direction: "rtl",
+                resize: "vertical", boxSizing: "border-box",
+              }}
+            />
             <button onClick={handleSmartParse}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "8px 20px", borderRadius: 8,
+                padding: "8px 16px", borderRadius: 8, marginTop: 10, width: "100%",
+                justifyContent: "center",
                 background: "#f59e0b", color: "#fff",
                 border: "none", cursor: "pointer",
                 fontWeight: 700, fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
@@ -783,11 +854,10 @@ export default function QadriOldQuotationPage() {
               تحليل وتعبئة الجدول
             </button>
           </div>
-        </div>
-      )}
+        )}
 
       {/* ── Document ──────────────────────────────────────── */}
-      <div style={{ padding: "24px 16px", display: "flex", justifyContent: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center" }}>
         <div
           ref={docRef}
           style={{
@@ -887,14 +957,30 @@ export default function QadriOldQuotationPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
               <thead>
                 <tr style={{ background: "#1a2744", color: "#ffffff" }}>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>#</th>
+                  {!hiddenParts.colIndex && (
+                    <th style={{ padding: "10px 6px", textAlign: "center", width: 32, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colIndex", "عمود الرقم")}#
+                    </th>
+                  )}
                   <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الاسم</th>
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الوصف</th>
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>القسم</th>
+                  {!hiddenParts.colDescription && (
+                    <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colDescription", "عمود الوصف")}الوصف
+                    </th>
+                  )}
+                  {!hiddenParts.colCategory && (
+                    <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colCategory", "عمود القسم")}القسم
+                    </th>
+                  )}
                   <th style={{ padding: "10px 6px", textAlign: "center", width: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الكمية</th>
                   <th style={{ padding: "10px 6px", textAlign: "center", width: 72, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>السعر</th>
                   <th style={{ padding: "10px 6px", textAlign: "center", width: 84, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الإجمالي</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الصورة</th>
+                  {!hiddenParts.colImage && (
+                    <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colImage", "عمود الصورة")}الصورة
+                    </th>
+                  )}
                   <th className="pdf-hide" style={{ width: 24 }} />
                 </tr>
               </thead>
@@ -902,9 +988,11 @@ export default function QadriOldQuotationPage() {
                 {items.map((item, i) => (
                   <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
                     {/* # */}
-                    <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #111827" }}>
-                      {i + 1}
-                    </td>
+                    {!hiddenParts.colIndex && (
+                      <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #111827" }}>
+                        {i + 1}
+                      </td>
+                    )}
                     {/* الاسم */}
                     <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
@@ -915,23 +1003,27 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* الوصف */}
-                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
-                      <input
-                        value={item.description}
-                        onChange={e => updateItem(item.id, "description", e.target.value)}
-                        placeholder="وصف"
-                        style={{ ...F, fontSize: 11, color: "#111827", textAlign: "right" }}
-                      />
-                    </td>
+                    {!hiddenParts.colDescription && (
+                      <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
+                        <input
+                          value={item.description}
+                          onChange={e => updateItem(item.id, "description", e.target.value)}
+                          placeholder="وصف"
+                          style={{ ...F, fontSize: 11, color: "#111827", textAlign: "right" }}
+                        />
+                      </td>
+                    )}
                     {/* القسم */}
-                    <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
-                      <input
-                        value={item.category}
-                        onChange={e => updateItem(item.id, "category", e.target.value)}
-                        placeholder="قسم"
-                        style={{ ...F, fontSize: 11, color: "#111827", textAlign: "center" }}
-                      />
-                    </td>
+                    {!hiddenParts.colCategory && (
+                      <td style={{ padding: "8px", verticalAlign: "middle", border: "1px solid #111827" }}>
+                        <input
+                          value={item.category}
+                          onChange={e => updateItem(item.id, "category", e.target.value)}
+                          placeholder="قسم"
+                          style={{ ...F, fontSize: 11, color: "#111827", textAlign: "center" }}
+                        />
+                      </td>
+                    )}
                     {/* الكمية */}
                     <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
                       <input
@@ -956,32 +1048,34 @@ export default function QadriOldQuotationPage() {
                       {fmt(item.total)}
                     </td>
                     {/* الصورة */}
-                    <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
-                      <div
-                        style={{ cursor: "pointer", display: "block" }}
-                        onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
-                      >
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} alt="" style={{ width: 120, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
-                        ) : (
-                          <div style={{
-                            width: 120, height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
-                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                            background: "#f9fafb", margin: "0 auto", gap: 3,
-                          }}>
-                            <Upload className="pdf-hide" style={{ width: 14, height: 14, color: "#9ca3af" }} />
-                            <span className="pdf-hide" style={{ fontSize: 10, color: "#9ca3af" }}>صورة</span>
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        id={`img-input-${item.id}`}
-                        type="file"
-                        accept="image/*"
-                        style={{ position: "fixed", top: -9999, left: -9999, opacity: 0, width: 1, height: 1 }}
-                        onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, v => updateItem(item.id, "imageUrl", v)); }}
-                      />
-                    </td>
+                    {!hiddenParts.colImage && (
+                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
+                        <div
+                          style={{ cursor: "pointer", display: "block" }}
+                          onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
+                        >
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="" style={{ width: 120, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
+                          ) : (
+                            <div style={{
+                              width: 120, height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
+                              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                              background: "#f9fafb", margin: "0 auto", gap: 3,
+                            }}>
+                              <Upload className="pdf-hide" style={{ width: 14, height: 14, color: "#9ca3af" }} />
+                              <span className="pdf-hide" style={{ fontSize: 10, color: "#9ca3af" }}>صورة</span>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          id={`img-input-${item.id}`}
+                          type="file"
+                          accept="image/*"
+                          style={{ position: "fixed", top: -9999, left: -9999, opacity: 0, width: 1, height: 1 }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, v => updateItem(item.id, "imageUrl", v)); }}
+                        />
+                      </td>
+                    )}
                     {/* حذف */}
                     <td className="pdf-hide" style={{ padding: "6px 2px", verticalAlign: "top", width: 24 }}>
                       <button onClick={() => removeItem(item.id)}
@@ -1008,148 +1102,175 @@ export default function QadriOldQuotationPage() {
           </div>
 
           {/* ── Totals ─────────────────────────────────── */}
-          <div style={{ margin: "8px 20px 0" }}>
-            {(discountPct > 0 || taxPct > 0) && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px", fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>
-                <span>المجموع الفرعي</span>
-                <span style={{ fontWeight: 600 }}>{fmt(subtotal)} د.أ</span>
-              </div>
-            )}
-            <div className="pdf-hide" style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>خصم %</span>
-              <input
-                type="number" min={0} max={100} step={0.5}
-                value={discountPct || ""}
-                onChange={e => setDiscountPct(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
-              />
-              <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif", marginRight: 8 }}>ضريبة %</span>
-              <input
-                type="number" min={0} max={100} step={0.5}
-                value={taxPct || ""}
-                onChange={e => setTaxPct(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
-              />
-            </div>
-            {discountPct > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#16a34a", fontFamily: "Cairo, Arial, sans-serif" }}>
-                <span>خصم {discountPct}%</span>
-                <span style={{ fontWeight: 700 }}>− {fmt(discountAmt)} د.أ</span>
-              </div>
-            )}
-            {taxPct > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#ea580c", fontFamily: "Cairo, Arial, sans-serif" }}>
-                <span>ضريبة {taxPct}%</span>
-                <span style={{ fontWeight: 700 }}>+ {fmt(taxAmt)} د.أ</span>
-              </div>
-            )}
-            <div style={{
-              background: "#1a2744", color: "#fff",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "12px 16px", borderRadius: 4, marginTop: 4,
-            }}>
-              <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "Cairo, Arial, sans-serif" }}>المجموع الكلي</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: "#60a5fa", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(grandTotal)}</span>
-                <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "Cairo, Arial, sans-serif" }}>د.أ</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── ملاحظات — pdf-hide على الـ wrapper كله إذا فارغة ── */}
-          {/* على الشاشة: pdf-hide لا يخفي شيئاً / في PDF: يُخفى إذا فارغ */}
-          <div
-            className={details.notes.trim() ? "" : "pdf-hide"}
-            style={{ margin: "16px 24px 0", direction: "rtl" }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات:</div>
-            <textarea
-              value={details.notes}
-              onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
-              placeholder="ملاحظات إضافية..."
-              rows={3}
-              style={{
-                ...F, fontSize: 12, color: "#374151", textAlign: "right",
-                resize: "none", border: "1px dashed #d1d5db", borderRadius: 6,
-                padding: "6px 10px", boxSizing: "border-box",
-              }}
-            />
-          </div>
-
-          {/* ── نص الإغلاق — وسط الصفحة ────────────────────────── */}
-          <div style={{ margin: "16px 24px 4px", textAlign: "center" }}>
-            <input
-              value={details.closingText}
-              onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
-              style={{ ...F, fontSize: 17, color: "#374151", textAlign: "center" }}
-            />
-          </div>
-
-          {/* ── التوقيع والختم — يسار الصفحة ────────────────── */}
-          <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
-            <div style={{ textAlign: "right", minWidth: 140 }}>
-              <div style={{ marginBottom: 6 }}>
+          {!hiddenParts.grandTotal && (
+            <div style={{ margin: "8px 20px 0" }}>
+              {!hiddenParts.subtotalRows && (discountPct > 0 || taxPct > 0) && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px", fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    {hidePartBtn("subtotalRows", "صفوف الفرعي/الخصم/الضريبة")}
+                    المجموع الفرعي
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{fmt(subtotal)} د.أ</span>
+                </div>
+              )}
+              <div className="pdf-hide" style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 16px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>خصم %</span>
                 <input
-                  value={details.signerTitle}
-                  onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
-                  style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                  type="number" min={0} max={100} step={0.5}
+                  value={discountPct || ""}
+                  onChange={e => setDiscountPct(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
+                />
+                <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif", marginRight: 8 }}>ضريبة %</span>
+                <input
+                  type="number" min={0} max={100} step={0.5}
+                  value={taxPct || ""}
+                  onChange={e => setTaxPct(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
                 />
               </div>
-              {stampUrl ? (
-                <div style={{ position: "relative", display: "inline-block" }}>
-                  <img src={stampUrl} alt="stamp" style={{ width: 140, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
-                  <button className="pdf-hide" onClick={() => setStampUrl("")}
-                    style={{
-                      position: "absolute", top: -6, right: -6,
-                      background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
-                      width: 18, height: 18, cursor: "pointer", fontSize: 10,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>✕</button>
+              {!hiddenParts.subtotalRows && discountPct > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#16a34a", fontFamily: "Cairo, Arial, sans-serif" }}>
+                  <span>خصم {discountPct}%</span>
+                  <span style={{ fontWeight: 700 }}>− {fmt(discountAmt)} د.أ</span>
                 </div>
-              ) : (
-                <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
-                  <div style={{
-                    width: 140, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    background: "#f9fafb", gap: 4, margin: "0 auto",
-                  }}>
-                    <Upload style={{ width: 16, height: 16, color: "#9ca3af" }} />
-                    <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
-                  </div>
-                  <input type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
-                </label>
               )}
+              {!hiddenParts.subtotalRows && taxPct > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#ea580c", fontFamily: "Cairo, Arial, sans-serif" }}>
+                  <span>ضريبة {taxPct}%</span>
+                  <span style={{ fontWeight: 700 }}>+ {fmt(taxAmt)} د.أ</span>
+                </div>
+              )}
+              <div style={{
+                background: "#1a2744", color: "#fff",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "12px 16px", borderRadius: 4, marginTop: 4,
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "Cairo, Arial, sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                  {hidePartBtn("grandTotal", "قسم المجموع الكلي")}
+                  المجموع الكلي
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: "#60a5fa", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(grandTotal)}</span>
+                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "Cairo, Arial, sans-serif" }}>د.أ</span>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* ── Footer ─────────────────────────────────── */}
-          <div style={{
-            marginTop: 20,
-            borderTop: "2px solid #1a3a8a",
-            background: "#f8fafc",
-            padding: "16px 24px",
-            display: "flex", justifyContent: "center", alignItems: "center",
-            flexDirection: "column", gap: 6,
-          }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif" }}>
-              <input
-                value={details.footerCompany}
-                onChange={e => setDetails(p => ({ ...p, footerCompany: e.target.value }))}
-                style={{ ...F, textAlign: "center", fontWeight: 800, fontSize: 18 }}
+          {/* ── ملاحظات ── */}
+          {!hiddenParts.notes && (
+            <div
+              className={details.notes.trim() ? "" : "pdf-hide"}
+              style={{ margin: "16px 24px 0", direction: "rtl" }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
+                {hidePartBtn("notes", "قسم الملاحظات")}
+                ملاحظات:
+              </div>
+              <textarea
+                value={details.notes}
+                onChange={e => setDetails(p => ({ ...p, notes: e.target.value }))}
+                placeholder="ملاحظات إضافية..."
+                rows={3}
+                style={{
+                  ...F, fontSize: 12, color: "#374151", textAlign: "right",
+                  resize: "none", border: "1px dashed #d1d5db", borderRadius: 6,
+                  padding: "6px 10px", boxSizing: "border-box",
+                }}
               />
             </div>
-            <div style={{ display: "flex", gap: 28, fontSize: 12, color: "#475569", flexWrap: "wrap", justifyContent: "center" }}>
-              {details.phone && <span>📞 {details.phone}</span>}
-              {details.email && <span>✉️ {details.email}</span>}
-              {details.website && <span>🌐 {details.website}</span>}
+          )}
+
+          {/* ── نص الإغلاق ── */}
+          {!hiddenParts.closing && (
+            <div style={{ margin: "16px 24px 4px", textAlign: "center", position: "relative" }}>
+              {deleteMode && (
+                <div style={{ position: "absolute", top: -4, right: 0 }}>
+                  {hidePartBtn("closing", "نص الإغلاق")}
+                </div>
+              )}
+              <input
+                value={details.closingText}
+                onChange={e => setDetails(p => ({ ...p, closingText: e.target.value }))}
+                style={{ ...F, fontSize: 17, color: "#374151", textAlign: "center" }}
+              />
             </div>
-          </div>
+          )}
+
+          {/* ── التوقيع والختم ── */}
+          {!hiddenParts.stamp && (
+            <div style={{ margin: "4px 24px 8px", display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ textAlign: "right", minWidth: 140 }}>
+                <div style={{ marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                  {deleteMode && hidePartBtn("stamp", "قسم التوقيع والختم")}
+                  <input
+                    value={details.signerTitle}
+                    onChange={e => setDetails(p => ({ ...p, signerTitle: e.target.value }))}
+                    style={{ ...F, fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "center" }}
+                  />
+                </div>
+                {stampUrl ? (
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    <img src={stampUrl} alt="stamp" style={{ width: 140, height: 120, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                    <button className="pdf-hide" onClick={() => setStampUrl("")}
+                      style={{
+                        position: "absolute", top: -6, right: -6,
+                        background: "#ef4444", color: "#fff", border: "none", borderRadius: "50%",
+                        width: 18, height: 18, cursor: "pointer", fontSize: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>✕</button>
+                  </div>
+                ) : (
+                  <label style={{ cursor: "pointer" }} className="pdf-hide-if-empty">
+                    <div style={{
+                      width: 140, height: 120, border: "2px dashed #d1d5db", borderRadius: 8,
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      background: "#f9fafb", gap: 4, margin: "0 auto",
+                    }}>
+                      <Upload style={{ width: 16, height: 16, color: "#9ca3af" }} />
+                      <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
+                    </div>
+                    <input type="file" accept="image/*" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Footer ─────────────────────────────────── */}
+          {!hiddenParts.footer && (
+            <div style={{
+              marginTop: 20,
+              borderTop: "2px solid #1a3a8a",
+              background: "#f8fafc",
+              padding: "16px 24px",
+              display: "flex", justifyContent: "center", alignItems: "center",
+              flexDirection: "column", gap: 6,
+            }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", fontFamily: "Cairo, Arial, sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+                {deleteMode && hidePartBtn("footer", "الفوتر (معلومات الشركة)")}
+                <input
+                  value={details.footerCompany}
+                  onChange={e => setDetails(p => ({ ...p, footerCompany: e.target.value }))}
+                  style={{ ...F, textAlign: "center", fontWeight: 800, fontSize: 18 }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 28, fontSize: 12, color: "#475569", flexWrap: "wrap", justifyContent: "center" }}>
+                {details.phone && <span>📞 {details.phone}</span>}
+                {details.email && <span>✉️ {details.email}</span>}
+                {details.website && <span>🌐 {details.website}</span>}
+              </div>
+            </div>
+          )}
 
         </div>
-      </div>
+      </div>{/* end document wrapper */}
+
+      </div>{/* end side-by-side flex */}
 
     </div>
   );
