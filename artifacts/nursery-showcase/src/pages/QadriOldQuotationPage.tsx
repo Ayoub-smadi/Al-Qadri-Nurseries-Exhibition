@@ -1006,7 +1006,7 @@ export default function QadriOldQuotationPage() {
                     </th>
                   )}
                   {!hiddenParts.colImage && (
-                    <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                    <th style={{ padding: "10px 6px", textAlign: "center", width: 130, minWidth: 130, maxWidth: 130, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colImage", "عمود الصورة")}الصورة
                     </th>
                   )}
@@ -1082,7 +1082,7 @@ export default function QadriOldQuotationPage() {
                     )}
                     {/* الصورة */}
                     {!hiddenParts.colImage && (
-                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827", width: 130, minWidth: 130, maxWidth: 130 }}>
                         <div
                           style={{ cursor: "pointer", display: "block" }}
                           onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
