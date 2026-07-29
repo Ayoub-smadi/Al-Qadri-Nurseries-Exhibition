@@ -1107,30 +1107,30 @@ export default function QadriOldQuotationPage() {
                     )}
                     {/* الكمية */}
                     {!hiddenParts.colQuantity && (
-                      <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", border: "1px solid #111827" }}>
                         <input
                           type="number" min={1}
                           value={item.quantity}
                           onChange={e => updateItem(item.id, "quantity", parseFloat(e.target.value) || 1)}
-                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
+                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap" }}
                         />
                       </td>
                     )}
                     {/* السعر */}
                     {!hiddenParts.colPrice && (
-                      <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", verticalAlign: "middle", whiteSpace: "nowrap", border: "1px solid #111827" }}>
                         <input
                           type="number" min={0} step={0.01}
                           value={item.price || ""}
                           onChange={e => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
                           placeholder="0"
-                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
+                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center", whiteSpace: "nowrap" }}
                         />
                       </td>
                     )}
                     {/* الإجمالي */}
                     {!hiddenParts.colTotal && (
-                      <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", whiteSpace: "nowrap", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                         {fmt(item.total)}
                       </td>
                     )}
