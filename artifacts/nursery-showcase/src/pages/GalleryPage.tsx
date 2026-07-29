@@ -178,8 +178,15 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
   const isAr = lang === 'ar';
   const visibleSections = targetSectionId ? sections.filter(s => s.id === targetSectionId) : sections;
 
-  const [sel, setSel] = useState<PdfSel>(() => buildFullSelection(visibleSections));
+  const emptySelection = () => {
+    const m: PdfSel = new Map();
+    for (const s of visibleSections) m.set(s.id, new Set());
+    return m;
+  };
+
+  const [sel, setSel] = useState<PdfSel>(() => emptySelection());
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(visibleSections.map(s => s.id)));
+  const [search, setSearch] = useState('');
   // photoOrder: sectionId → ordered array of photoIds (controls catalog order)
   const [photoOrder, setPhotoOrder] = useState<Map<string, string[]>>(() => {
     const m = new Map<string, string[]>();
@@ -191,7 +198,8 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
   // Re-init when opened
   React.useEffect(() => {
     if (open) {
-      setSel(buildFullSelection(visibleSections));
+      setSel(emptySelection());
+      setSearch('');
       setExpanded(new Set(visibleSections.map(s => s.id)));
       const m = new Map<string, string[]>();
       for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
@@ -276,16 +284,38 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
           </DialogTitle>
         </DialogHeader>
 
+        {/* Search */}
+        <div className="shrink-0 relative">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={isAr ? 'ابحث عن نبتة...' : 'Search plants...'}
+            className="ps-9 arabic"
+            dir={isAr ? 'rtl' : 'ltr'}
+          />
+        </div>
+
         {/* Section + photo list */}
-        <div className="overflow-y-auto flex-1 space-y-3 pr-1 my-2">
+        <div className="overflow-y-auto flex-1 space-y-3 pr-1 my-1">
           {visibleSections.map(sec => {
             const secSel = sel.get(sec.id) ?? new Set();
-            const allChecked = secSel.size === sec.photos.length;
-            const someChecked = secSel.size > 0 && !allChecked;
-            const isExpanded = expanded.has(sec.id);
             const order = photoOrder.get(sec.id) ?? sec.photos.map(p => p.id);
             const photoMap = new Map(sec.photos.map(p => [p.id, p]));
             const orderedPhotos = order.map(id => photoMap.get(id)!).filter(Boolean);
+
+            // Filter by search
+            const q = search.trim().toLowerCase();
+            const filteredPhotos = q
+              ? orderedPhotos.filter(p => p.nameAr.toLowerCase().includes(q) || (p.nameEn ?? '').toLowerCase().includes(q))
+              : orderedPhotos;
+
+            // Hide section entirely if search active and no matches
+            if (q && filteredPhotos.length === 0) return null;
+
+            const allChecked = secSel.size === sec.photos.length;
+            const someChecked = secSel.size > 0 && !allChecked;
+            const isExpanded = expanded.has(sec.id) || q.length > 0;
 
             return (
               <div key={sec.id} className="border border-border rounded-xl overflow-hidden">
@@ -309,35 +339,38 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                 </div>
 
                 {/* Photos list with reorder */}
-                {isExpanded && orderedPhotos.length > 0 && (
+                {isExpanded && filteredPhotos.length > 0 && (
                   <div className="divide-y divide-border">
-                    {orderedPhotos.map((photo, idx) => {
+                    {filteredPhotos.map((photo) => {
                       const checked = secSel.has(photo.id);
+                      const realIdx = orderedPhotos.indexOf(photo);
+                      // checked order rank among checked photos in orderedPhotos
+                      const checkedRank = orderedPhotos.slice(0, realIdx + 1).filter(p => secSel.has(p.id)).length;
                       return (
                         <div key={photo.id}
                           className={`flex items-center gap-3 px-3 py-2 transition-colors ${checked ? 'bg-background' : 'bg-background/40 opacity-60'}`}>
                           {/* Order number */}
                           <span className={`w-5 text-center text-xs font-bold shrink-0 ${checked ? 'text-primary' : 'text-muted-foreground'}`}>
-                            {checked ? idx + 1 : '—'}
+                            {checked ? checkedRank : '—'}
                           </span>
                           {/* Thumbnail */}
                           <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             className="w-10 h-10 rounded-md object-cover shrink-0 ring-1 ring-border" loading="lazy" />
                           {/* Name */}
                           <span className="flex-1 text-sm arabic truncate">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</span>
-                          {/* Up/Down */}
+                          {/* Up/Down — operate on full orderedPhotos index */}
                           <div className="flex flex-col gap-0.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => movePhoto(sec.id, photo.id, 'up')}
-                              disabled={idx === 0}
+                              disabled={realIdx === 0}
                               className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
                               <ChevronUp className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => movePhoto(sec.id, photo.id, 'down')}
-                              disabled={idx === orderedPhotos.length - 1}
+                              disabled={realIdx === orderedPhotos.length - 1}
                               className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
                               <ChevronDown className="w-3.5 h-3.5" />
                             </button>
