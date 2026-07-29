@@ -79,7 +79,6 @@ async function buildPrintContainer(
     const sName = isAr ? section.nameAr : section.nameEn;
     const photosHtml = photos.map(p => {
       const name = isAr ? p.nameAr : p.nameEn;
-      const altName = isAr ? p.nameEn : p.nameAr;
       const src = photoDataUrls.get(p.id) ?? p.image;
       return `
         <div data-card style="break-inside:avoid;page-break-inside:avoid;">
@@ -87,7 +86,7 @@ async function buildPrintContainer(
             <img src="${src}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block;" />
           </div>
           <p style="text-align:center;margin:6px 0 0;font-size:13px;font-weight:700;color:#2d2d2d;line-height:1.3;">${name}</p>
-          ${altName ? `<p style="text-align:center;margin:2px 0 0;font-size:10px;color:#888;font-family:'Cormorant Garamond',serif;letter-spacing:.04em;">${altName}</p>` : ''}
+          ${p.quantity != null ? `<p style="text-align:center;margin:2px 0 0;font-size:11px;color:#555;font-family:'Cairo',sans-serif;">عدد <span style="font-weight:700;">${p.quantity}</span></p>` : ''}
         </div>`;
     }).join('');
 

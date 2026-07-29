@@ -15,6 +15,7 @@ export interface Photo {
   descriptionAr?: string;
   descriptionEn?: string;
   extraImages?: string[];
+  quantity?: number;
 }
 
 export interface Section {

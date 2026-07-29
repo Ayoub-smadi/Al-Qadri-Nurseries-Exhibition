@@ -360,6 +360,7 @@ export default function GalleryPage() {
   const [photoNameEn, setPhotoNameEn] = useState('');
   const [photoDescAr, setPhotoDescAr] = useState('');
   const [photoDescEn, setPhotoDescEn] = useState('');
+  const [photoQuantity, setPhotoQuantity] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoUrlLoading, setPhotoUrlLoading] = useState(false);
 
@@ -370,6 +371,7 @@ export default function GalleryPage() {
   const [editPhotoNameEn, setEditPhotoNameEn] = useState('');
   const [editPhotoDescAr, setEditPhotoDescAr] = useState('');
   const [editPhotoDescEn, setEditPhotoDescEn] = useState('');
+  const [editPhotoQuantity, setEditPhotoQuantity] = useState('');
   const [editPhotoExtraImages, setEditPhotoExtraImages] = useState<string[]>([]);
   const [editPhotoUploading, setEditPhotoUploading] = useState(false);
   const [editPhotoUrlLoading, setEditPhotoUrlLoading] = useState(false);
@@ -853,9 +855,9 @@ export default function GalleryPage() {
       }
       setPhotoUrlLoading(false);
     }
-    const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
+    const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn, ...(photoQuantity !== '' ? { quantity: Number(photoQuantity) } : {}) };
     updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
-    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
+    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setPhotoQuantity(''); setAddPhotoSectionId(null);
   };
 
   const handleDeletePhoto = (sectionId: string, photoId: string) => {
@@ -910,6 +912,7 @@ export default function GalleryPage() {
     setEditPhotoNameEn(photo.nameEn);
     setEditPhotoDescAr(photo.descriptionAr || '');
     setEditPhotoDescEn(photo.descriptionEn || '');
+    setEditPhotoQuantity(photo.quantity != null ? String(photo.quantity) : '');
     setEditPhotoExtraImages(photo.extraImages ?? []);
   };
 
@@ -936,6 +939,7 @@ export default function GalleryPage() {
       descriptionAr: editPhotoDescAr,
       descriptionEn: editPhotoDescEn,
       extraImages: editPhotoExtraImages,
+      ...(editPhotoQuantity !== '' ? { quantity: Number(editPhotoQuantity) } : { quantity: undefined }),
     };
     updateSiteData({
       sections: siteData.sections.map(s =>
@@ -2217,6 +2221,10 @@ export default function GalleryPage() {
               </div>
             </div>
             <div className="space-y-1.5">
+              <Label>{isAr ? 'العدد — اختياري' : 'Quantity — optional'}</Label>
+              <Input type="number" min="0" value={photoQuantity} onChange={e => setPhotoQuantity(e.target.value)} dir="ltr" placeholder={isAr ? 'مثال: 50' : 'e.g. 50'} />
+            </div>
+            <div className="space-y-1.5">
               <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
               <textarea value={photoDescAr} onChange={e => setPhotoDescAr(e.target.value)} dir="rtl" rows={2}
                 className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
@@ -2285,6 +2293,10 @@ export default function GalleryPage() {
                   <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
                   <Input value={editPhotoNameEn} onChange={e => setEditPhotoNameEn(e.target.value)} dir="ltr" />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{isAr ? 'العدد — اختياري' : 'Quantity — optional'}</Label>
+                <Input type="number" min="0" value={editPhotoQuantity} onChange={e => setEditPhotoQuantity(e.target.value)} dir="ltr" placeholder={isAr ? 'مثال: 50' : 'e.g. 50'} />
               </div>
               <div className="space-y-1.5">
                 <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
