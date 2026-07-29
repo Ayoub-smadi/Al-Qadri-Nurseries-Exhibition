@@ -421,7 +421,37 @@ export default function QadriOldQuotationPage() {
   const effectiveLogo = logoUrl || siteData?.logo?.customUrl || "/logo-alkadri.jpg";
 
   /* ─── PDF export ─────────────────────────────────────── */
+  const [isCatalog, setIsCatalog] = useState(false);
+
+  const handleCatalogPDF = async () => {
+    if (isPdf) return;
+    const anyNonDefaultQty = items.some(i => Number(i.quantity) !== 1);
+    const prev = { ...hiddenParts };
+    setHiddenParts(p => ({
+      ...p,
+      colDescription: true,
+      colPrice: true,
+      colTotal: true,
+      colQuantity: !anyNonDefaultQty,
+      grandTotal: true,
+      closing: true,
+      stamp: true,
+      footer: false,
+    }));
+    setIsCatalog(true);
+    // allow React to re-render before capture
+    await new Promise(r => setTimeout(r, 180));
+    await handlePDFCore("كتالوج");
+    setHiddenParts(prev);
+    setIsCatalog(false);
+  };
+
   const handlePDF = async () => {
+    if (isPdf) return;
+    await handlePDFCore("عرض سعر");
+  };
+
+  const handlePDFCore = async (filePrefix: string) => {
     if (!docRef.current) return;
     setIsPdf(true);
     const el = docRef.current;
@@ -531,7 +561,7 @@ export default function QadriOldQuotationPage() {
 
       /* Multi-page: smart slice at row boundaries → proper A4 pages */
       const name = details.customerName.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, "_").trim();
-      const fileName = name ? `عرض سعر_${name}_${details.date}.pdf` : `عرض سعر_${details.date}.pdf`;
+      const fileName = name ? `${filePrefix}_${name}_${details.date}.pdf` : `${filePrefix}_${details.date}.pdf`;
       await sliceCanvasToPdf(canvas, el, fileName, docW, runHeaderCanvas);
       toast.success("✅ تم تنزيل PDF");
     } catch (e: any) {
@@ -796,17 +826,30 @@ export default function QadriOldQuotationPage() {
             {saving ? "جاري الحفظ..." : currentRecordId ? "تحديث" : "حفظ"}
           </button>
 
+          <button onClick={handleCatalogPDF} disabled={isPdf}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 16px", borderRadius: 8,
+              background: "#064e3b", color: "#fff",
+              border: "none", cursor: isPdf ? "not-allowed" : "pointer",
+              fontWeight: 700, fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
+              opacity: isPdf ? 0.6 : 1,
+            }}>
+            {isPdf && isCatalog ? <Loader2 style={{ width: 14, height: 14 }} /> : <FileText style={{ width: 14, height: 14 }} />}
+            {isPdf && isCatalog ? "جاري التنزيل..." : "تنزيل كتالوج"}
+          </button>
+
           <button onClick={handlePDF} disabled={isPdf}
             style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "6px 16px", borderRadius: 8,
               background: "#1a2744", color: "#fff",
-              border: "none", cursor: "pointer",
+              border: "none", cursor: isPdf ? "not-allowed" : "pointer",
               fontWeight: 700, fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
               opacity: isPdf ? 0.6 : 1,
             }}>
-            {isPdf ? <Loader2 style={{ width: 14, height: 14 }} /> : <FileText style={{ width: 14, height: 14 }} />}
-            {isPdf ? "جاري التنزيل..." : "تنزيل PDF"}
+            {isPdf && !isCatalog ? <Loader2 style={{ width: 14, height: 14 }} /> : <FileText style={{ width: 14, height: 14 }} />}
+            {isPdf && !isCatalog ? "جاري التنزيل..." : "تنزيل PDF"}
           </button>
         </div>
       </div>
