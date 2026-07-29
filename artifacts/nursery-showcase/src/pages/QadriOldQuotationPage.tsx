@@ -1006,7 +1006,7 @@ export default function QadriOldQuotationPage() {
                     </th>
                   )}
                   {!hiddenParts.colImage && (
-                    <th style={{ padding: "10px 6px", textAlign: "center", width: 130, minWidth: 130, maxWidth: 130, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                    <th style={{ padding: "10px 6px", textAlign: "center", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colImage", "عمود الصورة")}الصورة
                     </th>
                   )}
@@ -1082,16 +1082,16 @@ export default function QadriOldQuotationPage() {
                     )}
                     {/* الصورة */}
                     {!hiddenParts.colImage && (
-                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827", width: 130, minWidth: 130, maxWidth: 130 }}>
+                      <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
                         <div
                           style={{ cursor: "pointer", display: "block" }}
                           onClick={() => { const inp = document.getElementById(`img-input-${item.id}`) as HTMLInputElement; inp?.click(); }}
                         >
                           {item.imageUrl ? (
-                            <img src={item.imageUrl} alt="" style={{ width: 120, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto" }} />
+                            <img src={item.imageUrl} alt="" style={{ width: "100%", maxWidth: 300, height: 96, objectFit: "cover", borderRadius: 6, border: "1px solid #d1d5db", margin: "0 auto", display: "block" }} />
                           ) : (
                             <div style={{
-                              width: 120, height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
+                              width: "100%", height: 96, border: "1px dashed #d1d5db", borderRadius: 6,
                               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                               background: "#f9fafb", margin: "0 auto", gap: 3,
                             }}>
