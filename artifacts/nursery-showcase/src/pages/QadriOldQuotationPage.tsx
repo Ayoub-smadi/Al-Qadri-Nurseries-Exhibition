@@ -157,6 +157,8 @@ export default function QadriOldQuotationPage() {
     colCategory: boolean;
     colImage: boolean;
     colIndex: boolean;
+    colPrice: boolean;
+    colTotal: boolean;
     grandTotal: boolean;
     subtotalRows: boolean;
     notes: boolean;
@@ -166,6 +168,7 @@ export default function QadriOldQuotationPage() {
   };
   const [hiddenParts, setHiddenParts] = useState<HiddenParts>({
     colDescription: false, colCategory: false, colImage: false, colIndex: false,
+    colPrice: false, colTotal: false,
     grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false,
   });
   const [deleteMode, setDeleteMode] = useState(false);
@@ -623,7 +626,7 @@ export default function QadriOldQuotationPage() {
           {/* استعادة المحذوف */}
           {Object.values(hiddenParts).some(Boolean) && (
             <button
-              onClick={() => setHiddenParts({ colDescription: false, colCategory: false, colImage: false, colIndex: false, grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false })}
+              onClick={() => setHiddenParts({ colDescription: false, colCategory: false, colImage: false, colIndex: false, colPrice: false, colTotal: false, grandTotal: false, subtotalRows: false, notes: false, closing: false, stamp: false, footer: false })}
               title="استعادة كل الأجزاء المحذوفة"
               style={{
                 display: "flex", alignItems: "center", gap: 5,
@@ -974,8 +977,16 @@ export default function QadriOldQuotationPage() {
                     </th>
                   )}
                   <th style={{ padding: "10px 6px", textAlign: "center", width: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الكمية</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 72, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>السعر</th>
-                  <th style={{ padding: "10px 6px", textAlign: "center", width: 84, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الإجمالي</th>
+                  {!hiddenParts.colPrice && (
+                    <th style={{ padding: "10px 6px", textAlign: "center", width: 72, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colPrice", "عمود السعر")}السعر
+                    </th>
+                  )}
+                  {!hiddenParts.colTotal && (
+                    <th style={{ padding: "10px 6px", textAlign: "center", width: 84, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                      {hidePartBtn("colTotal", "عمود الإجمالي")}الإجمالي
+                    </th>
+                  )}
                   {!hiddenParts.colImage && (
                     <th style={{ padding: "10px 6px", textAlign: "center", width: 100, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
                       {hidePartBtn("colImage", "عمود الصورة")}الصورة
@@ -1034,19 +1045,23 @@ export default function QadriOldQuotationPage() {
                       />
                     </td>
                     {/* السعر */}
-                    <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
-                      <input
-                        type="number" min={0} step={0.01}
-                        value={item.price || ""}
-                        onChange={e => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
-                      />
-                    </td>
+                    {!hiddenParts.colPrice && (
+                      <td style={{ padding: "6px", verticalAlign: "middle", border: "1px solid #111827" }}>
+                        <input
+                          type="number" min={0} step={0.01}
+                          value={item.price || ""}
+                          onChange={e => updateItem(item.id, "price", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          style={{ ...F, fontSize: 12, fontWeight: 700, color: "#111827", textAlign: "center" }}
+                        />
+                      </td>
+                    )}
                     {/* الإجمالي */}
-                    <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {fmt(item.total)}
-                    </td>
+                    {!hiddenParts.colTotal && (
+                      <td style={{ padding: "6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "#111827", verticalAlign: "middle", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
+                        {fmt(item.total)}
+                      </td>
+                    )}
                     {/* الصورة */}
                     {!hiddenParts.colImage && (
                       <td style={{ padding: "6px", textAlign: "center", verticalAlign: "middle", border: "1px solid #111827" }}>
