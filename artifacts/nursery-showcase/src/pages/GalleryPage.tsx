@@ -187,12 +187,8 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
   const [sel, setSel] = useState<PdfSel>(() => emptySelection());
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(visibleSections.map(s => s.id)));
   const [search, setSearch] = useState('');
-  // photoOrder: sectionId → ordered array of photoIds (controls catalog order)
-  const [photoOrder, setPhotoOrder] = useState<Map<string, string[]>>(() => {
-    const m = new Map<string, string[]>();
-    for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
-    return m;
-  });
+  // photoPositions: photoId → position number string (1 = first, blank = unordered)
+  const [photoPositions, setPhotoPositions] = useState<Map<string, string>>(new Map());
   // photoQuantities: photoId → quantity string (set per-catalog, not stored on plant)
   const [photoQuantities, setPhotoQuantities] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -203,9 +199,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
       setSel(emptySelection());
       setSearch('');
       setExpanded(new Set(visibleSections.map(s => s.id)));
-      const m = new Map<string, string[]>();
-      for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
-      setPhotoOrder(m);
+      setPhotoPositions(new Map());
       setPhotoQuantities(new Map());
     }
   }, [open, targetSectionId]); // eslint-disable-line
@@ -233,32 +227,24 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
     });
   };
 
-  const movePhoto = (sId: string, pId: string, dir: 'up' | 'down') => {
-    setPhotoOrder(prev => {
-      const next = new Map(prev);
-      const arr = [...(next.get(sId) ?? [])];
-      const idx = arr.indexOf(pId);
-      if (idx < 0) return prev;
-      const target = dir === 'up' ? idx - 1 : idx + 1;
-      if (target < 0 || target >= arr.length) return prev;
-      [arr[idx], arr[target]] = [arr[target], arr[idx]];
-      next.set(sId, arr);
-      return next;
-    });
-  };
-
   const handleDownload = async () => {
     const inputs: PDFSectionInput[] = [];
     for (const s of visibleSections) {
       const chosen = sel.get(s.id) ?? new Set();
-      const order = photoOrder.get(s.id) ?? s.photos.map(p => p.id);
-      // Build a lookup map for O(1) access
-      const photoMap = new Map(s.photos.map(p => [p.id, p]));
-      const photos = order.map(id => photoMap.get(id)!).filter(p => p && chosen.has(p.id))
-        .map(p => {
-          const qStr = photoQuantities.get(p.id);
-          return qStr ? { ...p, quantity: Number(qStr) } : { ...p, quantity: undefined };
-        });
+      const selectedPhotos = s.photos.filter(p => chosen.has(p.id));
+      // Sort by position number; blank/unset goes to the end in original order
+      selectedPhotos.sort((a, b) => {
+        const pa = photoPositions.get(a.id);
+        const pb = photoPositions.get(b.id);
+        const na = pa !== undefined && pa !== '' ? Number(pa) : Infinity;
+        const nb = pb !== undefined && pb !== '' ? Number(pb) : Infinity;
+        if (na !== nb) return na - nb;
+        return s.photos.indexOf(a) - s.photos.indexOf(b);
+      });
+      const photos = selectedPhotos.map(p => {
+        const qStr = photoQuantities.get(p.id);
+        return qStr ? { ...p, quantity: Number(qStr) } : { ...p, quantity: undefined };
+      });
       if (photos.length > 0) inputs.push({ section: s, photos });
     }
     if (inputs.length === 0) {
@@ -307,15 +293,12 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
         <div className="overflow-y-auto flex-1 space-y-3 pr-1 my-1">
           {visibleSections.map(sec => {
             const secSel = sel.get(sec.id) ?? new Set();
-            const order = photoOrder.get(sec.id) ?? sec.photos.map(p => p.id);
-            const photoMap = new Map(sec.photos.map(p => [p.id, p]));
-            const orderedPhotos = order.map(id => photoMap.get(id)!).filter(Boolean);
 
             // Filter by search
             const q = search.trim().toLowerCase();
             const filteredPhotos = q
-              ? orderedPhotos.filter(p => p.nameAr.toLowerCase().includes(q) || (p.nameEn ?? '').toLowerCase().includes(q))
-              : orderedPhotos;
+              ? sec.photos.filter(p => p.nameAr.toLowerCase().includes(q) || (p.nameEn ?? '').toLowerCase().includes(q))
+              : sec.photos;
 
             // Hide section entirely if search active and no matches
             if (q && filteredPhotos.length === 0) return null;
@@ -345,27 +328,20 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                   </button>
                 </div>
 
-                {/* Photos list with reorder */}
+                {/* Photos list */}
                 {isExpanded && filteredPhotos.length > 0 && (
                   <div className="divide-y divide-border">
                     {filteredPhotos.map((photo) => {
                       const checked = secSel.has(photo.id);
-                      const realIdx = orderedPhotos.indexOf(photo);
-                      // checked order rank among checked photos in orderedPhotos
-                      const checkedRank = orderedPhotos.slice(0, realIdx + 1).filter(p => secSel.has(p.id)).length;
                       return (
                         <div key={photo.id}
                           className={`flex items-center gap-3 px-3 py-2 transition-colors ${checked ? 'bg-background' : 'bg-background/40 opacity-60'}`}>
-                          {/* Order number */}
-                          <span className={`w-5 text-center text-xs font-bold shrink-0 ${checked ? 'text-primary' : 'text-muted-foreground'}`}>
-                            {checked ? checkedRank : '—'}
-                          </span>
                           {/* Thumbnail */}
                           <img src={photo.image} alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
                             className="w-10 h-10 rounded-md object-cover shrink-0 ring-1 ring-border" loading="lazy" />
                           {/* Name */}
                           <span className="flex-1 text-sm arabic truncate">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</span>
-                          {/* Quantity input */}
+                          {/* Quantity */}
                           <input
                             type="number"
                             min="0"
@@ -380,23 +356,21 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                             className="w-14 shrink-0 rounded-md border border-input bg-background px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary"
                             dir="ltr"
                           />
-                          {/* Up/Down — operate on full orderedPhotos index */}
-                          <div className="flex flex-col gap-0.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => movePhoto(sec.id, photo.id, 'up')}
-                              disabled={realIdx === 0}
-                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
-                              <ChevronUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => movePhoto(sec.id, photo.id, 'down')}
-                              disabled={realIdx === orderedPhotos.length - 1}
-                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-20 transition-colors">
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          {/* Position (order in catalog) */}
+                          <input
+                            type="number"
+                            min="1"
+                            value={photoPositions.get(photo.id) ?? ''}
+                            onChange={e => setPhotoPositions(prev => {
+                              const next = new Map(prev);
+                              if (e.target.value === '') next.delete(photo.id);
+                              else next.set(photo.id, e.target.value);
+                              return next;
+                            })}
+                            placeholder={isAr ? 'ترتيب' : 'order'}
+                            className="w-16 shrink-0 rounded-md border border-input bg-background px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            dir="ltr"
+                          />
                           {/* Checkbox */}
                           <Checkbox
                             checked={checked}
