@@ -193,6 +193,8 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
     for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
     return m;
   });
+  // photoQuantities: photoId → quantity string (set per-catalog, not stored on plant)
+  const [photoQuantities, setPhotoQuantities] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
 
   // Re-init when opened
@@ -204,6 +206,7 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
       const m = new Map<string, string[]>();
       for (const s of visibleSections) m.set(s.id, s.photos.map(p => p.id));
       setPhotoOrder(m);
+      setPhotoQuantities(new Map());
     }
   }, [open, targetSectionId]); // eslint-disable-line
 
@@ -251,7 +254,11 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
       const order = photoOrder.get(s.id) ?? s.photos.map(p => p.id);
       // Build a lookup map for O(1) access
       const photoMap = new Map(s.photos.map(p => [p.id, p]));
-      const photos = order.map(id => photoMap.get(id)!).filter(p => p && chosen.has(p.id));
+      const photos = order.map(id => photoMap.get(id)!).filter(p => p && chosen.has(p.id))
+        .map(p => {
+          const qStr = photoQuantities.get(p.id);
+          return qStr ? { ...p, quantity: Number(qStr) } : { ...p, quantity: undefined };
+        });
       if (photos.length > 0) inputs.push({ section: s, photos });
     }
     if (inputs.length === 0) {
@@ -358,6 +365,21 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
                             className="w-10 h-10 rounded-md object-cover shrink-0 ring-1 ring-border" loading="lazy" />
                           {/* Name */}
                           <span className="flex-1 text-sm arabic truncate">{isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}</span>
+                          {/* Quantity input */}
+                          <input
+                            type="number"
+                            min="0"
+                            value={photoQuantities.get(photo.id) ?? ''}
+                            onChange={e => setPhotoQuantities(prev => {
+                              const next = new Map(prev);
+                              if (e.target.value === '') next.delete(photo.id);
+                              else next.set(photo.id, e.target.value);
+                              return next;
+                            })}
+                            placeholder={isAr ? 'عدد' : 'qty'}
+                            className="w-14 shrink-0 rounded-md border border-input bg-background px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-primary"
+                            dir="ltr"
+                          />
                           {/* Up/Down — operate on full orderedPhotos index */}
                           <div className="flex flex-col gap-0.5 shrink-0">
                             <button
@@ -438,7 +460,6 @@ export default function GalleryPage() {
   const [photoNameEn, setPhotoNameEn] = useState('');
   const [photoDescAr, setPhotoDescAr] = useState('');
   const [photoDescEn, setPhotoDescEn] = useState('');
-  const [photoQuantity, setPhotoQuantity] = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoUrlLoading, setPhotoUrlLoading] = useState(false);
 
@@ -449,7 +470,6 @@ export default function GalleryPage() {
   const [editPhotoNameEn, setEditPhotoNameEn] = useState('');
   const [editPhotoDescAr, setEditPhotoDescAr] = useState('');
   const [editPhotoDescEn, setEditPhotoDescEn] = useState('');
-  const [editPhotoQuantity, setEditPhotoQuantity] = useState('');
   const [editPhotoExtraImages, setEditPhotoExtraImages] = useState<string[]>([]);
   const [editPhotoUploading, setEditPhotoUploading] = useState(false);
   const [editPhotoUrlLoading, setEditPhotoUrlLoading] = useState(false);
@@ -933,9 +953,9 @@ export default function GalleryPage() {
       }
       setPhotoUrlLoading(false);
     }
-    const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn, ...(photoQuantity !== '' ? { quantity: Number(photoQuantity) } : {}) };
+    const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
     updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
-    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setPhotoQuantity(''); setAddPhotoSectionId(null);
+    setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
   };
 
   const handleDeletePhoto = (sectionId: string, photoId: string) => {
@@ -990,7 +1010,6 @@ export default function GalleryPage() {
     setEditPhotoNameEn(photo.nameEn);
     setEditPhotoDescAr(photo.descriptionAr || '');
     setEditPhotoDescEn(photo.descriptionEn || '');
-    setEditPhotoQuantity(photo.quantity != null ? String(photo.quantity) : '');
     setEditPhotoExtraImages(photo.extraImages ?? []);
   };
 
@@ -1017,7 +1036,6 @@ export default function GalleryPage() {
       descriptionAr: editPhotoDescAr,
       descriptionEn: editPhotoDescEn,
       extraImages: editPhotoExtraImages,
-      ...(editPhotoQuantity !== '' ? { quantity: Number(editPhotoQuantity) } : { quantity: undefined }),
     };
     updateSiteData({
       sections: siteData.sections.map(s =>
@@ -2299,10 +2317,6 @@ export default function GalleryPage() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>{isAr ? 'العدد — اختياري' : 'Quantity — optional'}</Label>
-              <Input type="number" min="0" value={photoQuantity} onChange={e => setPhotoQuantity(e.target.value)} dir="ltr" placeholder={isAr ? 'مثال: 50' : 'e.g. 50'} />
-            </div>
-            <div className="space-y-1.5">
               <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
               <textarea value={photoDescAr} onChange={e => setPhotoDescAr(e.target.value)} dir="rtl" rows={2}
                 className="arabic w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
@@ -2371,10 +2385,6 @@ export default function GalleryPage() {
                   <Label>{isAr ? 'الاسم إنجليزي' : 'Name (EN)'}</Label>
                   <Input value={editPhotoNameEn} onChange={e => setEditPhotoNameEn(e.target.value)} dir="ltr" />
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{isAr ? 'العدد — اختياري' : 'Quantity — optional'}</Label>
-                <Input type="number" min="0" value={editPhotoQuantity} onChange={e => setEditPhotoQuantity(e.target.value)} dir="ltr" placeholder={isAr ? 'مثال: 50' : 'e.g. 50'} />
               </div>
               <div className="space-y-1.5">
                 <Label>{isAr ? 'وصف مختصر (عربي) — اختياري' : 'Short description (AR) — optional'}</Label>
