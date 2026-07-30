@@ -303,8 +303,13 @@ export async function downloadQadriCatalogPDF(
         ${logoHtml}
       </div>
 
+      <!-- Catalog title -->
+      <div style="padding:14px 24px 10px;text-align:center;direction:rtl;">
+        <div style="font-size:18px;font-weight:800;color:#1a2744;font-family:Cairo,Arial,sans-serif;letter-spacing:0.5px;">كتالوج مشاتل القادري الزراعية</div>
+      </div>
+
       <!-- Table -->
-      <div style="padding:16px 20px 0;">
+      <div style="padding:0 20px 0;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #111827;">
           <thead>
             <tr style="background:#1a2744;color:#ffffff;">
@@ -319,7 +324,7 @@ export async function downloadQadriCatalogPDF(
       </div>
 
       <!-- Footer: same as QadriOldQuotationPage -->
-      <div style="margin-top:20px;border-top:2px solid #1a3a8a;background:#f8fafc;padding:16px 24px;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:6px;">
+      <div data-footer style="margin-top:20px;border-top:2px solid #1a3a8a;background:#f8fafc;padding:16px 24px;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:6px;">
         <div style="font-size:18px;font-weight:800;color:#1e293b;font-family:Cairo,Arial,sans-serif;">${companyAr}</div>
         <div style="display:flex;gap:28px;font-size:12px;color:#475569;flex-wrap:wrap;justify-content:center;direction:ltr;font-family:Cairo,Arial,sans-serif;">
           ${footer.phone ? `<span>📞 ${footer.phone}</span>` : ''}
@@ -339,10 +344,14 @@ export async function downloadQadriCatalogPDF(
 
   const inner = wrapper.firstElementChild as HTMLElement;
 
-  // Measure row positions before html2canvas for smart page slicing
+  // Measure row & footer positions before html2canvas for smart page slicing
   const innerTop = inner.getBoundingClientRect().top;
   const rows = Array.from(inner.querySelectorAll('[data-row]')) as HTMLElement[];
   const rowBottomsCssPx = rows.map(r => r.getBoundingClientRect().bottom - innerTop);
+
+  // Footer top — used to prevent footer landing alone on its own page
+  const footerEl = inner.querySelector('[data-footer]') as HTMLElement | null;
+  const footerTopCssPx = footerEl ? footerEl.getBoundingClientRect().top - innerTop : null;
 
   const canvas = await html2canvas(inner, {
     scale: 2, useCORS: true, allowTaint: true,
@@ -364,6 +373,9 @@ export async function downloadQadriCatalogPDF(
   const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
   const cssToMm = ratio * renderScale;
 
+  // Footer top in mm — never allow a cut between footerTopMm and fullH
+  const footerTopMm = footerTopCssPx != null ? footerTopCssPx * cssToMm : null;
+
   const safeCutsMm = [...new Set(rowBottomsCssPx.map(b => Math.round(b * cssToMm)))]
     .sort((a, b) => a - b);
 
@@ -371,8 +383,15 @@ export async function downloadQadriCatalogPDF(
   while (drawn < fullH) {
     if (drawn > 0) pdf.addPage();
     const idealCut = Math.min(drawn + pageH, fullH);
-    const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
-    const cutAt = suitable.length > 0 ? Math.max(...suitable) : idealCut;
+
+    // If the footer starts within this page range, extend to include it entirely
+    const cutAt = (footerTopMm != null && footerTopMm > drawn && footerTopMm <= idealCut)
+      ? fullH  // include footer on this page — never let it slip to next
+      : (() => {
+          const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
+          return suitable.length > 0 ? Math.max(...suitable) : idealCut;
+        })();
+
     const sliceH = cutAt - drawn;
     const srcY = drawn / ratio;
     const srcH = sliceH / ratio;
