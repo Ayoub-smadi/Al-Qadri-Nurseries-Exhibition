@@ -303,13 +303,8 @@ export async function downloadQadriCatalogPDF(
         ${logoHtml}
       </div>
 
-      <!-- Catalog title -->
-      <div style="padding:14px 24px 10px;text-align:center;direction:rtl;">
-        <div style="font-size:18px;font-weight:800;color:#1a2744;font-family:Cairo,Arial,sans-serif;letter-spacing:0.5px;">كتالوج مشاتل القادري الزراعية</div>
-      </div>
-
       <!-- Table -->
-      <div style="padding:0 20px 0;">
+      <div style="padding:16px 20px 0;">
         <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #111827;">
           <thead>
             <tr style="background:#1a2744;color:#ffffff;">
