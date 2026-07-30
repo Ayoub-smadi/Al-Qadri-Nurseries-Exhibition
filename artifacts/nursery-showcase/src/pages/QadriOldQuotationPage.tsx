@@ -830,19 +830,6 @@ export default function QadriOldQuotationPage() {
             {saving ? "جاري الحفظ..." : currentRecordId ? "تحديث" : "حفظ"}
           </button>
 
-          <button onClick={handleCatalogPDF} disabled={isPdf}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "6px 16px", borderRadius: 8,
-              background: "#064e3b", color: "#fff",
-              border: "none", cursor: isPdf ? "not-allowed" : "pointer",
-              fontWeight: 700, fontSize: 13, fontFamily: "Cairo, Arial, sans-serif",
-              opacity: isPdf ? 0.6 : 1,
-            }}>
-            {isPdf && isCatalog ? <Loader2 style={{ width: 14, height: 14 }} /> : <FileText style={{ width: 14, height: 14 }} />}
-            {isPdf && isCatalog ? "جاري التنزيل..." : "تنزيل كتالوج"}
-          </button>
-
           <button onClick={handlePDF} disabled={isPdf}
             style={{
               display: "flex", alignItems: "center", gap: 6,
