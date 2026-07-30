@@ -209,6 +209,184 @@ export async function downloadCatalogPDF(
   pdf.save(filename);
 }
 
+/* ── Qadri-style table catalog PDF ─────────────────────── */
+export async function downloadQadriCatalogPDF(
+  sections: PDFSectionInput[],
+  logoUrl: string,
+  companyAr: string,
+  companyEn: string,
+  locationAr: string,
+  locationEn: string,
+  footer: { phone: string; email: string; website: string },
+  filename = 'كتالوج-القادري.pdf'
+): Promise<void> {
+  // Pre-load logo
+  const logoDataUrl = logoUrl ? await toDataUrl(logoUrl) : '';
+
+  // Pre-load all plant images
+  const photoDataUrls = new Map<string, string>();
+  for (const { photos } of sections) {
+    for (const p of photos) {
+      if (p.image && !photoDataUrls.has(p.id)) {
+        photoDataUrls.set(p.id, await toDataUrl(p.image));
+      }
+    }
+  }
+
+  // Show quantity column only if at least one plant has quantity set (and ≠ 1)
+  const hasQuantity = sections.some(({ photos }) =>
+    photos.some(p => p.quantity != null && Number(p.quantity) !== 1)
+  );
+
+  const colCount = hasQuantity ? 4 : 3; // #, name, [qty], image
+
+  // Build table rows — section header + plant rows
+  let rowIndex = 0;
+  const rowsHtml = sections.map(({ section, photos }) => {
+    const sectionHeaderRow = `
+      <tr>
+        <td colspan="${colCount}" style="
+          padding:8px 12px; background:#1a2744; color:#fff;
+          font-size:13px; font-weight:700; text-align:right;
+          border:1px solid #111827; font-family:Cairo,Arial,sans-serif;
+        ">${section.nameAr}</td>
+      </tr>`;
+
+    const plantRows = photos.map((p, i) => {
+      rowIndex++;
+      const imgSrc = photoDataUrls.get(p.id) ?? '';
+      const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
+      const qtyCell = hasQuantity
+        ? `<td style="padding:6px;text-align:center;vertical-align:middle;border:1px solid #111827;font-size:12px;font-weight:700;white-space:nowrap;min-width:60px;font-family:Cairo,Arial,sans-serif;">
+             ${p.quantity != null && Number(p.quantity) !== 1 ? p.quantity : ''}
+           </td>`
+        : '';
+      const imgCell = imgSrc
+        ? `<img src="${imgSrc}" alt="${p.nameAr}" style="width:180px;max-width:100%;height:200px;object-fit:cover;border-radius:6px;border:1px solid #d1d5db;display:block;margin:0 auto;" />`
+        : `<div style="width:180px;height:200px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:6px;margin:0 auto;"></div>`;
+
+      return `
+        <tr data-row style="background:${bg};">
+          <td style="padding:8px 6px;text-align:center;font-weight:700;font-size:13px;color:#111827;vertical-align:middle;border:1px solid #111827;">${rowIndex}</td>
+          <td style="padding:8px;vertical-align:middle;border:1px solid #111827;font-size:13px;font-weight:600;color:#111827;text-align:right;font-family:Cairo,Arial,sans-serif;">${p.nameAr}</td>
+          ${qtyCell}
+          <td style="padding:6px;text-align:center;vertical-align:middle;width:210px;border:1px solid #111827;">${imgCell}</td>
+        </tr>`;
+    }).join('');
+
+    return sectionHeaderRow + plantRows;
+  }).join('');
+
+  const logoHtml = logoDataUrl
+    ? `<div style="width:90px;height:80px;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#f8fafc;flex-shrink:0;">
+         <img src="${logoDataUrl}" alt="logo" style="width:100%;height:100%;object-fit:contain;padding:4px;" />
+       </div>`
+    : `<div style="width:90px;height:80px;flex-shrink:0;"></div>`;
+
+  const qtyTh = hasQuantity
+    ? `<th style="padding:10px 6px;text-align:center;white-space:nowrap;min-width:60px;font-family:Cairo,Arial,sans-serif;border:1px solid #111827;">الكمية</th>`
+    : '';
+
+  const html = `
+    <div style="background:#fff;width:794px;font-family:Cairo,Arial,sans-serif;direction:rtl;">
+
+      <!-- Header: same as QadriOldQuotationPage -->
+      <div style="padding:20px 24px 16px;border-bottom:2px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;gap:12px;direction:ltr;">
+        <div style="text-align:left;min-width:200px;flex-shrink:0;">
+          <div style="font-size:14px;font-weight:700;color:#1e293b;">${companyEn}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;">${locationEn}</div>
+        </div>
+        <div style="flex:1;text-align:center;direction:rtl;">
+          <div style="font-size:16px;font-weight:700;color:#1e293b;">${companyAr}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;">${locationAr}</div>
+        </div>
+        ${logoHtml}
+      </div>
+
+      <!-- Table -->
+      <div style="padding:16px 20px 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #111827;">
+          <thead>
+            <tr style="background:#1a2744;color:#ffffff;">
+              <th style="padding:10px 6px;text-align:center;font-family:Cairo,Arial,sans-serif;border:1px solid #111827;">#</th>
+              <th style="padding:10px 8px;text-align:right;font-family:Cairo,Arial,sans-serif;border:1px solid #111827;">اسم النبتة</th>
+              ${qtyTh}
+              <th style="padding:10px 6px;text-align:center;width:210px;font-family:Cairo,Arial,sans-serif;border:1px solid #111827;">الصورة</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+
+      <!-- Footer: same as QadriOldQuotationPage -->
+      <div style="margin-top:20px;border-top:2px solid #1a3a8a;background:#f8fafc;padding:16px 24px;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:6px;">
+        <div style="font-size:18px;font-weight:800;color:#1e293b;font-family:Cairo,Arial,sans-serif;">${companyAr}</div>
+        <div style="display:flex;gap:28px;font-size:12px;color:#475569;flex-wrap:wrap;justify-content:center;direction:ltr;font-family:Cairo,Arial,sans-serif;">
+          ${footer.phone ? `<span>📞 ${footer.phone}</span>` : ''}
+          ${footer.email ? `<span>✉️ ${footer.email}</span>` : ''}
+          ${footer.website ? `<span>🌐 ${footer.website}</span>` : ''}
+        </div>
+      </div>
+
+    </div>`;
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;';
+  wrapper.innerHTML = html;
+  document.body.appendChild(wrapper);
+
+  await document.fonts.ready;
+
+  const inner = wrapper.firstElementChild as HTMLElement;
+
+  // Measure row positions before html2canvas for smart page slicing
+  const innerTop = inner.getBoundingClientRect().top;
+  const rows = Array.from(inner.querySelectorAll('[data-row]')) as HTMLElement[];
+  const rowBottomsCssPx = rows.map(r => r.getBoundingClientRect().bottom - innerTop);
+
+  const canvas = await html2canvas(inner, {
+    scale: 2, useCORS: true, allowTaint: true,
+    backgroundColor: '#ffffff', logging: false,
+    scrollX: 0, scrollY: 0,
+    width: inner.scrollWidth,
+    height: inner.scrollHeight,
+  });
+
+  const innerCssPx = inner.offsetHeight;
+  document.body.removeChild(wrapper);
+
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  const ratio = pageW / canvas.width;
+  const fullH = canvas.height * ratio;
+  const renderScale = innerCssPx > 0 ? canvas.height / innerCssPx : 2;
+  const cssToMm = ratio * renderScale;
+
+  const safeCutsMm = [...new Set(rowBottomsCssPx.map(b => Math.round(b * cssToMm)))]
+    .sort((a, b) => a - b);
+
+  let drawn = 0;
+  while (drawn < fullH) {
+    if (drawn > 0) pdf.addPage();
+    const idealCut = Math.min(drawn + pageH, fullH);
+    const suitable = safeCutsMm.filter(c => c > drawn && c <= idealCut);
+    const cutAt = suitable.length > 0 ? Math.max(...suitable) : idealCut;
+    const sliceH = cutAt - drawn;
+    const srcY = drawn / ratio;
+    const srcH = sliceH / ratio;
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width;
+    slice.height = Math.ceil(srcH);
+    slice.getContext('2d')!.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+    pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pageW, sliceH);
+    drawn = cutAt;
+  }
+
+  pdf.save(filename);
+}
+
 /* ── Quote PDF shared builder ───────────────────────────── */
 type QuoteSiteData = { titleAr: string; titleEn: string; logo: { customUrl: string }; footer: { phone?: string; email?: string; website?: string }; sections?: SiteData['sections'] };
 

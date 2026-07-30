@@ -4,7 +4,7 @@ import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
-import { downloadCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
+import { downloadCatalogPDF, downloadQadriCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
@@ -171,9 +171,10 @@ function buildFullSelection(sections: Section[]): PdfSel {
 }
 
 /* ── PDF select modal ────────────────────────────────── */
-function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleAr, titleEn, logoUrl }: {
+function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleAr, titleEn, logoUrl, companyDetails }: {
   open: boolean; onClose: () => void; sections: Section[]; lang: string;
   targetSectionId: string | null; titleAr: string; titleEn: string; logoUrl: string;
+  companyDetails: { locationAr: string; locationEn: string; phone: string; email: string; website: string };
 }) {
   const isAr = lang === 'ar';
   const visibleSections = targetSectionId ? sections.filter(s => s.id === targetSectionId) : sections;
@@ -255,8 +256,17 @@ function PDFSelectModal({ open, onClose, sections, lang, targetSectionId, titleA
     try {
       const fname = targetSectionId
         ? `${visibleSections[0]?.nameAr ?? 'section'}.pdf`
-        : 'alqadri-catalog.pdf';
-      await downloadCatalogPDF(inputs, titleAr, titleEn, logoUrl, lang, fname);
+        : 'كتالوج-القادري.pdf';
+      await downloadQadriCatalogPDF(
+        inputs,
+        logoUrl,
+        titleAr,
+        titleEn,
+        companyDetails.locationAr,
+        companyDetails.locationEn,
+        { phone: companyDetails.phone, email: companyDetails.email, website: companyDetails.website },
+        fname
+      );
       onClose();
     } catch (e) {
       toast.error(isAr ? 'حدث خطأ أثناء توليد PDF' : 'PDF generation failed');
@@ -2540,6 +2550,13 @@ export default function GalleryPage() {
           titleAr={siteData.titleAr}
           titleEn={siteData.titleEn}
           logoUrl={siteData.logo.customUrl}
+          companyDetails={{
+            locationAr: "جرش – الرشايدة",
+            locationEn: "Jerash - Al-Rashaidah",
+            phone: siteData.footer.phone || "00962777772211",
+            email: siteData.footer.email || "tamerqadri@gmail.com",
+            website: siteData.footer.website || "https://alkadrionline.com/",
+          }}
         />
       )}
 
