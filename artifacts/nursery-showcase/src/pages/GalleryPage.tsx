@@ -558,68 +558,57 @@ export default function GalleryPage() {
   const [xlsxError, setXlsxError] = useState<string | null>(null);
   const [xlsxLoading, setXlsxLoading] = useState(false);
 
-  /* ── real-time quote notifications via SSE ── */
+  /* ── poll for new quote requests every 5 s, notify per-quote ── */
+  const seenQuoteIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
-    if (!isAdmin) { setPendingQuoteCount(0); return; }
+    if (!isAdmin) { setPendingQuoteCount(0); seenQuoteIdsRef.current = null; return; }
 
-    // Request browser notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
-    // Load initial count
-    fetchQuotes().then(qs => {
-      if (qs) setPendingQuoteCount(qs.filter(q => q.status !== 'priced').length);
-    });
+    let destroyed = false;
 
-    // Connect to SSE stream
-    const token = loadSavedToken();
-    if (!token) return;
+    const poll = async () => {
+      const qs = await fetchQuotes();
+      if (!qs || destroyed) return;
 
-    let es: EventSource | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let closed = false;
+      const pending = qs.filter(q => q.status !== 'priced');
+      setPendingQuoteCount(pending.length);
 
-    const connect = () => {
-      if (closed) return;
-      const apiBase = (() => {
-        try { const d = __REPLIT_DEV_DOMAIN__; if (d) return `https://${d}/api`; } catch { /* ignore */ }
-        return '/api';
-      })();
-      es = new EventSource(`${apiBase}/quotes/stream?token=${encodeURIComponent(token)}`);
+      const currentIds = new Set(qs.map(q => q.id));
 
-      es.onmessage = (e) => {
-        if (!e.data || e.data.startsWith(':')) return;
-        try {
-          const quote = JSON.parse(e.data) as { customerName?: string; itemsCount?: number; shippingMethod?: string };
-          playNotificationSound();
-          setPendingQuoteCount(prev => prev + 1);
-          if ('Notification' in window && Notification.permission === 'granted') {
-            const shipping = quote.shippingMethod === 'pickup' ? 'استلام من المشتل' :
-                             quote.shippingMethod === 'delivery' ? 'توصيل' : 'طلب';
-            new Notification('🌿 طلب عرض سعر جديد — مشاتل القادري', {
-              body: `${quote.customerName ?? 'زبون'} · ${quote.itemsCount ?? 1} نبتة · ${shipping}`,
-              tag: `quote-${Date.now()}`,   // unique tag = no overlap between notifications
-            });
-          }
-        } catch { /* ignore bad JSON */ }
-      };
+      if (seenQuoteIdsRef.current === null) {
+        // First load — seed the set without firing notifications
+        seenQuoteIdsRef.current = currentIds;
+        return;
+      }
 
-      es.onerror = () => {
-        es?.close();
-        if (!closed) {
-          reconnectTimer = setTimeout(connect, 5000); // reconnect after 5s
+      // Fire one notification per new quote
+      const newQuotes = qs.filter(q => !seenQuoteIdsRef.current!.has(q.id));
+      newQuotes.forEach((q, idx) => {
+        // Stagger sounds slightly so they don't stack
+        setTimeout(() => playNotificationSound(), idx * 600);
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const shipping =
+            q.shipping_method === 'pickup'         ? 'استلام من المشتل' :
+            q.shipping_method === 'delivery'       ? 'توصيل' :
+            q.shipping_method === 'delivery_plant' ? 'توصيل + زراعة' : 'طلب';
+          const itemCount = Array.isArray(q.items) ? q.items.length : 1;
+          new Notification('🌿 طلب عرض سعر جديد — مشاتل القادري', {
+            body: `${q.customer_name} · ${itemCount} نبتة · ${shipping}`,
+            tag: `quote-${q.id}`,   // unique per quote — no overlap
+          });
         }
-      };
+      });
+
+      seenQuoteIdsRef.current = currentIds;
     };
 
-    connect();
-
-    return () => {
-      closed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      es?.close();
-    };
+    poll();
+    const id = setInterval(poll, 5_000);
+    return () => { destroyed = true; clearInterval(id); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
