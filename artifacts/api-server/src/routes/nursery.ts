@@ -86,6 +86,16 @@ function requireSession(req: Request, res: Response): boolean {
   return true;
 }
 
+/* ── SSE: broadcast new quotes to connected admin clients ───── */
+const sseClients = new Set<Response>();
+
+function broadcastNewQuote(quote: Record<string, unknown>) {
+  const data = `data: ${JSON.stringify(quote)}\n\n`;
+  for (const client of sseClients) {
+    try { client.write(data); } catch { sseClients.delete(client); }
+  }
+}
+
 const router: IRouter = Router();
 
 router.post("/admin/login", async (req, res) => {
@@ -189,6 +199,26 @@ router.put("/site-data", async (req, res) => {
   }
 });
 
+/* SSE stream endpoint — admin clients connect here for real-time quote events.
+   EventSource cannot set headers so we accept the token as a query param too. */
+router.get("/quotes/stream", (req, res) => {
+  // Accept token from Authorization header OR ?token= query param (EventSource limitation)
+  const auth = (req.headers["authorization"] ?? "") as string;
+  const headerToken = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const queryToken = typeof req.query.token === "string" ? req.query.token : "";
+  const token = headerToken || queryToken;
+  if (!verifyToken(token)) { res.status(403).json({ error: "Forbidden" }); return; }
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+  res.write(": connected\n\n");
+  sseClients.add(res);
+  const keepAlive = setInterval(() => { try { res.write(": ping\n\n"); } catch { /* ignore */ } }, 20_000);
+  req.on("close", () => { clearInterval(keepAlive); sseClients.delete(res); });
+});
+
 router.post("/quotes", async (req, res) => {
   await dbReady;
   const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body as {
@@ -212,6 +242,8 @@ router.post("/quotes", async (req, res) => {
       [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod, shippingAddress ?? '', shippingFee ?? 0]
     );
     logger.info({ id, shippingMethod }, '[NEW QUOTE] saved successfully');
+    // Broadcast instantly to all connected admin SSE clients
+    broadcastNewQuote({ id, customerName, phone: phone ?? '', itemsCount: (items as unknown[]).length, shippingMethod, createdAt: new Date().toISOString() });
     res.json({ id });
   } catch (err) {
     logger.error({ err }, '[NEW QUOTE] DB error');

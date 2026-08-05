@@ -27,18 +27,34 @@ function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 
 function playNotificationSound() {
   try {
     const ctx = new AudioContext();
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    [880, 1100, 1320].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      osc.connect(gain);
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.12);
-      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + i * 0.12 + 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.28);
-      osc.start(ctx.currentTime + i * 0.12);
-      osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+    // Warm bell chime — two sine+triangle layers with natural decay
+    const bellNotes = [
+      { freq: 659.3, delay: 0,    vol: 0.30 },  // E5
+      { freq: 880.0, delay: 0.18, vol: 0.24 },  // A5
+      { freq: 1108.7, delay: 0.34, vol: 0.20 }, // C#6
+    ];
+    bellNotes.forEach(({ freq, delay, vol }) => {
+      const t = ctx.currentTime + delay;
+      // Primary sine (fundamental)
+      const osc1 = ctx.createOscillator();
+      const g1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq;
+      osc1.connect(g1); g1.connect(ctx.destination);
+      g1.gain.setValueAtTime(0, t);
+      g1.gain.linearRampToValueAtTime(vol, t + 0.008);
+      g1.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+      osc1.start(t); osc1.stop(t + 1.5);
+      // Harmonic shimmer (×2 freq, quieter)
+      const osc2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.value = freq * 2.756; // inharmonic partial — bell character
+      osc2.connect(g2); g2.connect(ctx.destination);
+      g2.gain.setValueAtTime(0, t);
+      g2.gain.linearRampToValueAtTime(vol * 0.12, t + 0.006);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      osc2.start(t); osc2.stop(t + 0.7);
     });
   } catch { /* ignore */ }
 }
@@ -542,33 +558,69 @@ export default function GalleryPage() {
   const [xlsxError, setXlsxError] = useState<string | null>(null);
   const [xlsxLoading, setXlsxLoading] = useState(false);
 
-  /* ── poll pending quotes count when admin is logged in ── */
-  const prevPendingRef = useRef<number | null>(null);
+  /* ── real-time quote notifications via SSE ── */
   useEffect(() => {
-    if (!isAdmin) { setPendingQuoteCount(0); prevPendingRef.current = null; return; }
+    if (!isAdmin) { setPendingQuoteCount(0); return; }
+
+    // Request browser notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    const poll = async () => {
-      const qs = await fetchQuotes();
-      if (qs) {
-        const newPending = qs.filter(q => q.status !== 'priced').length;
-        const prev = prevPendingRef.current;
-        if (prev !== null && newPending > prev) {
+
+    // Load initial count
+    fetchQuotes().then(qs => {
+      if (qs) setPendingQuoteCount(qs.filter(q => q.status !== 'priced').length);
+    });
+
+    // Connect to SSE stream
+    const token = loadSavedToken();
+    if (!token) return;
+
+    let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    const connect = () => {
+      if (closed) return;
+      const apiBase = (() => {
+        try { const d = __REPLIT_DEV_DOMAIN__; if (d) return `https://${d}/api`; } catch { /* ignore */ }
+        return '/api';
+      })();
+      es = new EventSource(`${apiBase}/quotes/stream?token=${encodeURIComponent(token)}`);
+
+      es.onmessage = (e) => {
+        if (!e.data || e.data.startsWith(':')) return;
+        try {
+          const quote = JSON.parse(e.data) as { customerName?: string; itemsCount?: number; shippingMethod?: string };
           playNotificationSound();
+          setPendingQuoteCount(prev => prev + 1);
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('مشاتل القادري — طلب جديد 🌿', {
-              body: `وصلك ${newPending - prev} طلب عرض سعر جديد`,
+            const shipping = quote.shippingMethod === 'pickup' ? 'استلام من المشتل' :
+                             quote.shippingMethod === 'delivery' ? 'توصيل' : 'طلب';
+            new Notification('🌿 طلب عرض سعر جديد — مشاتل القادري', {
+              body: `${quote.customerName ?? 'زبون'} · ${quote.itemsCount ?? 1} نبتة · ${shipping}`,
+              tag: `quote-${Date.now()}`,   // unique tag = no overlap between notifications
             });
           }
+        } catch { /* ignore bad JSON */ }
+      };
+
+      es.onerror = () => {
+        es?.close();
+        if (!closed) {
+          reconnectTimer = setTimeout(connect, 5000); // reconnect after 5s
         }
-        prevPendingRef.current = newPending;
-        setPendingQuoteCount(newPending);
-      }
+      };
     };
-    poll();
-    const id = setInterval(poll, 30_000);
-    return () => clearInterval(id);
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      es?.close();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
   /* ── restore admin session on page load — validate token first ── */
