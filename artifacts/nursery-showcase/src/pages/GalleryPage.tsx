@@ -3570,6 +3570,7 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!custName.trim() || cart.length === 0) return;
+    if (!custPhone.trim()) { toast.error(isAr ? 'رقم الهاتف إلزامي' : 'Phone number is required'); return; }
     if (!shippingMode) { setShippingError(true); return; }
     if ((shippingMode === 'delivery' || shippingMode === 'delivery_plant' || shippingMode === 'plant_only') && !shippingAddress.trim()) { setShippingError(true); return; }
     // Snapshot ALL state values NOW before any async op — prevents stale closure issues
@@ -3764,8 +3765,8 @@ function QuoteRequestModal({ open, onClose, sections, lang, cart, setCart }: {
                 <Input value={custName} onChange={e => setCustName(e.target.value)} dir="rtl" className="arabic" placeholder={isAr ? 'اسمك الكريم' : 'Full name'} required />
               </div>
               <div>
-                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'رقم الهاتف' : 'Phone Number'}</Label>
-                <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" />
+                <Label className="arabic text-sm mb-1.5 block">{isAr ? 'رقم الهاتف *' : 'Phone Number *'}</Label>
+                <Input value={custPhone} onChange={e => setCustPhone(e.target.value)} dir="ltr" placeholder="+962 7X XXX XXXX" type="tel" required />
               </div>
               <div>
                 <Label className={`arabic text-sm mb-1.5 block ${shippingError ? 'text-red-600 dark:text-red-400' : ''}`}>
