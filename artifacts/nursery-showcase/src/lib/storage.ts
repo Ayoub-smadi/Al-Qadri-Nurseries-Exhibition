@@ -61,6 +61,7 @@ export interface ShowcaseItem {
   imageUrl: string;
   captionAr: string;
   captionEn: string;
+  locationUrl?: string;
 }
 
 export interface ShippingZone {

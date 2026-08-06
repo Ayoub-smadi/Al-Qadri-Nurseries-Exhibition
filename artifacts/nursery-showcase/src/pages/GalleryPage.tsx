@@ -3220,6 +3220,7 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAr, setEditAr] = useState('');
   const [editEn, setEditEn] = useState('');
+  const [editLocation, setEditLocation] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uid = () => `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -3227,11 +3228,18 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
   const handleUpload = async (file: File) => {
     const url = await uploadImage(file);
     if (!url) return;
-    onUpdate([...items, { id: uid(), imageUrl: url, captionAr: 'وصف الصورة', captionEn: 'Image caption' }]);
+    onUpdate([...items, { id: uid(), imageUrl: url, captionAr: 'وصف الصورة', captionEn: 'Image caption', locationUrl: '' }]);
+  };
+
+  const openEdit = (item: ShowcaseItem) => {
+    setEditingId(item.id);
+    setEditAr(item.captionAr);
+    setEditEn(item.captionEn);
+    setEditLocation(item.locationUrl ?? '');
   };
 
   const saveEdit = (id: string) => {
-    onUpdate(items.map(it => it.id === id ? { ...it, captionAr: editAr, captionEn: editEn } : it));
+    onUpdate(items.map(it => it.id === id ? { ...it, captionAr: editAr, captionEn: editEn, locationUrl: editLocation.trim() } : it));
     setEditingId(null);
   };
 
@@ -3266,13 +3274,22 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                 >
                   <div className="w-full h-full rounded-full bg-background" />
                 </div>
-                {/* Image */}
-                <div className="absolute inset-[4px] rounded-full overflow-hidden">
+                {/* Image — clickable if locationUrl set */}
+                <div
+                  className={`absolute inset-[4px] rounded-full overflow-hidden ${item.locationUrl ? 'cursor-pointer' : ''}`}
+                  onClick={() => { if (item.locationUrl && !isAdmin) window.open(item.locationUrl, '_blank', 'noopener'); }}
+                >
                   <img
                     src={item.imageUrl}
                     alt={isAr ? item.captionAr : item.captionEn}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
+                  {/* Map pin overlay on hover */}
+                  {item.locationUrl && !isAdmin && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-white text-2xl">📍</span>
+                    </div>
+                  )}
                 </div>
                 {/* Admin delete */}
                 {isAdmin && (
@@ -3281,9 +3298,15 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow"
                   >✕</button>
                 )}
+                {/* Location indicator */}
+                {item.locationUrl && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow">
+                    <span>📍</span>
+                  </div>
+                )}
               </div>
 
-              {/* Caption */}
+              {/* Caption + edit form */}
               {editingId === item.id ? (
                 <div className="flex flex-col gap-1 w-full">
                   <input
@@ -3301,6 +3324,13 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     placeholder="Caption EN"
                     dir="ltr"
                   />
+                  <input
+                    value={editLocation}
+                    onChange={e => setEditLocation(e.target.value)}
+                    className="text-center text-xs border rounded px-1 py-0.5 w-full latin bg-background"
+                    placeholder="رابط الموقع (Google Maps)"
+                    dir="ltr"
+                  />
                   <div className="flex gap-1 justify-center mt-0.5">
                     <button onClick={() => saveEdit(item.id)} className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded">حفظ</button>
                     <button onClick={() => setEditingId(null)} className="text-[10px] bg-muted px-2 py-0.5 rounded">إلغاء</button>
@@ -3309,8 +3339,8 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
               ) : (
                 <p
                   className={`text-sm font-semibold text-center arabic text-foreground leading-snug ${isAdmin ? 'cursor-pointer hover:text-primary' : ''}`}
-                  onClick={isAdmin ? () => { setEditingId(item.id); setEditAr(item.captionAr); setEditEn(item.captionEn); } : undefined}
-                  title={isAdmin ? 'اضغط لتعديل الوصف' : undefined}
+                  onClick={isAdmin ? () => openEdit(item) : undefined}
+                  title={isAdmin ? 'اضغط لتعديل' : undefined}
                 >
                   {isAr ? item.captionAr : item.captionEn}
                   {isAdmin && <span className="text-[10px] text-muted-foreground ms-1">✎</span>}
