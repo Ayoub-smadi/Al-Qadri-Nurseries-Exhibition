@@ -3255,28 +3255,27 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
         <div className="flex-1 h-px bg-foreground/15" />
       </div>
 
-      {/* Circles row */}
+      {/* Cards row */}
       <div className="flex flex-wrap justify-center gap-8 md:gap-12">
         {items.map((item, idx) => {
-          // Alternate spin speed so circles feel independent
           const ringClass = idx % 2 === 0 ? 'showcase-ring' : 'showcase-ring-slow';
           return (
-            <div key={item.id} className="flex flex-col items-center gap-3 group relative" style={{ width: 160 }}>
-              {/* Spinning gradient ring */}
-              <div className="relative" style={{ width: 152, height: 152 }}>
+            <div key={item.id} className="flex flex-col items-center gap-3 group relative" style={{ width: 200 }}>
+              {/* Spinning gradient border */}
+              <div className="relative" style={{ width: 200, height: 200 }}>
                 {/* Rotating ring layer */}
                 <div
-                  className={`absolute inset-0 rounded-full ${ringClass}`}
+                  className={`absolute inset-0 rounded-xl ${ringClass}`}
                   style={{
                     background: 'conic-gradient(from 0deg, #16a34a, #86efac, #bbf7d0, #4ade80, #15803d, #16a34a)',
                     padding: 3,
                   }}
                 >
-                  <div className="w-full h-full rounded-full bg-background" />
+                  <div className="w-full h-full rounded-[10px] bg-background" />
                 </div>
                 {/* Image — clickable if locationUrl set */}
                 <div
-                  className={`absolute inset-[4px] rounded-full overflow-hidden ${item.locationUrl ? 'cursor-pointer' : ''}`}
+                  className={`absolute inset-[4px] rounded-[10px] overflow-hidden ${item.locationUrl ? 'cursor-pointer' : ''}`}
                   onClick={() => { if (item.locationUrl && !isAdmin) window.open(item.locationUrl, '_blank', 'noopener'); }}
                 >
                   <img
@@ -3284,10 +3283,11 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     alt={isAr ? item.captionAr : item.captionEn}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  {/* Map pin overlay on hover */}
+                  {/* Location hover overlay */}
                   {item.locationUrl && !isAdmin && (
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-white text-2xl">📍</span>
+                    <div className="absolute inset-0 bg-black/35 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-white text-3xl drop-shadow">📍</span>
+                      <span className="text-white text-xs font-semibold arabic drop-shadow">{isAr ? 'عرض الموقع' : 'View Location'}</span>
                     </div>
                   )}
                 </div>
@@ -3297,12 +3297,6 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     onClick={() => onUpdate(items.filter(it => it.id !== item.id))}
                     className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow"
                   >✕</button>
-                )}
-                {/* Location indicator */}
-                {item.locationUrl && (
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[9px] px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow">
-                    <span>📍</span>
-                  </div>
                 )}
               </div>
 
