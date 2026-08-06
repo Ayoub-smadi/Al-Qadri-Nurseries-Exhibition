@@ -3222,6 +3222,8 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
   const [editEn, setEditEn] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replacingIdRef = useRef<string | null>(null);
 
   const uid = () => `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -3229,6 +3231,12 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
     const url = await uploadImage(file);
     if (!url) return;
     onUpdate([...items, { id: uid(), imageUrl: url, captionAr: 'وصف الصورة', captionEn: 'Image caption', locationUrl: '' }]);
+  };
+
+  const handleReplace = async (file: File, id: string) => {
+    const url = await uploadImage(file);
+    if (!url) return;
+    onUpdate(items.map(it => it.id === id ? { ...it, imageUrl: url } : it));
   };
 
   const openEdit = (item: ShowcaseItem) => {
@@ -3263,7 +3271,7 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
               {/* Image card */}
               <div className="relative rounded-xl overflow-hidden shadow-md" style={{ width: 200, height: 200 }}>
                 <div
-                  className={`w-full h-full ${item.locationUrl ? 'cursor-pointer' : ''}`}
+                  className={`w-full h-full ${item.locationUrl && !isAdmin ? 'cursor-pointer' : ''}`}
                   onClick={() => { if (item.locationUrl && !isAdmin) window.open(item.locationUrl, '_blank', 'noopener'); }}
                 >
                   <img
@@ -3272,12 +3280,22 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
                 </div>
-                {/* Admin delete */}
+                {/* Admin controls */}
                 {isAdmin && (
-                  <button
-                    onClick={() => onUpdate(items.filter(it => it.id !== item.id))}
-                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow"
-                  >✕</button>
+                  <>
+                    {/* Replace image — appears on hover */}
+                    <button
+                      onClick={() => { replacingIdRef.current = item.id; replaceInputRef.current?.click(); }}
+                      className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
+                    >
+                      <span className="text-white text-xs font-semibold arabic bg-black/50 px-3 py-1.5 rounded-lg">🖼 تغيير الصورة</span>
+                    </button>
+                    {/* Delete */}
+                    <button
+                      onClick={() => onUpdate(items.filter(it => it.id !== item.id))}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow"
+                    >✕</button>
+                  </>
                 )}
               </div>
 
@@ -3341,6 +3359,13 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
               accept="image/*"
               className="hidden"
               onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
+            />
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f && replacingIdRef.current) handleReplace(f, replacingIdRef.current); e.target.value = ''; replacingIdRef.current = null; }}
             />
             <span className="text-xs text-muted-foreground arabic">صورة جديدة</span>
           </div>
