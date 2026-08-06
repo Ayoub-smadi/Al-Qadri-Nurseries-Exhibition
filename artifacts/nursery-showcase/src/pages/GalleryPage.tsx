@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
 import { downloadCatalogPDF, downloadQadriCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
@@ -1483,6 +1483,14 @@ export default function GalleryPage() {
         onUpdate={items => updateSiteData({ featuredImages: items })}
         onUpdateVideo={v => updateSiteData({ featuredVideo: v })}
         onUpdateMode={m => updateSiteData({ featuredMode: m })}
+      />
+
+      {/* ── STORE SHOWCASE ── */}
+      <StoreShowcaseSection
+        items={siteData.storeShowcase ?? []}
+        isAr={isAr}
+        isAdmin={isAdmin}
+        onUpdate={items => updateSiteData({ storeShowcase: items })}
       />
 
       {/* ── SERVICES ── */}
@@ -3200,6 +3208,141 @@ function getVideoEmbed(url: string): { type: 'youtube' | 'vimeo' | 'direct'; emb
   // Direct video file
   if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return { type: 'direct', embedUrl: url };
   return null;
+}
+
+/* ── Store Showcase Section ──────────────────────────────── */
+function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
+  items: ShowcaseItem[];
+  isAr: boolean;
+  isAdmin: boolean;
+  onUpdate: (items: ShowcaseItem[]) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAr, setEditAr] = useState('');
+  const [editEn, setEditEn] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uid = () => `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const handleUpload = async (file: File) => {
+    const url = await uploadImage(file);
+    if (!url) return;
+    onUpdate([...items, { id: uid(), imageUrl: url, captionAr: 'وصف الصورة', captionEn: 'Image caption' }]);
+  };
+
+  const saveEdit = (id: string) => {
+    onUpdate(items.map(it => it.id === id ? { ...it, captionAr: editAr, captionEn: editEn } : it));
+    setEditingId(null);
+  };
+
+  return (
+    <section className="border-b border-border bg-background px-4 md:px-12 py-14">
+      {/* Title */}
+      <div className="flex items-center justify-center gap-4 mb-10">
+        <div className="flex-1 h-px bg-foreground/15" />
+        <div className="text-center">
+          <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'محلاتنا وأعمالنا' : 'Our Stores & Work'}</h2>
+          <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Stores & Work' : 'محلاتنا وأعمالنا'}</p>
+        </div>
+        <div className="flex-1 h-px bg-foreground/15" />
+      </div>
+
+      {/* Circles row */}
+      <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+        {items.map((item, idx) => {
+          // Alternate spin speed so circles feel independent
+          const ringClass = idx % 2 === 0 ? 'showcase-ring' : 'showcase-ring-slow';
+          return (
+            <div key={item.id} className="flex flex-col items-center gap-3 group relative" style={{ width: 160 }}>
+              {/* Spinning gradient ring */}
+              <div className="relative" style={{ width: 152, height: 152 }}>
+                {/* Rotating ring layer */}
+                <div
+                  className={`absolute inset-0 rounded-full ${ringClass}`}
+                  style={{
+                    background: 'conic-gradient(from 0deg, #16a34a, #86efac, #bbf7d0, #4ade80, #15803d, #16a34a)',
+                    padding: 3,
+                  }}
+                >
+                  <div className="w-full h-full rounded-full bg-background" />
+                </div>
+                {/* Image */}
+                <div className="absolute inset-[4px] rounded-full overflow-hidden">
+                  <img
+                    src={item.imageUrl}
+                    alt={isAr ? item.captionAr : item.captionEn}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                </div>
+                {/* Admin delete */}
+                {isAdmin && (
+                  <button
+                    onClick={() => onUpdate(items.filter(it => it.id !== item.id))}
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow"
+                  >✕</button>
+                )}
+              </div>
+
+              {/* Caption */}
+              {editingId === item.id ? (
+                <div className="flex flex-col gap-1 w-full">
+                  <input
+                    value={editAr}
+                    onChange={e => setEditAr(e.target.value)}
+                    className="text-center text-xs border rounded px-1 py-0.5 w-full arabic bg-background"
+                    placeholder="الوصف عربي"
+                    dir="rtl"
+                    autoFocus
+                  />
+                  <input
+                    value={editEn}
+                    onChange={e => setEditEn(e.target.value)}
+                    className="text-center text-xs border rounded px-1 py-0.5 w-full latin bg-background"
+                    placeholder="Caption EN"
+                    dir="ltr"
+                  />
+                  <div className="flex gap-1 justify-center mt-0.5">
+                    <button onClick={() => saveEdit(item.id)} className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded">حفظ</button>
+                    <button onClick={() => setEditingId(null)} className="text-[10px] bg-muted px-2 py-0.5 rounded">إلغاء</button>
+                  </div>
+                </div>
+              ) : (
+                <p
+                  className={`text-sm font-semibold text-center arabic text-foreground leading-snug ${isAdmin ? 'cursor-pointer hover:text-primary' : ''}`}
+                  onClick={isAdmin ? () => { setEditingId(item.id); setEditAr(item.captionAr); setEditEn(item.captionEn); } : undefined}
+                  title={isAdmin ? 'اضغط لتعديل الوصف' : undefined}
+                >
+                  {isAr ? item.captionAr : item.captionEn}
+                  {isAdmin && <span className="text-[10px] text-muted-foreground ms-1">✎</span>}
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Admin: add new */}
+        {isAdmin && (
+          <div className="flex flex-col items-center gap-3" style={{ width: 152 }}>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-36 h-36 rounded-full border-2 border-dashed border-primary/40 hover:border-primary flex flex-col items-center justify-center gap-2 transition-colors text-muted-foreground hover:text-primary"
+            >
+              <span className="text-3xl">+</span>
+              <span className="text-xs arabic">إضافة صورة</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }}
+            />
+            <span className="text-xs text-muted-foreground arabic">صورة جديدة</span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 /* ── Featured Images / Video Section ────────────────────── */

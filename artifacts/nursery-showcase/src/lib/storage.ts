@@ -56,6 +56,13 @@ export interface FeaturedImage {
   titleEn: string;
 }
 
+export interface ShowcaseItem {
+  id: string;
+  imageUrl: string;
+  captionAr: string;
+  captionEn: string;
+}
+
 export interface ShippingZone {
   id: string;
   nameAr: string;
@@ -83,6 +90,7 @@ export interface SiteData {
   branches: Branch[];
   socialLinks: SocialLink[];
   shippingZones?: ShippingZone[];
+  storeShowcase?: ShowcaseItem[];
   footer: {
     email: string;
     phone: string;
@@ -107,6 +115,11 @@ export const DEFAULT_DATA: SiteData = {
   featuredImages: [],
   featuredVideo: null,
   featuredMode: 'images' as const,
+  storeShowcase: [
+    { id: 'sc1', imageUrl: '/store-1.jpg', captionAr: 'مستلزمات زراعية متكاملة', captionEn: 'Full Agricultural Supplies' },
+    { id: 'sc2', imageUrl: '/store-2.jpg', captionAr: 'معرض القادري أون لاين', captionEn: 'Al-Kadri Online Showroom' },
+    { id: 'sc3', imageUrl: '/store-3.jpg', captionAr: 'مشتل القادري — أبو عقاب', captionEn: 'Al-Qadri Nursery – Abu Aqab' },
+  ],
   searchNote: { ar: '', en: '' },
   sections: [
     {
@@ -262,6 +275,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
+          storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
           footer: { ...DEFAULT_DATA.footer, ...p.footer },
         };
       }

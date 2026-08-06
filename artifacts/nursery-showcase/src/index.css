@@ -142,3 +142,15 @@
 .ticker-text:hover {
   animation-play-state: paused;
 }
+
+/* Store showcase — rotating gradient ring */
+@keyframes spin-ring {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.showcase-ring {
+  animation: spin-ring 4s linear infinite;
+}
+.showcase-ring-slow {
+  animation: spin-ring 7s linear infinite;
+}
