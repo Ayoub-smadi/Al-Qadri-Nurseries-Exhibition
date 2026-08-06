@@ -3283,13 +3283,6 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                     alt={isAr ? item.captionAr : item.captionEn}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
-                  {/* Location hover overlay */}
-                  {item.locationUrl && !isAdmin && (
-                    <div className="absolute inset-0 bg-black/35 flex flex-col items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <span className="text-white text-3xl drop-shadow">📍</span>
-                      <span className="text-white text-xs font-semibold arabic drop-shadow">{isAr ? 'عرض الموقع' : 'View Location'}</span>
-                    </div>
-                  )}
                 </div>
                 {/* Admin delete */}
                 {isAdmin && (
