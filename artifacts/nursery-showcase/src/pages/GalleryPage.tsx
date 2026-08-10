@@ -1550,7 +1550,12 @@ export default function GalleryPage() {
 
       {/* ── GALLERY TITLE ── */}
       <div className="text-center pt-12 pb-2 px-4">
-        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الزراعية' : 'Al-Qadri Nurseries Gallery'}</h2>
+        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الإلكتروني' : 'Al-Qadri Nurseries Online Showcase'}</h2>
+        <p className="max-w-3xl mx-auto mt-3 text-sm leading-7 text-muted-foreground arabic">
+          {isAr
+            ? 'مشاتل القادري الزراعية من مشاتل الأردن المتخصصة في نباتات وأشجار الزينة والحمضيات والمستلزمات الزراعية، وتقدم خدمات تنسيق الحدائق والعطاءات الزراعية.'
+            : 'Al-Qadri Agricultural Nurseries is a Jordan nursery for ornamental plants, trees, citrus, agricultural supplies, landscaping, and agricultural tenders.'}
+        </p>
         <div className="flex items-center justify-center gap-3">
           <div className="w-12 h-px bg-foreground/20" />
           <div className="w-2 h-2 rounded-full bg-foreground/30" />
