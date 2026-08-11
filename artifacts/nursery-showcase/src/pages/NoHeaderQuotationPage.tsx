@@ -687,40 +687,11 @@ export default function NoHeaderQuotationPage() {
             </div>
           </div>
 
-          {/* ── Notes + Stamp ─────────────────────────── */}
-          <div style={{ margin: "20px 28px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
-            {/* Stamp upload (left) */}
-            {stampUrl ? (
-              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
-                <img src={stampUrl} alt="stamp" style={{ width: 90, height: 90, objectFit: "contain" }} />
-                <button
-                  className="pdf-hide"
-                  onClick={() => setStampUrl("")}
-                  style={{
-                    position: "absolute", top: -6, right: -6,
-                    background: "#ef4444", color: "#fff",
-                    border: "none", borderRadius: "50%",
-                    width: 18, height: 18, cursor: "pointer", fontSize: 10,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>✕</button>
-              </div>
-            ) : (
-              <label style={{ cursor: "pointer", flexShrink: 0 }} className="pdf-hide-if-empty">
-                <div style={{
-                  width: 90, height: 90, border: "2px dashed #d1d5db", borderRadius: 8,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  background: "#f9fafb", gap: 4,
-                }}>
-                  <Upload style={{ width: 20, height: 20, color: "#9ca3af" }} />
-                  <span style={{ fontSize: 10, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
-                </div>
-                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
-              </label>
-            )}
-
-            {/* Notes (right) — hidden in PDF when empty */}
+          {/* ── Notes ──────────────────────────────────── */}
+          <div style={{ margin: "20px 28px 0" }}>
+            {/* Notes — hidden in PDF when empty */}
             {(!isPdf || details.notes.trim()) && (
-              <div style={{ flex: 1, textAlign: "right" }}>
+              <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, marginBottom: 6, fontFamily: "Cairo, Arial, sans-serif" }}>ملاحظات</div>
                 <textarea
                   value={details.notes}
@@ -735,6 +706,37 @@ export default function NoHeaderQuotationPage() {
                   }}
                 />
               </div>
+            )}
+          </div>
+
+          {/* ── Stamp — final element, aligned left ───── */}
+          <div style={{ margin: "16px 28px 0", display: "flex", justifyContent: "flex-start", direction: "ltr" }}>
+            {stampUrl ? (
+              <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+                <img src={stampUrl} alt="stamp" style={{ width: 150, height: 150, objectFit: "contain" }} />
+                <button
+                  className="pdf-hide"
+                  onClick={() => setStampUrl("")}
+                  style={{
+                    position: "absolute", top: -6, right: -6,
+                    background: "#ef4444", color: "#fff",
+                    border: "none", borderRadius: "50%",
+                    width: 18, height: 18, cursor: "pointer", fontSize: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>✕</button>
+              </div>
+            ) : (
+              <label style={{ cursor: "pointer", flexShrink: 0 }} className="pdf-hide-if-empty">
+                <div style={{
+                  width: 150, height: 150, border: "2px dashed #d1d5db", borderRadius: 8,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  background: "#f9fafb", gap: 4,
+                }}>
+                  <Upload style={{ width: 28, height: 28, color: "#9ca3af" }} />
+                  <span style={{ fontSize: 11, color: "#9ca3af", textAlign: "center" }}>ختم / توقيع</span>
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) toBase64(f, setStampUrl); }} />
+              </label>
             )}
           </div>
 
