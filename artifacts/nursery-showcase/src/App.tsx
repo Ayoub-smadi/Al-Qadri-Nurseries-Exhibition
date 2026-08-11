@@ -8,7 +8,6 @@ import QuotationHistoryPage from "@/pages/QuotationHistoryPage";
 import OldStyleQuotationPage from "@/pages/OldStyleQuotationPage";
 import NoHeaderQuotationPage from "@/pages/NoHeaderQuotationPage";
 import QadriOldQuotationPage from "@/pages/QadriOldQuotationPage";
-import SeoHead from "@/components/SeoHead";
 
 const queryClient = new QueryClient();
 
@@ -44,7 +43,6 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <SeoHead />
         <RouterView />
         <Toaster richColors position="top-center" />
       </AppProvider>
