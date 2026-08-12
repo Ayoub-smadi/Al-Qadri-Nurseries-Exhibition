@@ -87,11 +87,11 @@ const mkDefault = (): Details => ({
   website: "https://alkadrionline.com/",
   closingText: "واقبلوا فائق الاحترام....",
   signerTitle: "المدير العام/ ثامر احمد القادري",
-  companyNameAr: "مؤسسة ومشاتل القادري الزراعية",
+  companyNameAr: "مؤسسة القادري الزراعية",
   companyLocationAr: "جرش – الرشايدة",
   companyNameEn: "Al-Qadri Agricultural Establishment",
   companyLocationEn: "Jerash - Al-Rashaidah",
-  footerCompany: "مؤسسة ومشاتل القادري الزراعية",
+  footerCompany: "مؤسسة القادري الزراعية",
 });
 
 const mkItem = (): Item => ({
