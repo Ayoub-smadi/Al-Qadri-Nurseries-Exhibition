@@ -13,7 +13,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2, Phone, Mail,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera,
+  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera, GripVertical,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -1493,61 +1493,6 @@ export default function GalleryPage() {
         onUpdate={items => updateSiteData({ storeShowcase: items })}
       />
 
-      {/* ── SERVICES ── */}
-      <section className="border-b border-border bg-muted/20 px-4 md:px-12 py-12">
-        {/* Section title */}
-        <div className="flex items-center justify-center gap-4 mb-10">
-          <div className="flex-1 h-px bg-foreground/15" />
-          <div className="text-center">
-            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'خدماتنا' : 'Our Services'}</h2>
-            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Services' : 'خدماتنا'}</p>
-          </div>
-          <div className="flex-1 h-px bg-foreground/15" />
-        </div>
-
-        {/* Services grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
-          {[
-            {
-              icon: <TreePine className="w-8 h-8" />,
-              nameAr: 'قسم الأشجار',
-              nameEn: 'Trees Division',
-            },
-            {
-              icon: <Package className="w-8 h-8" />,
-              nameAr: 'توريد المنتجات الزراعية',
-              nameEn: 'Agricultural Supply',
-            },
-            {
-              icon: <Building2 className="w-8 h-8" />,
-              nameAr: 'تأسيس المشاريع الزراعية',
-              nameEn: 'Agricultural Projects',
-            },
-            {
-              icon: <Globe className="w-8 h-8" />,
-              nameAr: 'الاستيراد والتصدير',
-              nameEn: 'Import & Export',
-            },
-            {
-              icon: <Flower2 className="w-8 h-8" />,
-              nameAr: 'تنسيق وصيانة الحدائق',
-              nameEn: 'Garden Landscaping',
-            },
-          ].map((service, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow text-center"
-            >
-              <div className="w-14 h-14 rounded-full bg-foreground/8 flex items-center justify-center text-foreground/70">
-                {service.icon}
-              </div>
-              <p className="text-sm font-bold arabic text-foreground leading-snug">{isAr ? service.nameAr : service.nameEn}</p>
-              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{isAr ? service.nameEn : service.nameAr}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ── GALLERY TITLE ── */}
       <div className="text-center pt-12 pb-2 px-4">
         <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الزراعية' : 'Al-Qadri Nurseries Gallery'}</h2>
@@ -1649,6 +1594,36 @@ export default function GalleryPage() {
           </div>
         )}
       </main>
+
+      {/* ── SERVICES ── */}
+      <section className="border-y border-border bg-muted/20 px-4 md:px-12 py-12">
+        <div className="flex items-center justify-center gap-4 mb-10">
+          <div className="flex-1 h-px bg-foreground/15" />
+          <div className="text-center">
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'خدماتنا' : 'Our Services'}</h2>
+            <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Services' : 'خدماتنا'}</p>
+          </div>
+          <div className="flex-1 h-px bg-foreground/15" />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+          {[
+            { icon: <TreePine className="w-8 h-8" />, nameAr: 'قسم الأشجار', nameEn: 'Trees Division' },
+            { icon: <Package className="w-8 h-8" />, nameAr: 'توريد المنتجات الزراعية', nameEn: 'Agricultural Supply' },
+            { icon: <Building2 className="w-8 h-8" />, nameAr: 'تأسيس المشاريع الزراعية', nameEn: 'Agricultural Projects' },
+            { icon: <Globe className="w-8 h-8" />, nameAr: 'الاستيراد والتصدير', nameEn: 'Import & Export' },
+            { icon: <Flower2 className="w-8 h-8" />, nameAr: 'تنسيق وصيانة الحدائق', nameEn: 'Garden Landscaping' },
+          ].map((service, i) => (
+            <div key={i} className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow text-center">
+              <div className="w-14 h-14 rounded-full bg-foreground/8 flex items-center justify-center text-foreground/70">
+                {service.icon}
+              </div>
+              <p className="text-sm font-bold arabic text-foreground leading-snug">{isAr ? service.nameAr : service.nameEn}</p>
+              <p className="text-[10px] text-muted-foreground latin tracking-wide uppercase">{isAr ? service.nameEn : service.nameAr}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ── SOCIAL LINKS ── */}
       {((siteData.socialLinks ?? []).length > 0 || isAdmin) && (
@@ -3224,6 +3199,8 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const replacingIdRef = useRef<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const uid = () => `sc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
@@ -3251,6 +3228,26 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
     setEditingId(null);
   };
 
+  const moveItem = (id: string, direction: 'up' | 'down') => {
+    const index = items.findIndex(item => item.id === id);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    onUpdate(next);
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggedId || draggedId === targetId) return;
+    const fromIndex = items.findIndex(item => item.id === draggedId);
+    const toIndex = items.findIndex(item => item.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const next = [...items];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    onUpdate(next);
+  };
+
   return (
     <section className="border-b border-border bg-background px-4 md:px-12 py-14">
       {/* Title */}
@@ -3264,10 +3261,49 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
       </div>
 
       {/* Cards row */}
+      {isAdmin && items.length > 1 && (
+        <p className="text-center text-xs text-muted-foreground arabic mb-5">
+          اسحب بطاقة المحل لتغيير ترتيبها — أو استخدم الأسهم
+        </p>
+      )}
       <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-        {items.map((item) => {
+        {items.map((item, index) => {
           return (
-            <div key={item.id} className="flex flex-col items-center gap-3 group relative" style={{ width: 200 }}>
+            <div
+              key={item.id}
+              className={`flex flex-col items-center gap-3 group relative rounded-2xl transition-all ${dragOverId === item.id ? 'ring-2 ring-primary ring-offset-4' : ''} ${draggedId === item.id ? 'opacity-50' : ''}`}
+              style={{ width: 200 }}
+              draggable={isAdmin}
+              onDragStart={e => {
+                if (!isAdmin) return;
+                setDraggedId(item.id);
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', item.id);
+              }}
+              onDragOver={e => {
+                if (!isAdmin || !draggedId || draggedId === item.id) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverId(item.id);
+              }}
+              onDragLeave={() => setDragOverId(current => current === item.id ? null : current)}
+              onDrop={e => {
+                e.preventDefault();
+                handleDrop(item.id);
+                setDraggedId(null);
+                setDragOverId(null);
+              }}
+              onDragEnd={() => {
+                setDraggedId(null);
+                setDragOverId(null);
+              }}
+            >
+              {isAdmin && (
+                <div className="no-print flex items-center gap-1 text-[10px] text-muted-foreground arabic">
+                  <GripVertical className="w-3.5 h-3.5" />
+                  <span>المحل {index + 1}</span>
+                </div>
+              )}
               {/* Image card */}
               <div className="relative rounded-xl overflow-hidden shadow-md" style={{ width: 200, height: 200 }}>
                 <div
@@ -3338,6 +3374,28 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
                   {isAr ? item.captionAr : item.captionEn}
                   {isAdmin && <span className="text-[10px] text-muted-foreground ms-1">✎</span>}
                 </p>
+              )}
+              {isAdmin && items.length > 1 && (
+                <div className="no-print flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveItem(item.id, 'up')}
+                    disabled={index === 0}
+                    className="rounded-md border border-border px-2 py-1 text-xs arabic hover:bg-muted disabled:opacity-30"
+                    title="تحريك للأعلى"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveItem(item.id, 'down')}
+                    disabled={index === items.length - 1}
+                    className="rounded-md border border-border px-2 py-1 text-xs arabic hover:bg-muted disabled:opacity-30"
+                    title="تحريك للأسفل"
+                  >
+                    ↓
+                  </button>
+                </div>
               )}
             </div>
           );
