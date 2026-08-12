@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
 import { downloadCatalogPDF, downloadQadriCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
@@ -1168,6 +1168,7 @@ export default function GalleryPage() {
 
   const ticker = siteData.newsTicker;
   const tickerActive = ticker?.enabled && ticker?.text;
+  const galleryTitle = siteData.galleryTitle ?? DEFAULT_DATA.galleryTitle;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300" dir={isAr ? 'rtl' : 'ltr'}>
@@ -1495,7 +1496,21 @@ export default function GalleryPage() {
 
       {/* ── GALLERY TITLE ── */}
       <div className="text-center pt-12 pb-2 px-4">
-        <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">{isAr ? 'معرض مشاتل القادري الزراعية' : 'Al-Qadri Nurseries Gallery'}</h2>
+        {isAdmin ? (
+          <InlineEdit
+            value={isAr ? galleryTitle.ar : galleryTitle.en}
+            onSave={value => updateSiteData({
+              galleryTitle: isAr
+                ? { ...galleryTitle, ar: value }
+                : { ...galleryTitle, en: value },
+            })}
+            className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2"
+          />
+        ) : (
+          <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground mb-2">
+            {isAr ? galleryTitle.ar : (galleryTitle.en || galleryTitle.ar)}
+          </h2>
+        )}
         <div className="flex items-center justify-center gap-3">
           <div className="w-12 h-px bg-foreground/20" />
           <div className="w-2 h-2 rounded-full bg-foreground/30" />

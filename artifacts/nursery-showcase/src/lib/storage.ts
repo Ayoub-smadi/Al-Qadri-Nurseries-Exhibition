@@ -74,6 +74,7 @@ export interface ShippingZone {
 export interface SiteData {
   titleAr: string;
   titleEn: string;
+  galleryTitle: { ar: string; en: string };
   logo: { customUrl: string };
   announcement?: { imageUrl: string; enabled: boolean };
   newsTicker?: { enabled: boolean; logoUrl: string; text: string };
@@ -104,6 +105,10 @@ export interface SiteData {
 export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
+  galleryTitle: {
+    ar: "معرض مشاتل القادري الزراعية",
+    en: "Al-Qadri Nurseries Gallery",
+  },
   logo: { customUrl: "" },
   announcement: { imageUrl: "", enabled: false },
   newsTicker: { enabled: false, logoUrl: "", text: "" },
@@ -260,6 +265,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
         return {
           titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
+          galleryTitle: { ...DEFAULT_DATA.galleryTitle, ...p.galleryTitle },
           logo: { ...DEFAULT_DATA.logo, ...p.logo },
           announcement: p.announcement ?? DEFAULT_DATA.announcement,
           newsTicker: p.newsTicker ?? DEFAULT_DATA.newsTicker,
