@@ -1247,9 +1247,16 @@ export default function GalleryPage() {
       </div>
 
       {!isAdmin && (
-        <button className="no-print fixed end-3 w-2.5 h-2.5 rounded-full bg-border hover:bg-primary transition-colors z-50"
-          style={{ top: tickerActive ? '2.75rem' : '0.75rem' }}
-          onClick={() => openLoginModal()} aria-label="Admin" />
+        <button
+          className="no-print fixed end-3 h-9 min-w-9 px-2 sm:px-3 rounded-full bg-card border border-border shadow-sm hover:border-primary hover:text-primary transition-colors z-50 flex items-center justify-center gap-1.5 text-muted-foreground"
+          style={{ top: tickerActive ? '2.5rem' : '0.75rem' }}
+          onClick={() => openLoginModal()}
+          aria-label={isAr ? 'دخول المدير' : 'Admin login'}
+          title={isAr ? 'دخول المدير' : 'Admin login'}
+        >
+          <Settings className="w-4 h-4" />
+          <span className="hidden sm:inline text-xs font-bold arabic">{isAr ? 'المدير' : 'Admin'}</span>
+        </button>
       )}
 
       {/* ── HEADER ── */}
@@ -1948,37 +1955,37 @@ export default function GalleryPage() {
 
         {/* Contact bar */}
         {(siteData.footer.website || siteData.footer.phone || siteData.footer.email) && (
-          <div className="mt-10 pt-8 border-t border-white/10 flex flex-wrap items-center justify-center gap-6 sm:gap-12">
+          <div className="mt-10 pt-8 px-2 border-t border-white/10 flex flex-wrap items-center justify-center gap-6 sm:gap-12">
             {siteData.footer.website && (
               <a
                 href={siteData.footer.website.startsWith('http') ? siteData.footer.website : `https://${siteData.footer.website}`}
                 target="_blank"
                 rel="noreferrer"
-                className="group flex items-center gap-3 hover:opacity-80 transition-opacity"
+                className="group flex items-center gap-3 min-w-0 max-w-full hover:opacity-80 transition-opacity"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-600/50 transition-colors">
                   <Globe className="w-5 h-5 text-emerald-300" />
                 </div>
-                <span className="text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.website}</span>
+                <span className="min-w-0 max-w-full break-all text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.website}</span>
               </a>
             )}
             {siteData.footer.phone && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 max-w-full">
                 <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0">
                   <Phone className="w-5 h-5 text-emerald-300" />
                 </div>
-                <span dir="ltr" className="text-white/90 text-base font-medium font-mono tracking-wide">{siteData.footer.phone}</span>
+                <span dir="ltr" className="min-w-0 max-w-full break-all text-white/90 text-base font-medium font-mono tracking-wide">{siteData.footer.phone}</span>
               </div>
             )}
             {siteData.footer.email && (
               <a
                 href={`mailto:${siteData.footer.email}`}
-                className="group flex items-center gap-3 hover:opacity-80 transition-opacity"
+                className="group flex items-center gap-3 min-w-0 max-w-full hover:opacity-80 transition-opacity"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-600/30 border border-emerald-500/40 flex items-center justify-center shrink-0 group-hover:bg-emerald-600/50 transition-colors">
                   <Mail className="w-5 h-5 text-emerald-300" />
                 </div>
-                <span className="text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.email}</span>
+                <span className="min-w-0 max-w-full break-all text-white/90 text-base font-medium latin tracking-wide">{siteData.footer.email}</span>
               </a>
             )}
           </div>
@@ -1986,10 +1993,12 @@ export default function GalleryPage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-border py-4 px-8 bg-card">
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center">
+      <footer className="border-t border-border py-4 px-4 sm:px-8 bg-card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-foreground/60 text-center min-w-0 max-w-full">
           {(isAr ? siteData.footer.noteAr : siteData.footer.noteEn) && (
-            <span className="arabic whitespace-nowrap">{isAr ? siteData.footer.noteAr : siteData.footer.noteEn}</span>
+            <span className="arabic max-w-full break-words [overflow-wrap:anywhere] leading-relaxed">
+              {isAr ? siteData.footer.noteAr : siteData.footer.noteEn}
+            </span>
           )}
         </div>
       </footer>
@@ -2005,7 +2014,7 @@ export default function GalleryPage() {
           {/* Sidebar — fixed on physical RIGHT, always visible */}
           <div
             className="no-print fixed top-0 bottom-0 z-50 flex"
-            style={{ right: 0, width: sidebarOpen ? 230 : 48, transition: 'width 0.25s ease' }}
+            style={{ right: 0, width: sidebarOpen ? 'min(230px, calc(100vw - 16px))' : 48, transition: 'width 0.25s ease' }}
           >
             {/* Collapse tab */}
             <button
