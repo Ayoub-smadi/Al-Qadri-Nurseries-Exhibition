@@ -1248,14 +1248,13 @@ export default function GalleryPage() {
 
       {!isAdmin && (
         <button
-          className="no-print fixed end-3 h-9 min-w-9 px-2 sm:px-3 rounded-full bg-card border border-border shadow-sm hover:border-primary hover:text-primary transition-colors z-50 flex items-center justify-center gap-1.5 text-muted-foreground"
-          style={{ top: tickerActive ? '2.5rem' : '0.75rem' }}
+          className="no-print fixed end-1 w-9 h-9 rounded-full bg-transparent hover:bg-card/60 transition-colors z-50 flex items-center justify-center"
+          style={{ top: tickerActive ? '2.5rem' : '0.5rem' }}
           onClick={() => openLoginModal()}
           aria-label={isAr ? 'دخول المدير' : 'Admin login'}
           title={isAr ? 'دخول المدير' : 'Admin login'}
         >
-          <Settings className="w-4 h-4" />
-          <span className="hidden sm:inline text-xs font-bold arabic">{isAr ? 'المدير' : 'Admin'}</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-border hover:bg-primary transition-colors" />
         </button>
       )}
 
