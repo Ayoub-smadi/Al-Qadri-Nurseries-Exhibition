@@ -8,6 +8,7 @@ import QuotationHistoryPage from "@/pages/QuotationHistoryPage";
 import OldStyleQuotationPage from "@/pages/OldStyleQuotationPage";
 import NoHeaderQuotationPage from "@/pages/NoHeaderQuotationPage";
 import QadriOldQuotationPage from "@/pages/QadriOldQuotationPage";
+import EmployeesPage from "@/pages/EmployeesPage";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function RouterView() {
   if (path === "/old-quotation") return <OldStyleQuotationPage />;
   if (path === "/no-header-quotation") return <NoHeaderQuotationPage />;
   if (path === "/qadri-old-quotation") return <QadriOldQuotationPage />;
+  if (path === "/employees") return <EmployeesPage />;
   return <GalleryPage />;
 }
 

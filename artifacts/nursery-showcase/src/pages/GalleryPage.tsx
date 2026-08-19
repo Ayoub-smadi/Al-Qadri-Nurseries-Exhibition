@@ -14,6 +14,7 @@ import {
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera, GripVertical,
+  Users,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -2068,6 +2069,10 @@ export default function GalleryPage() {
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
                       <SideBtn icon={<ArrowUpFromLine className="w-4 h-4" />} label={isAr ? 'سندات الصرف' : 'Disbursements'} onClick={() => setAdminDisbursementsOpen(true)} />
+                    </SideSection>
+
+                    <SideSection label={isAr ? '👥 إدارة الموظفين' : '👥 Employees'}>
+                      <SideBtn icon={<Users className="w-4 h-4" />} label={isAr ? 'الموظفون والرواتب' : 'Employees & Payroll'} onClick={() => navigate('/employees')} />
                     </SideSection>
 
                     <SideSection label={isAr ? '📄 التقارير' : '📄 Reports'}>
