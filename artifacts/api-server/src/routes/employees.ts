@@ -37,14 +37,14 @@ router.post("/employees", async (req, res) => {
   try {
     await dbReady;
     const { name, phone = "", photo = null, jobTitle = "", salary = 0, additions = [], deductions = [], attendance = [] } = req.body ?? {};
-    if (!String(name ?? "").trim()) return res.status(400).json({ error: "اسم الموظف مطلوب" });
+    if (!String(name ?? "").trim()) { res.status(400).json({ error: "اسم الموظف مطلوب" }); return; }
     const employeeId = id();
     const { rows: [employee] } = await pool.query(
       `INSERT INTO employees (id,name,phone,photo,job_title,salary,additions,deductions,attendance)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [employeeId, String(name).trim(), phone, photo, jobTitle, asNumber(salary), JSON.stringify(additions), JSON.stringify(deductions), JSON.stringify(attendance)]
     );
-    res.status(201).json(employee);
+    res.status(201).json(employee); return;
   } catch (e) { console.error(e); res.status(500).json({ error: "تعذر حفظ الموظف" }); }
 });
 
@@ -57,8 +57,8 @@ router.put("/employees/:id", async (req, res) => {
        WHERE id=$9 RETURNING *`,
       [String(name ?? "").trim(), phone, photo, jobTitle, asNumber(salary), JSON.stringify(additions), JSON.stringify(deductions), JSON.stringify(attendance), req.params.id]
     );
-    if (!employee) return res.status(404).json({ error: "الموظف غير موجود" });
-    res.json(employee);
+    if (!employee) { res.status(404).json({ error: "الموظف غير موجود" }); return; }
+    res.json(employee); return;
   } catch { res.status(500).json({ error: "تعذر تحديث الموظف" }); }
 });
 
@@ -71,7 +71,7 @@ router.post("/employees/:id/payroll", async (req, res) => {
   try {
     await dbReady;
     const { rows: [employee] } = await pool.query("SELECT * FROM employees WHERE id=$1", [req.params.id]);
-    if (!employee) return res.status(404).json({ error: "الموظف غير موجود" });
+    if (!employee) { res.status(404).json({ error: "الموظف غير موجود" }); return; }
     const month = String(req.body?.month || new Date().toISOString().slice(0, 7));
     const additions = (Array.isArray(employee.additions) ? employee.additions : []).reduce((s: number, x: any) => s + asNumber(x.amount), 0);
     const deductions = (Array.isArray(employee.deductions) ? employee.deductions : []).reduce((s: number, x: any) => s + asNumber(x.amount), 0);
@@ -84,7 +84,7 @@ router.post("/employees/:id/payroll", async (req, res) => {
        base_salary=$4,additions=$5,deductions=$6,net_salary=$7,details=$8,created_at=NOW() RETURNING *`,
       [id(), employee.id, month, baseSalary, additions, deductions, netSalary, JSON.stringify(details)]
     );
-    res.json({ ...run, employee });
+    res.json({ ...run, employee }); return;
   } catch (e) { console.error(e); res.status(500).json({ error: "تعذر حساب الراتب" }); }
 });
 
