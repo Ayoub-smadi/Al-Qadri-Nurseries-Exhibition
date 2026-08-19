@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, CalendarDays, Download, ImagePlus, Minus, Pencil, Plus, Trash2, UserPlus, Users, WalletCards } from "lucide-react";
 import { navigate } from "@/App";
-import { loadSavedToken } from "@/lib/storage";
+import { getApiBase, loadSavedToken } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ type Employee = {
 };
 type Draft = Omit<Employee, "id" | "salary"> & { salary: string };
 const emptyDraft: Draft = { name: "", phone: "", photo: "", job_title: "", salary: "", additions: [], deductions: [], attendance: [] };
-const api = (path: string) => `/api${path}`;
+const api = (path: string) => `${getApiBase()}${path}`;
 const money = (v: number | string) => `${Number(v || 0).toLocaleString("ar-JO")} د.أ`;
 
 function normalize(e: any): Employee {

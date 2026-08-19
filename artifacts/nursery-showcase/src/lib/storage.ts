@@ -172,7 +172,7 @@ let _sessionToken: string | null = null;
 // through the known-working public URL for the main webview port (5000).
 declare const __REPLIT_DEV_DOMAIN__: string;
 
-const getApiBase = (): string => {
+export const getApiBase = (): string => {
   try {
     const domain = __REPLIT_DEV_DOMAIN__;
     if (domain) return `https://${domain}/api`;
