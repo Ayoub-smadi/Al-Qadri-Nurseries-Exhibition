@@ -64,7 +64,7 @@ export interface ShowcaseItem {
   locationUrl?: string;
 }
 
-export type AgriStoreCategory = 'tools' | 'fertilizers' | 'pesticides' | 'irrigation';
+export type AgriStoreCategory = 'tools' | 'seeds' | 'fertilizers' | 'pesticides' | 'irrigation';
 
 export interface AgriStoreProduct {
   id: string;
@@ -82,6 +82,15 @@ export interface ShippingZone {
   nameAr: string;
   nameEn: string;
   fee: number;
+}
+
+export interface AgriStoreContent {
+  eyebrowAr: string;
+  eyebrowEn: string;
+  titleAr: string;
+  titleEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
 }
 
 export interface SiteData {
@@ -107,6 +116,7 @@ export interface SiteData {
   shippingZones?: ShippingZone[];
   storeShowcase?: ShowcaseItem[];
   agriStoreProducts?: AgriStoreProduct[];
+  agriStoreContent?: AgriStoreContent;
   footer: {
     email: string;
     phone: string;
@@ -146,10 +156,19 @@ export const DEFAULT_DATA: SiteData = {
   ],
   agriStoreProducts: [
     { id: 'tool-1', category: 'tools', image: '/store-1.jpg', nameAr: 'عدد وأدوات زراعية', nameEn: 'Agricultural Tools', descriptionAr: 'مجموعة مختارة من أدوات العمل والحدائق.', descriptionEn: 'A selected range of tools for gardening and agricultural work.', price: 0 },
+    { id: 'seed-1', category: 'seeds', image: '/store-2.jpg', nameAr: 'بذور موسمية', nameEn: 'Seasonal Seeds', descriptionAr: 'بذور مختارة لموسم زراعي ناجح.', descriptionEn: 'Selected seeds for a successful growing season.', price: 0 },
     { id: 'fert-1', category: 'fertilizers', image: '/store-2.jpg', nameAr: 'أسمدة زراعية', nameEn: 'Agricultural Fertilizers', descriptionAr: 'أسمدة لتحسين نمو النباتات والأشجار.', descriptionEn: 'Fertilizers to support healthy plant and tree growth.', price: 0 },
     { id: 'pest-1', category: 'pesticides', image: '/store-3.jpg', nameAr: 'مبيدات زراعية', nameEn: 'Agricultural Pesticides', descriptionAr: 'حلول زراعية للعناية بالنباتات والمحاصيل.', descriptionEn: 'Agricultural solutions for plant and crop care.', price: 0 },
     { id: 'irrig-1', category: 'irrigation', image: '/store-1.jpg', nameAr: 'شبكات ري', nameEn: 'Irrigation Systems', descriptionAr: 'مستلزمات وشبكات ري للحدائق والمزارع.', descriptionEn: 'Irrigation supplies and systems for gardens and farms.', price: 0 },
   ],
+  agriStoreContent: {
+    eyebrowAr: 'كل ما تحتاجه لحديقتك ومزرعتك',
+    eyebrowEn: 'Everything for your garden and farm',
+    titleAr: 'تسوّق المواد الزراعية بسهولة',
+    titleEn: 'Shop agricultural supplies with ease',
+    descriptionAr: 'اختر المنتج، أضفه للسلة، وأرسل طلبك مع موقع التوصيل. رسوم الشحن 2 د.أ داخل عمّان و3 د.أ لجميع المحافظات.',
+    descriptionEn: 'Choose your products, add them to your cart, and send your order with your delivery location.',
+  },
   searchNote: { ar: '', en: '' },
   sections: [
     {
@@ -308,6 +327,14 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
           storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
+          agriStoreContent: {
+            eyebrowAr: p.agriStoreContent?.eyebrowAr ?? DEFAULT_DATA.agriStoreContent!.eyebrowAr,
+            eyebrowEn: p.agriStoreContent?.eyebrowEn ?? DEFAULT_DATA.agriStoreContent!.eyebrowEn,
+            titleAr: p.agriStoreContent?.titleAr ?? DEFAULT_DATA.agriStoreContent!.titleAr,
+            titleEn: p.agriStoreContent?.titleEn ?? DEFAULT_DATA.agriStoreContent!.titleEn,
+            descriptionAr: p.agriStoreContent?.descriptionAr ?? DEFAULT_DATA.agriStoreContent!.descriptionAr,
+            descriptionEn: p.agriStoreContent?.descriptionEn ?? DEFAULT_DATA.agriStoreContent!.descriptionEn,
+          },
           agriStoreProducts: (() => {
             const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
             const missingDefaults = (DEFAULT_DATA.agriStoreProducts ?? []).filter(

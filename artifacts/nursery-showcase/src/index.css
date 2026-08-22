@@ -161,3 +161,20 @@
 .showcase-ring-slow {
   animation: spin-ring 7s linear infinite;
 }
+
+.store-page {
+  background-image: radial-gradient(circle at 8% 12%, rgba(185, 223, 200, .28), transparent 22rem), radial-gradient(circle at 92% 76%, rgba(224, 241, 229, .75), transparent 24rem);
+}
+
+.store-hero {
+  isolation: isolate;
+}
+
+.store-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 5rem;
+  background: linear-gradient(180deg, transparent, rgba(0, 25, 14, .18));
+  z-index: -1;
+}

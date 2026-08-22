@@ -5,7 +5,7 @@ import { useApp } from '@/lib/context';
 import { toast } from 'sonner';
 
 const categories: { id: AgriStoreCategory; ar: string }[] = [
-  { id: 'tools', ar: 'عدد زراعية' }, { id: 'fertilizers', ar: 'أسمدة' },
+  { id: 'tools', ar: 'عدد زراعية' }, { id: 'seeds', ar: 'بذور' }, { id: 'fertilizers', ar: 'أسمدة' },
   { id: 'pesticides', ar: 'مبيدات' }, { id: 'irrigation', ar: 'شبكات ري' },
 ];
 const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0 });
@@ -39,7 +39,14 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
   return <div className="fixed inset-0 z-[75] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
     <div className="bg-card w-full sm:max-w-3xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl overflow-y-auto shadow-2xl">
       <div className="p-4 border-b flex justify-between items-center"><div><h2 className="font-bold arabic">إدارة منتجات المواد الزراعية</h2><p className="text-xs text-muted-foreground arabic">أضف المنتجات مع صورها وأسعارها ليظهر السعر جاهزاً للعميل</p></div><button onClick={onClose}><X className="w-5 h-5" /></button></div>
-      <div className="p-4 space-y-3">
+       <div className="p-4 space-y-3">
+         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-3">
+           <h3 className="font-bold arabic">نصوص واجهة المتجر</h3>
+           <p className="text-xs text-muted-foreground arabic">عدّل العنوان والوصف الذي يظهر للزوار في أعلى صفحة المتجر.</p>
+           <input value={siteData.agriStoreContent?.eyebrowAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, eyebrowAr: e.target.value } })} placeholder="الجملة الصغيرة" className="w-full rounded-xl border bg-background p-2.5 arabic" />
+           <input value={siteData.agriStoreContent?.titleAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, titleAr: e.target.value } })} placeholder="عنوان المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
+           <textarea value={siteData.agriStoreContent?.descriptionAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, descriptionAr: e.target.value } })} placeholder="وصف المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
+         </div>
         <button onClick={() => setEditing(empty())} className="w-full rounded-xl bg-primary text-primary-foreground py-2 font-bold arabic"><Plus className="w-4 h-4 inline me-1" />إضافة منتج</button>
         {products.map(p => <div key={p.id} className="flex items-center gap-3 border rounded-xl p-2">
           <img src={p.image} alt="" className="w-14 h-14 rounded-lg object-cover bg-muted" /><div className="flex-1"><b className="arabic">{p.nameAr}</b><p className="text-xs text-primary">{Number(p.price).toFixed(2)} د.أ · {categories.find(c => c.id === p.category)?.ar}</p></div>
