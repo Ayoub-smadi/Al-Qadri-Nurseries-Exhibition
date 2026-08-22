@@ -59,6 +59,7 @@ const dbReady = pool.connect().then(async (client) => {
     `);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS order_type TEXT NOT NULL DEFAULT 'plant_quote'`);
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
     await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
     await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
@@ -230,7 +231,7 @@ app.put("/api/site-data", async (req, res) => {
 
 app.post("/api/quotes", async (req, res) => {
   await dbReady;
-  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body ?? {};
+  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee, orderType } = req.body ?? {};
   if (!customerName || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -240,12 +241,14 @@ app.post("/api/quotes", async (req, res) => {
     res.status(400).json({ error: "يجب اختيار طريقة التوصيل" });
     return;
   }
+  const validOrderTypes = ["plant_quote", "agri_store"];
+  const normalizedOrderType = validOrderTypes.includes(orderType) ? orderType : "plant_quote";
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
-      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, customerName, phone ?? "", JSON.stringify(items), notes ?? "", shippingMethod, shippingAddress ?? "", shippingFee ?? 0]
+      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee, order_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, customerName, phone ?? "", JSON.stringify(items), notes ?? "", shippingMethod, shippingAddress ?? "", shippingFee ?? 0, normalizedOrderType]
     );
     res.json({ id });
   } catch (e) {
@@ -257,11 +260,13 @@ app.post("/api/quotes", async (req, res) => {
 app.get("/api/quotes", async (req, res) => {
   if (!requireSession(req, res)) return;
   const trash = req.query.trash === "1";
+  const orderType = req.query.orderType === "agri_store" ? "agri_store" : "plant_quote";
   try {
     const result = await pool.query(
       trash
-        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
-        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL ORDER BY created_at DESC`
+        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL AND order_type = $1 ORDER BY deleted_at DESC`
+        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL AND order_type = $1 ORDER BY created_at DESC`,
+      [orderType]
     );
     res.json({ quotes: result.rows });
   } catch {

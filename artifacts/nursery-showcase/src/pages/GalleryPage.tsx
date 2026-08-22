@@ -5,6 +5,7 @@ import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, Featured
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
 import { AdminAgriOrdersModal } from '@/components/AdminAgriOrdersModal';
+import { AdminAgriProductsModal } from '@/components/AdminAgriProductsModal';
 import { downloadCatalogPDF, downloadQadriCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -523,6 +524,7 @@ export default function GalleryPage() {
   const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
   const [adminAgriOrdersOpen, setAdminAgriOrdersOpen] = useState(false);
   const [pendingAgriCount, setPendingAgriCount] = useState(0);
+  const [adminAgriProductsOpen, setAdminAgriProductsOpen] = useState(false);
   /* admin invoices */
   const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
   /* admin receipts */
@@ -2100,6 +2102,7 @@ export default function GalleryPage() {
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
                        <SideBtnBadge icon={<ShoppingCart className="w-4 h-4" />} label={isAr ? 'طلبات مواد زراعية' : 'Agricultural Orders'} badge={pendingAgriCount} onClick={() => { setAdminAgriOrdersOpen(true); setPendingAgriCount(0); }} />
+                       <SideBtn icon={<Package className="w-4 h-4" />} label={isAr ? 'منتجات المواد الزراعية' : 'Agricultural Products'} onClick={() => setAdminAgriProductsOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
@@ -2672,6 +2675,7 @@ export default function GalleryPage() {
           onCountChange={setPendingAgriCount}
         />
       )}
+      {isAdmin && <AdminAgriProductsModal open={adminAgriProductsOpen} onClose={() => setAdminAgriProductsOpen(false)} />}
 
       {/* Quote Request Modal */}
       <QuoteRequestModal
