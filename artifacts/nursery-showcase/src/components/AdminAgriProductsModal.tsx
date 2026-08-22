@@ -42,7 +42,9 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
        <div className="p-4 space-y-3">
          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-3">
            <h3 className="font-bold arabic">نصوص واجهة المتجر</h3>
-           <p className="text-xs text-muted-foreground arabic">عدّل العنوان والوصف الذي يظهر للزوار في أعلى صفحة المتجر.</p>
+           <p className="text-xs text-muted-foreground arabic">عدّل اسم المتجر والعنوان والوصف الذي يظهر للزوار في أعلى صفحة المتجر.</p>
+           <input value={siteData.agriStoreContent?.storeTitleAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, storeTitleAr: e.target.value } })} placeholder="اسم المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
+           <input value={siteData.agriStoreContent?.storeSubtitleAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, storeSubtitleAr: e.target.value } })} placeholder="العنوان الفرعي" className="w-full rounded-xl border bg-background p-2.5 arabic" />
            <input value={siteData.agriStoreContent?.eyebrowAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, eyebrowAr: e.target.value } })} placeholder="الجملة الصغيرة" className="w-full rounded-xl border bg-background p-2.5 arabic" />
            <input value={siteData.agriStoreContent?.titleAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, titleAr: e.target.value } })} placeholder="عنوان المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
            <textarea value={siteData.agriStoreContent?.descriptionAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, descriptionAr: e.target.value } })} placeholder="وصف المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />

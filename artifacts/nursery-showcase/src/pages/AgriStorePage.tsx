@@ -110,8 +110,8 @@ export default function AgriStorePage() {
              <ArrowRight className="w-4 h-4" /> {isAr ? 'رجوع للموقع' : 'Back to website'}
           </button>
           <div className="text-center min-w-0">
-             <h1 className="font-bold text-base sm:text-xl arabic truncate">{isAr ? 'متجر المواد الزراعية' : 'Agricultural Supplies Store'}</h1>
-             <p className="text-[10px] sm:text-xs text-[#5c7b6b] arabic">{isAr ? 'مشاتل القادري الزراعية' : 'Al-Qadri Agricultural Nurseries'}</p>
+             <h1 className="font-bold text-base sm:text-xl arabic truncate">{isAr ? (content?.storeTitleAr ?? 'متجر المواد الزراعية') : (content?.storeTitleEn ?? 'Agricultural Supplies Store')}</h1>
+             <p className="text-[10px] sm:text-xs text-[#5c7b6b] arabic">{isAr ? (content?.storeSubtitleAr ?? 'مشاتل القادري الزراعية') : (content?.storeSubtitleEn ?? 'Al-Qadri Agricultural Nurseries')}</p>
           </div>
            <button onClick={() => setCheckout(true)} className="relative inline-flex items-center gap-1.5 rounded-xl bg-[#004f31] text-white px-3 py-2 text-sm font-bold arabic shadow-lg shadow-[#004f31]/20">
             <ShoppingCart className="w-4 h-4" />

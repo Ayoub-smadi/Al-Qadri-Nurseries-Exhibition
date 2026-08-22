@@ -85,6 +85,10 @@ export interface ShippingZone {
 }
 
 export interface AgriStoreContent {
+  storeTitleAr: string;
+  storeTitleEn: string;
+  storeSubtitleAr: string;
+  storeSubtitleEn: string;
   eyebrowAr: string;
   eyebrowEn: string;
   titleAr: string;
@@ -162,6 +166,10 @@ export const DEFAULT_DATA: SiteData = {
     { id: 'irrig-1', category: 'irrigation', image: '/store-1.jpg', nameAr: 'شبكات ري', nameEn: 'Irrigation Systems', descriptionAr: 'مستلزمات وشبكات ري للحدائق والمزارع.', descriptionEn: 'Irrigation supplies and systems for gardens and farms.', price: 0 },
   ],
   agriStoreContent: {
+    storeTitleAr: 'متجر المواد الزراعية',
+    storeTitleEn: 'Agricultural Supplies Store',
+    storeSubtitleAr: 'مشاتل القادري الزراعية',
+    storeSubtitleEn: 'Al-Qadri Agricultural Nurseries',
     eyebrowAr: 'كل ما تحتاجه لحديقتك ومزرعتك',
     eyebrowEn: 'Everything for your garden and farm',
     titleAr: 'تسوّق المواد الزراعية بسهولة',
@@ -328,6 +336,10 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
           storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
           agriStoreContent: {
+            storeTitleAr: p.agriStoreContent?.storeTitleAr ?? DEFAULT_DATA.agriStoreContent!.storeTitleAr,
+            storeTitleEn: p.agriStoreContent?.storeTitleEn ?? DEFAULT_DATA.agriStoreContent!.storeTitleEn,
+            storeSubtitleAr: p.agriStoreContent?.storeSubtitleAr ?? DEFAULT_DATA.agriStoreContent!.storeSubtitleAr,
+            storeSubtitleEn: p.agriStoreContent?.storeSubtitleEn ?? DEFAULT_DATA.agriStoreContent!.storeSubtitleEn,
             eyebrowAr: p.agriStoreContent?.eyebrowAr ?? DEFAULT_DATA.agriStoreContent!.eyebrowAr,
             eyebrowEn: p.agriStoreContent?.eyebrowEn ?? DEFAULT_DATA.agriStoreContent!.eyebrowEn,
             titleAr: p.agriStoreContent?.titleAr ?? DEFAULT_DATA.agriStoreContent!.titleAr,
