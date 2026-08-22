@@ -64,6 +64,19 @@ export interface ShowcaseItem {
   locationUrl?: string;
 }
 
+export type AgriStoreCategory = 'tools' | 'fertilizers' | 'pesticides' | 'irrigation';
+
+export interface AgriStoreProduct {
+  id: string;
+  category: AgriStoreCategory;
+  image: string;
+  nameAr: string;
+  nameEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  price: number;
+}
+
 export interface ShippingZone {
   id: string;
   nameAr: string;
@@ -93,6 +106,7 @@ export interface SiteData {
   socialLinks: SocialLink[];
   shippingZones?: ShippingZone[];
   storeShowcase?: ShowcaseItem[];
+  agriStoreProducts?: AgriStoreProduct[];
   footer: {
     email: string;
     phone: string;
@@ -125,6 +139,12 @@ export const DEFAULT_DATA: SiteData = {
     { id: 'sc1', imageUrl: '/store-1.jpg', captionAr: 'مستلزمات زراعية متكاملة', captionEn: 'Full Agricultural Supplies' },
     { id: 'sc2', imageUrl: '/store-2.jpg', captionAr: 'معرض القادري أون لاين', captionEn: 'Al-Kadri Online Showroom' },
     { id: 'sc3', imageUrl: '/store-3.jpg', captionAr: 'مشتل القادري — أبو عقاب', captionEn: 'Al-Qadri Nursery – Abu Aqab' },
+  ],
+  agriStoreProducts: [
+    { id: 'tool-1', category: 'tools', image: '/store-1.jpg', nameAr: 'عدد وأدوات زراعية', nameEn: 'Agricultural Tools', descriptionAr: 'مجموعة مختارة من أدوات العمل والحدائق.', descriptionEn: 'A selected range of tools for gardening and agricultural work.', price: 0 },
+    { id: 'fert-1', category: 'fertilizers', image: '/store-2.jpg', nameAr: 'أسمدة زراعية', nameEn: 'Agricultural Fertilizers', descriptionAr: 'أسمدة لتحسين نمو النباتات والأشجار.', descriptionEn: 'Fertilizers to support healthy plant and tree growth.', price: 0 },
+    { id: 'pest-1', category: 'pesticides', image: '/store-3.jpg', nameAr: 'مبيدات زراعية', nameEn: 'Agricultural Pesticides', descriptionAr: 'حلول زراعية للعناية بالنباتات والمحاصيل.', descriptionEn: 'Agricultural solutions for plant and crop care.', price: 0 },
+    { id: 'irrig-1', category: 'irrigation', image: '/store-1.jpg', nameAr: 'شبكات ري', nameEn: 'Irrigation Systems', descriptionAr: 'مستلزمات وشبكات ري للحدائق والمزارع.', descriptionEn: 'Irrigation supplies and systems for gardens and farms.', price: 0 },
   ],
   searchNote: { ar: '', en: '' },
   sections: [
@@ -283,6 +303,13 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
+          agriStoreProducts: (() => {
+            const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
+            const missingDefaults = (DEFAULT_DATA.agriStoreProducts ?? []).filter(
+              fallback => !saved.some(product => product.category === fallback.category),
+            );
+            return [...saved, ...missingDefaults];
+          })(),
           footer: { ...DEFAULT_DATA.footer, ...p.footer },
         };
       }
@@ -476,6 +503,7 @@ export interface QuoteRequest {
   planting_fee?: number;
   shipping_method?: string;
   shipping_address?: string;
+  order_type?: 'plant_quote' | 'agri_store';
 }
 
 export interface InvoiceItem {
@@ -496,10 +524,10 @@ export interface Invoice {
   created_at: string;
 }
 
-export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number }): Promise<string | null> {
+export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number; orderType?: 'plant_quote' | 'agri_store' }): Promise<string | null> {
   // Strip large base64 images from items before sending — keeps body small and reliable
   const itemsForApi = data.items.map(item => ({ ...item, plantImage: '' }));
-  const payload = { ...data, items: itemsForApi };
+  const payload = { ...data, items: itemsForApi, orderType: data.orderType ?? 'plant_quote' };
   console.log('[submitQuote] sending →', { shippingMethod: payload.shippingMethod, shippingAddress: payload.shippingAddress, customerName: payload.customerName, itemsCount: itemsForApi.length });
   try {
     const res = await fetch(`${getApiBase()}/quotes`, {
@@ -516,11 +544,15 @@ export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery' 
   return null;
 }
 
-export async function fetchQuotes(opts?: { trash?: boolean }): Promise<QuoteRequest[] | null> {
+export async function fetchQuotes(opts?: { trash?: boolean; orderType?: 'plant_quote' | 'agri_store' }): Promise<QuoteRequest[] | null> {
   const token = getToken();
   if (!token) return null;
   try {
-    const url = opts?.trash ? `${getApiBase()}/quotes?trash=1` : `${getApiBase()}/quotes`;
+    const params = new URLSearchParams();
+    if (opts?.trash) params.set('trash', '1');
+    params.set('orderType', opts?.orderType ?? 'plant_quote');
+    const query = params.toString();
+    const url = `${getApiBase()}/quotes${query ? `?${query}` : ''}`;
     const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
     if (res.ok) { const j = await res.json() as { quotes?: QuoteRequest[] }; return j.quotes ?? []; }
     if (res.status === 401) return null;

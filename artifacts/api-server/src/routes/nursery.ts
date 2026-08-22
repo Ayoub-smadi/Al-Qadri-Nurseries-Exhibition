@@ -30,6 +30,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_address TEXT NOT NULL DEFAULT ''`);
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
+      await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS order_type TEXT NOT NULL DEFAULT 'plant_quote'`);
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'receivable'`);
       await client.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount NUMERIC NOT NULL DEFAULT 0`);
       await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
@@ -221,8 +222,8 @@ router.get("/quotes/stream", (req, res) => {
 
 router.post("/quotes", async (req, res) => {
   await dbReady;
-  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee } = req.body as {
-    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number;
+  const { customerName, phone, items, notes, shippingMethod, shippingAddress, shippingFee, orderType } = req.body as {
+    customerName?: string; phone?: string; items?: unknown[]; notes?: string; shippingMethod?: string; shippingAddress?: string; shippingFee?: number; orderType?: string;
   };
   logger.info({ customerName, shippingMethod, shippingAddress: shippingAddress ?? '' }, '[NEW QUOTE] received');
   if (!customerName || !Array.isArray(items) || items.length === 0) {
@@ -237,9 +238,9 @@ router.post("/quotes", async (req, res) => {
   const id = `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
-      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod, shippingAddress ?? '', shippingFee ?? 0]
+      `INSERT INTO quote_requests (id, customer_name, phone, items, notes, shipping_method, shipping_address, shipping_fee, order_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, customerName, phone ?? '', JSON.stringify(items), notes ?? '', shippingMethod, shippingAddress ?? '', shippingFee ?? 0, orderType === 'agri_store' ? 'agri_store' : 'plant_quote']
     );
     logger.info({ id, shippingMethod }, '[NEW QUOTE] saved successfully');
     // Broadcast instantly to all connected admin SSE clients
@@ -254,11 +255,13 @@ router.post("/quotes", async (req, res) => {
 router.get("/quotes", async (req, res) => {
   if (!requireSession(req, res)) return;
   const trash = req.query.trash === '1';
+  const orderType = req.query.orderType === 'agri_store' ? 'agri_store' : 'plant_quote';
   try {
+    const typeClause = orderType ? ` AND order_type = '${orderType}'` : '';
     const result = await pool.query(
       trash
-        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
-        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL ORDER BY created_at DESC`
+        ? `SELECT * FROM quote_requests WHERE deleted_at IS NOT NULL${typeClause} ORDER BY deleted_at DESC`
+        : `SELECT * FROM quote_requests WHERE deleted_at IS NULL${typeClause} ORDER BY created_at DESC`
     );
     res.json({ quotes: result.rows });
   } catch { res.status(500).json({ error: "Failed to load quotes" }); }

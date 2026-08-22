@@ -4,6 +4,7 @@ import { useApp } from '@/lib/context';
 import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
+import { AdminAgriOrdersModal } from '@/components/AdminAgriOrdersModal';
 import { downloadCatalogPDF, downloadQadriCatalogPDF, downloadQuotePDF, downloadQuotePDFNoHeader, shareQuotePDFToWhatsApp, downloadInvoicePDF, downloadCertificatePDF, downloadReceiptPDF, downloadDisbursementPDF, CertificateData, PDFSectionInput } from '@/lib/pdfGen';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -520,6 +521,8 @@ export default function GalleryPage() {
   /* admin quotes */
   const [adminQuotesOpen, setAdminQuotesOpen] = useState(false);
   const [pendingQuoteCount, setPendingQuoteCount] = useState(0);
+  const [adminAgriOrdersOpen, setAdminAgriOrdersOpen] = useState(false);
+  const [pendingAgriCount, setPendingAgriCount] = useState(0);
   /* admin invoices */
   const [adminInvoicesOpen, setAdminInvoicesOpen] = useState(false);
   /* admin receipts */
@@ -560,6 +563,7 @@ export default function GalleryPage() {
 
   /* ── poll for new quote requests every 5 s, notify per-quote ── */
   const seenQuoteIdsRef = useRef<Set<string> | null>(null);
+  const seenAgriOrderIdsRef = useRef<Set<string> | null>(null);
   useEffect(() => {
     if (!isAdmin) { setPendingQuoteCount(0); seenQuoteIdsRef.current = null; return; }
 
@@ -570,7 +574,7 @@ export default function GalleryPage() {
     let destroyed = false;
 
     const poll = async () => {
-      const qs = await fetchQuotes();
+      const qs = await fetchQuotes({ orderType: 'plant_quote' });
       if (!qs || destroyed) return;
 
       const pending = qs.filter(q => q.status !== 'priced');
@@ -610,6 +614,37 @@ export default function GalleryPage() {
     const id = setInterval(poll, 5_000);
     return () => { destroyed = true; clearInterval(id); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) { setPendingAgriCount(0); seenAgriOrderIdsRef.current = null; return; }
+    let destroyed = false;
+    const pollStoreOrders = async () => {
+      const orders = await fetchQuotes({ orderType: 'agri_store' });
+      if (!destroyed && orders) {
+        setPendingAgriCount(orders.filter(order => order.status !== 'priced').length);
+        const currentIds = new Set(orders.map(order => order.id));
+        if (seenAgriOrderIdsRef.current === null) {
+          seenAgriOrderIdsRef.current = currentIds;
+          return;
+        }
+        const newOrders = orders.filter(order => !seenAgriOrderIdsRef.current!.has(order.id));
+        newOrders.forEach((order, index) => {
+          setTimeout(() => playNotificationSound(), index * 600);
+          if ('Notification' in window && Notification.permission === 'granted') {
+            const itemCount = Array.isArray(order.items) ? order.items.length : 1;
+            new Notification('طلب مواد زراعية جديد — مشاتل القادري', {
+              body: `${order.customer_name} · ${itemCount} منتجات · ${order.shipping_address ?? ''}`,
+              tag: `agri-order-${order.id}`,
+            });
+          }
+        });
+        seenAgriOrderIdsRef.current = currentIds;
+      }
+    };
+    pollStoreOrders();
+    const id = setInterval(pollStoreOrders, 5_000);
+    return () => { destroyed = true; clearInterval(id); };
   }, [isAdmin]);
 
   /* ── restore admin session on page load — validate token first ── */
@@ -1498,6 +1533,7 @@ export default function GalleryPage() {
         isAr={isAr}
         isAdmin={isAdmin}
         onUpdate={items => updateSiteData({ storeShowcase: items })}
+        onOpenStore={() => navigate('/agri-store')}
       />
 
       {/* ── GALLERY TITLE ── */}
@@ -2063,6 +2099,7 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
+                       <SideBtnBadge icon={<ShoppingCart className="w-4 h-4" />} label={isAr ? 'طلبات مواد زراعية' : 'Agricultural Orders'} badge={pendingAgriCount} onClick={() => { setAdminAgriOrdersOpen(true); setPendingAgriCount(0); }} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
@@ -2625,6 +2662,14 @@ export default function GalleryPage() {
         <AdminQuotationsList
           open={adminQuotationsListOpen}
           onClose={() => setAdminQuotationsListOpen(false)}
+        />
+      )}
+
+      {isAdmin && (
+        <AdminAgriOrdersModal
+          open={adminAgriOrdersOpen}
+          onClose={() => setAdminAgriOrdersOpen(false)}
+          onCountChange={setPendingAgriCount}
         />
       )}
 
@@ -3210,11 +3255,12 @@ function getVideoEmbed(url: string): { type: 'youtube' | 'vimeo' | 'direct'; emb
 }
 
 /* ── Store Showcase Section ──────────────────────────────── */
-function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
+function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, onOpenStore }: {
   items: ShowcaseItem[];
   isAr: boolean;
   isAdmin: boolean;
   onUpdate: (items: ShowcaseItem[]) => void;
+  onOpenStore: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAr, setEditAr] = useState('');
@@ -3331,8 +3377,13 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate }: {
               {/* Image card */}
               <div className="relative rounded-xl overflow-hidden shadow-md" style={{ width: 200, height: 200 }}>
                 <div
-                  className={`w-full h-full ${item.locationUrl && !isAdmin ? 'cursor-pointer' : ''}`}
-                  onClick={() => { if (item.locationUrl && !isAdmin) window.open(item.locationUrl, '_blank', 'noopener'); }}
+                  className={`w-full h-full ${!isAdmin ? 'cursor-pointer' : ''}`}
+                  onClick={() => {
+                    if (isAdmin) return;
+                    const isAgriStore = item.id === 'sc1' || /مستلزمات زراعية|agricultural supplies/i.test(`${item.captionAr} ${item.captionEn}`);
+                    if (isAgriStore) onOpenStore();
+                    else if (item.locationUrl) window.open(item.locationUrl, '_blank', 'noopener');
+                  }}
                 >
                   <img
                     src={item.imageUrl}
