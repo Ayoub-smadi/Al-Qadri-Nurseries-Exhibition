@@ -140,6 +140,10 @@ export const DEFAULT_DATA: SiteData = {
     { id: 'sc2', imageUrl: '/store-2.jpg', captionAr: 'معرض القادري أون لاين', captionEn: 'Al-Kadri Online Showroom' },
     { id: 'sc3', imageUrl: '/store-3.jpg', captionAr: 'مشتل القادري — أبو عقاب', captionEn: 'Al-Qadri Nursery – Abu Aqab' },
   ],
+  shippingZones: [
+    { id: 'amman', nameAr: 'عمّان', nameEn: 'Amman', fee: 2 },
+    { id: 'other', nameAr: 'المحافظات الأخرى', nameEn: 'Other governorates', fee: 3 },
+  ],
   agriStoreProducts: [
     { id: 'tool-1', category: 'tools', image: '/store-1.jpg', nameAr: 'عدد وأدوات زراعية', nameEn: 'Agricultural Tools', descriptionAr: 'مجموعة مختارة من أدوات العمل والحدائق.', descriptionEn: 'A selected range of tools for gardening and agricultural work.', price: 0 },
     { id: 'fert-1', category: 'fertilizers', image: '/store-2.jpg', nameAr: 'أسمدة زراعية', nameEn: 'Agricultural Fertilizers', descriptionAr: 'أسمدة لتحسين نمو النباتات والأشجار.', descriptionEn: 'Fertilizers to support healthy plant and tree growth.', price: 0 },
@@ -302,6 +306,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
+          shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
           storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
           agriStoreProducts: (() => {
             const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
@@ -525,10 +530,10 @@ export interface Invoice {
 }
 
 export async function submitQuote(data: { shippingMethod: 'pickup' | 'delivery' | 'plant_only' | 'delivery_plant'; shippingAddress: string; customerName: string; phone: string; items: QuoteItem[]; notes: string; shippingFee: number; orderType?: 'plant_quote' | 'agri_store' }): Promise<string | null> {
-  // Strip large base64 images from items before sending — keeps body small and reliable
-  const itemsForApi = data.items.map(item => ({ ...item, plantImage: '' }));
-  const payload = { ...data, items: itemsForApi, orderType: data.orderType ?? 'plant_quote' };
-  console.log('[submitQuote] sending →', { shippingMethod: payload.shippingMethod, shippingAddress: payload.shippingAddress, customerName: payload.customerName, itemsCount: itemsForApi.length });
+  // Product images are part of the order so the admin can identify each item.
+  // Uploaded product images are server URLs, not large base64 payloads.
+  const payload = { ...data, orderType: data.orderType ?? 'plant_quote' };
+  console.log('[submitQuote] sending →', { shippingMethod: payload.shippingMethod, shippingAddress: payload.shippingAddress, customerName: payload.customerName, itemsCount: data.items.length });
   try {
     const res = await fetch(`${getApiBase()}/quotes`, {
       method: 'POST',

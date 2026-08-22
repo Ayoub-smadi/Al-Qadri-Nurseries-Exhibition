@@ -1063,7 +1063,7 @@ export interface ReceiptPDFData {
   amount: number;
   amountText: string;
   description: string;
-  paymentMethod: 'cash' | 'check' | 'transfer';
+  paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string;
   notes?: string;
   logoUrl?: string;
@@ -1076,7 +1076,7 @@ export async function downloadReceiptPDF(data: ReceiptPDFData): Promise<void> {
   const dinars = Math.floor(data.amount);
   const fils = Math.round((data.amount - dinars) * 1000);
 
-  const paymentLabels = { cash: 'نقداً', check: 'شيك', transfer: 'تحويل بنكي' };
+  const paymentLabels: Record<ReceiptPDFData['paymentMethod'], string> = { cash: 'نقداً', check: 'شيك', transfer: 'تحويل بنكي', online: 'إلكتروني' };
   const paymentMethodAr = paymentLabels[data.paymentMethod] || 'نقداً';
 
   const checkBox = (checked: boolean) =>
@@ -1244,7 +1244,7 @@ export interface DisbursementPDFData {
   amount: number;
   amountText: string;
   description: string;
-  paymentMethod: 'cash' | 'check' | 'transfer';
+  paymentMethod: 'cash' | 'check' | 'transfer' | 'online';
   date: string;
   notes?: string;
   logoUrl?: string;
@@ -1257,7 +1257,7 @@ export async function downloadDisbursementPDF(data: DisbursementPDFData): Promis
   const dinars = Math.floor(data.amount);
   const fils = Math.round((data.amount - dinars) * 1000);
 
-  const paymentLabels = { cash: 'نقداً', check: 'شيك', transfer: 'تحويل بنكي' };
+  const paymentLabels: Record<DisbursementPDFData['paymentMethod'], string> = { cash: 'نقداً', check: 'شيك', transfer: 'تحويل بنكي', online: 'إلكتروني' };
   const paymentMethodAr = paymentLabels[data.paymentMethod] || 'نقداً';
 
   const checkBox = (checked: boolean) =>

@@ -24,15 +24,16 @@ export default function AgriStorePage() {
   const [checkout, setCheckout] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
-  const [governorate, setGovernorate] = useState('عمّان');
+  const [governorate, setGovernorate] = useState('');
   const [location, setLocation] = useState('');
   const [sending, setSending] = useState(false);
 
   const visibleProducts = useMemo(() => products.filter(p => p.category === category), [products, category]);
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.quantity * Number(line.product.price || 0), 0);
-  const shippingFee = governorate === 'عمّان' ? 2 : 3;
-  const total = subtotal + (cart.length ? shippingFee : 0);
+  const shippingZones = siteData.shippingZones ?? [];
+  const shippingFee = shippingZones.find(zone => zone.id === governorate)?.fee ?? 0;
+  const total = subtotal + (governorate ? shippingFee : 0);
 
   const addToCart = (product: AgriStoreProduct) => {
     setCart(prev => {
@@ -51,8 +52,8 @@ export default function AgriStorePage() {
   };
 
   const handleSubmit = async () => {
-    if (!customerName.trim() || !phone.trim() || !location.trim()) {
-      toast.error(isAr ? 'الاسم ورقم الهاتف والموقع حقول إلزامية' : 'Name, phone and location are required');
+    if (!customerName.trim() || !phone.trim() || !location.trim() || !governorate) {
+      toast.error(isAr ? 'الاسم والهاتف ومنطقة التوصيل والموقع حقول إلزامية' : 'Name, phone, delivery area and location are required');
       return;
     }
     if (!cart.length) {
@@ -74,7 +75,7 @@ export default function AgriStorePage() {
     const id = await submitQuote({
       orderType: 'agri_store',
       shippingMethod: 'delivery',
-      shippingAddress: `${governorate} - ${location}`,
+      shippingAddress: `${shippingZones.find(zone => zone.id === governorate)?.nameAr ?? governorate} - ${location}`,
       customerName: customerName.trim(),
       phone: phone.trim(),
       items,
@@ -185,12 +186,12 @@ export default function AgriStorePage() {
                       <button onClick={() => updateQuantity(line.product.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
                     </div>)}
                   </div>
-                  <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm arabic"><div className="flex justify-between"><span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span><b>{subtotal.toFixed(2)} د.أ</b></div><div className="flex justify-between text-blue-600"><span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span><b>{shippingFee.toFixed(2)} د.أ</b></div><div className="flex justify-between border-t border-border pt-2 text-base text-primary"><b>{isAr ? 'الإجمالي' : 'Total'}</b><b>{total.toFixed(2)} د.أ</b></div></div>
+                  <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm arabic"><div className="flex justify-between"><span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span><b>{subtotal.toFixed(2)} د.أ</b></div><div className="flex justify-between text-blue-600"><span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span><b>{governorate ? `${shippingFee.toFixed(2)} د.أ` : (isAr ? 'اختر المنطقة' : 'Select area')}</b></div><div className="flex justify-between border-t border-border pt-2 text-base text-primary"><b>{isAr ? 'الإجمالي' : 'Total'}</b><b>{total.toFixed(2)} د.أ</b></div></div>
                   <div className="space-y-3">
                     <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder={isAr ? 'اسم الزبون *' : 'Customer name *'} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 arabic" />
                     <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" dir="ltr" placeholder={isAr ? 'رقم الهاتف *' : 'Phone *'} className="w-full rounded-xl border border-border bg-background px-3 py-2.5" />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><select value={governorate} onChange={e => setGovernorate(e.target.value)} className="rounded-xl border border-border bg-background px-3 py-2.5 arabic"><option>عمّان</option><option>إربد</option><option>جرش</option><option>الزرقاء</option><option>البلقاء</option><option>مادبا</option><option>الكرك</option><option>الطفيلة</option><option>معان</option><option>العقبة</option><option>عجلون</option><option>المفرق</option></select><div className="relative"><MapPin className="absolute start-3 top-3 w-4 h-4 text-muted-foreground" /><input value={location} onChange={e => setLocation(e.target.value)} placeholder={isAr ? 'الموقع بالتفصيل *' : 'Full location *'} className="w-full rounded-xl border border-border bg-background ps-9 pe-3 py-2.5 arabic" /></div></div>
-                    <p className="text-xs text-muted-foreground arabic">الشحن: 2 د.أ داخل عمّان، و3 د.أ لجميع المحافظات الأخرى.</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><select value={governorate} onChange={e => setGovernorate(e.target.value)} className="rounded-xl border border-border bg-background px-3 py-2.5 arabic"><option value="">{isAr ? 'اختر منطقة التوصيل *' : 'Select delivery area *'}</option>{shippingZones.map(zone => <option key={zone.id} value={zone.id}>{isAr ? zone.nameAr : zone.nameEn} — {zone.fee.toFixed(2)} د.أ</option>)}</select><div className="relative"><MapPin className="absolute start-3 top-3 w-4 h-4 text-muted-foreground" /><input value={location} onChange={e => setLocation(e.target.value)} placeholder={isAr ? 'الموقع بالتفصيل *' : 'Full location *'} className="w-full rounded-xl border border-border bg-background ps-9 pe-3 py-2.5 arabic" /></div></div>
+                     <p className="text-xs text-muted-foreground arabic">{isAr ? 'تُضاف رسوم الشحن بعد اختيار منطقة التوصيل.' : 'Shipping is added after selecting a delivery area.'}</p>
                   </div>
                   <button onClick={handleSubmit} disabled={sending} className="w-full rounded-xl bg-primary text-primary-foreground py-3 font-bold arabic disabled:opacity-50">{sending ? 'جاري إرسال الطلب...' : <><CheckCircle2 className="w-4 h-4 inline-block me-2 align-middle" />إرسال الطلب</>}</button>
                 </>

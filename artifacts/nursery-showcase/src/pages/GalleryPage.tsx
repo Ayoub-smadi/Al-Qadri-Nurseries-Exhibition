@@ -6844,6 +6844,7 @@ type QadriOldRec = {
   items: { id: string; name: string; [k: string]: unknown }[];
   logoUrl: string; stampUrl: string;
   discountPct?: number; taxPct?: number;
+  hiddenParts?: Record<string, boolean>;
   createdAt: string; updatedAt: string;
 };
 

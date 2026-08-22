@@ -59,7 +59,7 @@ function stripItemImages(items: Item[]): Item[] {
   }));
 }
 
-function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number }, id?: string): string {
+function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number; hiddenParts?: Record<string, boolean> }, id?: string): string {
   const records = loadQadriRecords();
   const now = new Date().toISOString();
   const sanitized = { ...data, items: stripItemImages(data.items) };

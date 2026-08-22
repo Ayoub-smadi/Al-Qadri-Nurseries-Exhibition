@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { AgriStoreCategory, AgriStoreProduct, uploadImage } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, ShippingZone, uploadImage } from '@/lib/storage';
 import { useApp } from '@/lib/context';
 import { toast } from 'sonner';
 
@@ -14,8 +14,10 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
   const { siteData, updateSiteData } = useApp();
   const [editing, setEditing] = useState<AgriStoreProduct | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [newZone, setNewZone] = useState({ nameAr: '', fee: '' });
   if (!open) return null;
   const products = siteData.agriStoreProducts ?? [];
+  const zones = siteData.shippingZones ?? [];
   const save = () => {
     if (!editing?.nameAr.trim() || !editing.image) { toast.error('أدخل اسم المنتج وأضف صورة'); return; }
     const next = products.some(p => p.id === editing.id) ? products.map(p => p.id === editing.id ? editing : p) : [...products, editing];
@@ -25,6 +27,14 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
     if (!file) return; setUploading(true);
     try { const image = await uploadImage(file); setEditing(p => p ? { ...p, image } : p); }
     catch { toast.error('فشل رفع الصورة'); } finally { setUploading(false); }
+  };
+  const saveZone = () => {
+    const nameAr = newZone.nameAr.trim();
+    const fee = Number(newZone.fee);
+    if (!nameAr || !Number.isFinite(fee) || fee < 0) { toast.error('أدخل اسم المنطقة ورسوم شحن صحيحة'); return; }
+    const zone: ShippingZone = { id: `zone-${Date.now()}`, nameAr, nameEn: nameAr, fee };
+    updateSiteData({ shippingZones: [...zones, zone] });
+    setNewZone({ nameAr: '', fee: '' });
   };
   return <div className="fixed inset-0 z-[75] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
     <div className="bg-card w-full sm:max-w-3xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl overflow-y-auto shadow-2xl">
@@ -48,6 +58,11 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
           <div className="flex items-center gap-3"><label className="cursor-pointer rounded-xl border border-dashed p-3 text-sm arabic"><ImagePlus className="w-4 h-4 inline me-1" />{uploading ? 'جاري الرفع...' : 'اختيار صورة'}<input type="file" accept="image/*" className="hidden" onChange={e => pickImage(e.target.files?.[0])} /></label>{editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded-lg object-cover" />}</div>
           <div className="flex gap-2"><button onClick={save} disabled={uploading} className="flex-1 rounded-xl bg-primary text-primary-foreground py-2 font-bold arabic">حفظ المنتج</button><button onClick={() => setEditing(null)} className="rounded-xl border px-5 py-2 arabic">إلغاء</button></div>
         </div>}
+         <div className="border-t pt-4 space-y-3">
+           <div><h3 className="font-bold arabic">مناطق التوصيل ورسوم الشحن</h3><p className="text-xs text-muted-foreground arabic">لا تُضاف الرسوم للطلب إلا بعد اختيار العميل لمنطقة.</p></div>
+           {zones.map(zone => <div key={zone.id} className="flex items-center gap-2 border rounded-xl p-2"><span className="flex-1 arabic">{zone.nameAr}</span><input type="number" min="0" step="0.01" value={zone.fee} onChange={e => updateSiteData({ shippingZones: zones.map(item => item.id === zone.id ? { ...item, fee: Number(e.target.value) } : item) })} className="w-24 rounded-lg border bg-background p-2 text-sm" /><span className="text-xs">د.أ</span><button onClick={() => updateSiteData({ shippingZones: zones.filter(item => item.id !== zone.id) })} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button></div>)}
+           <div className="flex gap-2"><input value={newZone.nameAr} onChange={e => setNewZone({ ...newZone, nameAr: e.target.value })} placeholder="اسم المنطقة" className="flex-1 rounded-xl border bg-background p-2.5 arabic" /><input value={newZone.fee} onChange={e => setNewZone({ ...newZone, fee: e.target.value })} type="number" min="0" step="0.01" placeholder="الرسوم" className="w-28 rounded-xl border bg-background p-2.5 arabic" /><button onClick={saveZone} className="rounded-xl bg-primary text-primary-foreground px-4 font-bold arabic">إضافة</button></div>
+         </div>
       </div>
     </div>
   </div>;

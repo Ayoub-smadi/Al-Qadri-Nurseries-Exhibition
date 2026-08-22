@@ -1,0 +1,1 @@
+- [Agricultural store orders](agri-store-orders.md) — preserve product image URLs in order items and calculate shipping only after a configured area is selected.
