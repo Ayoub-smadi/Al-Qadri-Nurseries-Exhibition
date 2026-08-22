@@ -171,8 +171,8 @@ export default function AgriStorePage() {
             <div className="p-5">
               <h2 className="text-xl font-bold arabic">{isAr ? selected.nameAr : selected.nameEn}</h2>
               <p className="text-muted-foreground arabic leading-relaxed mt-2">{isAr ? selected.descriptionAr : selected.descriptionEn}</p>
-              <p className="text-primary font-bold arabic mt-4">{selected.price > 0 ? `${selected.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
-              <button onClick={() => addToCart(selected)} className="w-full mt-4 rounded-xl bg-primary text-primary-foreground py-3 font-bold arabic"><ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}</button>
+              <p className="text-[#004f31] font-bold arabic mt-4">{selected.price > 0 ? `${selected.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+              <button onClick={() => addToCart(selected)} className="w-full mt-4 rounded-xl bg-[#004f31] text-white py-3 font-bold arabic"><ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}</button>
             </div>
           </div>
         </div>
@@ -193,14 +193,14 @@ export default function AgriStorePage() {
                       <button onClick={() => updateQuantity(line.product.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
                     </div>)}
                   </div>
-                  <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm arabic"><div className="flex justify-between"><span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span><b>{subtotal.toFixed(2)} د.أ</b></div><div className="flex justify-between text-blue-600"><span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span><b>{governorate ? `${shippingFee.toFixed(2)} د.أ` : (isAr ? 'اختر المنطقة' : 'Select area')}</b></div><div className="flex justify-between border-t border-border pt-2 text-base text-primary"><b>{isAr ? 'الإجمالي' : 'Total'}</b><b>{total.toFixed(2)} د.أ</b></div></div>
+                   <div className="rounded-xl bg-[#f1f7f3] p-3 space-y-1 text-sm arabic"><div className="flex justify-between"><span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span><b>{subtotal.toFixed(2)} د.أ</b></div><div className="flex justify-between text-[#3d7357]"><span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span><b>{governorate ? `${shippingFee.toFixed(2)} د.أ` : (isAr ? 'اختر المنطقة' : 'Select area')}</b></div><div className="flex justify-between border-t border-[#cfe2d5] pt-2 text-base text-[#004f31]"><b>{isAr ? 'الإجمالي' : 'Total'}</b><b>{total.toFixed(2)} د.أ</b></div></div>
                   <div className="space-y-3">
                     <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder={isAr ? 'اسم الزبون *' : 'Customer name *'} className="w-full rounded-xl border border-border bg-background px-3 py-2.5 arabic" />
                     <input value={phone} onChange={e => setPhone(e.target.value)} type="tel" dir="ltr" placeholder={isAr ? 'رقم الهاتف *' : 'Phone *'} className="w-full rounded-xl border border-border bg-background px-3 py-2.5" />
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><select value={governorate} onChange={e => setGovernorate(e.target.value)} className="rounded-xl border border-border bg-background px-3 py-2.5 arabic"><option value="">{isAr ? 'اختر منطقة التوصيل *' : 'Select delivery area *'}</option>{shippingZones.map(zone => <option key={zone.id} value={zone.id}>{isAr ? zone.nameAr : zone.nameEn} — {zone.fee.toFixed(2)} د.أ</option>)}</select><div className="relative"><MapPin className="absolute start-3 top-3 w-4 h-4 text-muted-foreground" /><input value={location} onChange={e => setLocation(e.target.value)} placeholder={isAr ? 'الموقع بالتفصيل *' : 'Full location *'} className="w-full rounded-xl border border-border bg-background ps-9 pe-3 py-2.5 arabic" /></div></div>
                      <p className="text-xs text-muted-foreground arabic">{isAr ? 'تُضاف رسوم الشحن بعد اختيار منطقة التوصيل.' : 'Shipping is added after selecting a delivery area.'}</p>
                   </div>
-                  <button onClick={handleSubmit} disabled={sending} className="w-full rounded-xl bg-primary text-primary-foreground py-3 font-bold arabic disabled:opacity-50">{sending ? 'جاري إرسال الطلب...' : <><CheckCircle2 className="w-4 h-4 inline-block me-2 align-middle" />إرسال الطلب</>}</button>
+                   <button onClick={handleSubmit} disabled={sending} className="w-full rounded-xl bg-[#004f31] text-white py-3 font-bold arabic disabled:opacity-50 hover:bg-[#003d26] transition-colors">{sending ? 'جاري إرسال الطلب...' : <><CheckCircle2 className="w-4 h-4 inline-block me-2 align-middle" />إرسال الطلب</>}</button>
                 </>
               )}
             </div>
