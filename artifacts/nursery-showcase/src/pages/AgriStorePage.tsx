@@ -1,18 +1,23 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, CheckCircle2, Leaf, MapPin, Minus, Plus, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Leaf, MapPin, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
 import { AgriStoreCategory, AgriStoreProduct, QuoteItem, submitQuote } from '@/lib/storage';
 import { toast } from 'sonner';
+import gardeningToolIcon from '@/assets/store-icons/gardening-tool.png';
+import seedIcon from '@/assets/store-icons/seed.png';
+import fertilizerIcon from '@/assets/store-icons/fertilizer.png';
+import npkIcon from '@/assets/store-icons/npk.png';
+import plantIcon from '@/assets/store-icons/plant.png';
 
 type CartLine = { product: AgriStoreProduct; quantity: number };
 
-const categories: { id: AgriStoreCategory; ar: string; en: string }[] = [
-  { id: 'tools', ar: 'عدد زراعية', en: 'Agricultural Tools' },
-  { id: 'seeds', ar: 'بذور', en: 'Seeds' },
-  { id: 'fertilizers', ar: 'أسمدة', en: 'Fertilizers' },
-  { id: 'pesticides', ar: 'مبيدات', en: 'Pesticides' },
-  { id: 'irrigation', ar: 'شبكات ري', en: 'Irrigation' },
+const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string }[] = [
+  { id: 'tools', ar: 'عدد زراعية', en: 'Agricultural Tools', icon: gardeningToolIcon },
+  { id: 'seeds', ar: 'بذور', en: 'Seeds', icon: seedIcon },
+  { id: 'fertilizers', ar: 'أسمدة', en: 'Fertilizers', icon: fertilizerIcon },
+  { id: 'pesticides', ar: 'مبيدات', en: 'Pesticides', icon: npkIcon },
+  { id: 'irrigation', ar: 'شبكات ري', en: 'Irrigation', icon: plantIcon },
 ];
 
 export default function AgriStorePage() {
@@ -119,7 +124,6 @@ export default function AgriStorePage() {
       <main className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
          <section className="store-hero relative rounded-[2rem] overflow-hidden bg-[#004f31] text-white p-7 sm:p-12 mb-10 shadow-xl shadow-[#004f31]/15">
            <div className="relative z-10 max-w-2xl">
-             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold arabic"><Sparkles className="h-3.5 w-3.5 text-[#b9dfc8]" /> {isAr ? 'اختيارات موثوقة لموسم أخضر' : 'Trusted picks for a greener season'}</div>
              <p className="text-[#b9dfc8] text-sm arabic mb-2">{isAr ? content?.eyebrowAr : content?.eyebrowEn}</p>
              <h2 className="text-3xl sm:text-5xl font-bold arabic mb-4 leading-tight">{isAr ? content?.titleAr : content?.titleEn}</h2>
              <p className="text-white/75 text-sm sm:text-base arabic max-w-2xl leading-8">{isAr ? content?.descriptionAr : content?.descriptionEn}</p>
@@ -128,11 +132,14 @@ export default function AgriStorePage() {
            <div className="absolute -top-20 -start-10 h-48 w-48 rounded-full border border-white/10" />
         </section>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-7">
+         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
           {categories.map(item => (
              <button key={item.id} onClick={() => setCategory(item.id)}
-               className={`shrink-0 rounded-full border px-5 py-2.5 text-sm font-bold arabic transition-colors ${category === item.id ? 'bg-[#004f31] text-white border-[#004f31] shadow-md' : 'bg-white border-[#d7e7de] text-[#37634f] hover:border-[#004f31]'}`}>
-              {isAr ? item.ar : item.en}
+               className={`group relative min-h-[116px] overflow-hidden rounded-2xl border p-3 text-start transition-all ${category === item.id ? 'border-[#004f31] bg-[#004f31] text-white shadow-lg shadow-[#004f31]/15' : 'border-[#d7e7de] bg-white text-[#37634f] hover:-translate-y-1 hover:border-[#004f31] hover:shadow-md'}`}>
+               <span className={`absolute -end-3 -bottom-5 h-24 w-24 rounded-full ${category === item.id ? 'bg-white/10' : 'bg-[#edf6f0]'}`} />
+               <img src={item.icon} alt="" className={`relative h-14 w-14 object-contain transition-transform duration-300 group-hover:scale-110 ${category === item.id ? 'brightness-110' : ''}`} />
+               <span className="relative mt-2 block text-sm font-bold arabic">{isAr ? item.ar : item.en}</span>
+               <span className={`relative mt-0.5 block text-[10px] ${category === item.id ? 'text-white/60' : 'text-[#8aa294]'}`}>{category === item.id ? (isAr ? 'تصفح المنتجات' : 'Browse products') : ' '}</span>
             </button>
           ))}
         </div>
