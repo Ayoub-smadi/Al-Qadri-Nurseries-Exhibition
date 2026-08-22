@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, FileText, Loader2, MapPin, Phone, RefreshCw, ShoppingCart, X } from 'lucide-react';
-import { createInvoice, fetchQuotes, InvoiceItem, QuoteRequest, updateQuote } from '@/lib/storage';
+import { CheckCircle2, FileText, Loader2, MapPin, Phone, RefreshCw, ShoppingCart, Trash2, X } from 'lucide-react';
+import { createInvoice, deleteQuote, fetchQuotes, InvoiceItem, QuoteRequest, updateQuote } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export function AdminAgriOrdersModal({ open, onClose, onCountChange }: { open: boolean; onClose: () => void; onCountChange?: (count: number) => void }) {
@@ -54,6 +54,21 @@ export function AdminAgriOrdersModal({ open, onClose, onCountChange }: { open: b
     setConverting(null);
   };
 
+  const removeOrder = async (order: QuoteRequest) => {
+    if (!window.confirm(`هل أنت متأكد من حذف طلب ${order.customer_name || 'العميل'}؟`)) return;
+    const deleted = await deleteQuote(order.id);
+    if (!deleted) {
+      toast.error('تعذر حذف الطلب، حاول مرة أخرى');
+      return;
+    }
+    setOrders(prev => {
+      const next = prev.filter(item => item.id !== order.id);
+      onCountChange?.(next.filter(item => item.status !== 'priced').length);
+      return next;
+    });
+    toast.success('تم حذف الطلب');
+  };
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
@@ -69,7 +84,10 @@ export function AdminAgriOrdersModal({ open, onClose, onCountChange }: { open: b
               <div className="flex items-start justify-between gap-3"><div><p className="font-bold arabic">{order.customer_name}</p><p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleString('ar-JO')}</p></div><span className={`text-[10px] rounded-full px-2 py-1 arabic ${order.status === 'priced' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{order.status === 'priced' ? 'تمت المعالجة' : 'جديد'}</span></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground arabic"><span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{order.phone || '—'}</span><span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{order.shipping_address || '—'}</span></div>
                <div className="space-y-2 border-t border-border pt-2">{(order.items ?? []).map((item, index) => <div key={index} className="flex items-center justify-between gap-2 text-sm arabic"><div className="flex min-w-0 items-center gap-2"><img src={item.plantImage} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-border object-cover bg-muted" /><span className="truncate">{item.plantNameAr || item.plantNameEn} × {item.quantity}</span></div><span className="shrink-0">{Number(item.price) > 0 ? `${(Number(item.price) * Number(item.quantity)).toFixed(2)} د.أ` : 'عند الطلب'}</span></div>)}<div className="flex justify-between font-bold text-primary pt-1 border-t border-border arabic"><span>الإجمالي مع الشحن</span><span>{total.toFixed(2)} د.أ</span></div></div>
-              <button onClick={() => convertToInvoice(order)} disabled={converting === order.id || order.status === 'priced'} className="w-full rounded-xl border border-[#004f31] text-[#004f31] hover:bg-[#004f31] hover:text-white py-2 text-sm font-bold arabic disabled:opacity-50 transition-colors">{converting === order.id ? <Loader2 className="w-4 h-4 animate-spin inline-block me-1" /> : order.status === 'priced' ? <CheckCircle2 className="w-4 h-4 inline-block me-1" /> : <FileText className="w-4 h-4 inline-block me-1" />}{order.status === 'priced' ? 'تم تحويله إلى فاتورة' : 'تحويل إلى فاتورة'}</button>
+              <div className="flex gap-2">
+                <button onClick={() => convertToInvoice(order)} disabled={converting === order.id || order.status === 'priced'} className="flex-1 rounded-xl border border-[#004f31] text-[#004f31] hover:bg-[#004f31] hover:text-white py-2 text-sm font-bold arabic disabled:opacity-50 transition-colors">{converting === order.id ? <Loader2 className="w-4 h-4 animate-spin inline-block me-1" /> : order.status === 'priced' ? <CheckCircle2 className="w-4 h-4 inline-block me-1" /> : <FileText className="w-4 h-4 inline-block me-1" />}{order.status === 'priced' ? 'تم تحويله إلى فاتورة' : 'تحويل إلى فاتورة'}</button>
+                <button onClick={() => removeOrder(order)} disabled={converting === order.id} className="rounded-xl border border-red-200 px-3 text-red-600 hover:bg-red-50 py-2 transition-colors disabled:opacity-50" title="حذف الطلب" aria-label="حذف الطلب"><Trash2 className="w-4 h-4" /></button>
+              </div>
             </div>;
           })}
         </div>
