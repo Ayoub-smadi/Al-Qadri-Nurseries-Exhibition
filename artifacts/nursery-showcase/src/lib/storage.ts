@@ -66,12 +66,6 @@ export interface ShowcaseItem {
 
 export type AgriStoreCategory = 'tools' | 'seeds' | 'fertilizers' | 'pesticides' | 'irrigation';
 
-export interface AgriStoreProductVariant {
-  id: string;
-  image: string;
-  price: number;
-}
-
 export interface AgriStoreProduct {
   id: string;
   category: AgriStoreCategory;
@@ -81,7 +75,6 @@ export interface AgriStoreProduct {
   descriptionAr: string;
   descriptionEn: string;
   price: number;
-  variants?: AgriStoreProductVariant[];
 }
 
 export interface ShippingZone {
