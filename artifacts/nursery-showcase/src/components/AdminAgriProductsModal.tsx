@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ImagePlus, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
-import { AgriStoreCategory, AgriStoreProduct, ShippingZone, uploadImage } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, AgriStoreProductVariant, ShippingZone, uploadImage } from '@/lib/storage';
 import { useApp } from '@/lib/context';
 import { toast } from 'sonner';
 
@@ -8,7 +8,11 @@ const categories: { id: AgriStoreCategory; ar: string }[] = [
   { id: 'tools', ar: 'عدد زراعية' }, { id: 'seeds', ar: 'بذور' }, { id: 'fertilizers', ar: 'أسمدة' },
   { id: 'pesticides', ar: 'مبيدات' }, { id: 'irrigation', ar: 'شبكات ري' },
 ];
-const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0 });
+const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0, variants: [] });
+const withVariants = (product: AgriStoreProduct): AgriStoreProduct => ({
+  ...product,
+  variants: product.variants?.length ? product.variants : product.image ? [{ id: `${product.id}-image`, image: product.image, price: product.price }] : [],
+});
 
 export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { siteData, updateSiteData } = useApp();
@@ -23,14 +27,28 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
   const products = draft.agriStoreProducts ?? [];
   const zones = draft.shippingZones ?? [];
   const save = () => {
-    if (!editing?.nameAr.trim() || !editing.image) { toast.error('أدخل اسم المنتج وأضف صورة'); return; }
-    const next = products.some(p => p.id === editing.id) ? products.map(p => p.id === editing.id ? editing : p) : [...products, editing];
+    const variants = editing?.variants ?? [];
+    if (!editing?.nameAr.trim() || (!editing.image && !variants.length)) { toast.error('أدخل اسم المنتج وأضف صورة واحدة على الأقل'); return; }
+    const product = {
+      ...editing,
+      image: variants[0]?.image ?? editing.image,
+      price: variants[0]?.price ?? editing.price,
+      variants,
+    };
+    const next = products.some(p => p.id === product.id) ? products.map(p => p.id === product.id ? product : p) : [...products, product];
     setDraft(prev => ({ ...prev, agriStoreProducts: next }));
     setEditing(null);
   };
   const pickImage = async (file?: File) => {
     if (!file) return; setUploading(true);
-    try { const image = await uploadImage(file); setEditing(p => p ? { ...p, image } : p); }
+     try {
+       const image = await uploadImage(file);
+       setEditing(p => p ? {
+         ...p,
+         image: p.image || image,
+         variants: [...(p.variants ?? []), { id: `variant-${Date.now()}`, image, price: p.price }],
+       } : p);
+     }
     catch { toast.error('فشل رفع الصورة'); } finally { setUploading(false); }
   };
   const saveZone = () => {
@@ -65,19 +83,29 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
          <button onClick={() => setEditing(empty())} className="w-full rounded-xl bg-[#004f31] text-white py-2 font-bold arabic hover:bg-[#003d26] transition-colors"><Plus className="w-4 h-4 inline me-1" />إضافة منتج</button>
          {products.map(p => <div key={p.id} className="flex items-center gap-3 border rounded-xl p-2">
            <img src={p.image} alt="" className="w-14 h-14 rounded-lg object-cover bg-muted" /><div className="flex-1"><b className="arabic">{p.nameAr}</b><p className="text-xs text-[#004f31]">{Number(p.price).toFixed(2)} د.أ · {categories.find(c => c.id === p.category)?.ar}</p></div>
-           <button onClick={() => setEditing(p)} className="p-2 text-[#004f31]"><Pencil className="w-4 h-4" /></button>
+           <button onClick={() => setEditing(withVariants(p))} className="p-2 text-[#004f31]"><Pencil className="w-4 h-4" /></button>
            <button onClick={() => setDraft(prev => ({ ...prev, agriStoreProducts: (prev.agriStoreProducts ?? []).filter(x => x.id !== p.id) }))} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
         </div>)}
         {editing && <div className="border-t pt-4 space-y-3">
           <h3 className="font-bold arabic">{products.some(p => p.id === editing.id) ? 'تعديل المنتج' : 'منتج جديد'}</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
+           <div className="grid sm:grid-cols-2 gap-3">
             <input value={editing.nameAr} onChange={e => setEditing({ ...editing, nameAr: e.target.value })} placeholder="اسم المنتج بالعربي *" className="rounded-xl border bg-background p-2.5 arabic" />
             <input value={editing.nameEn} onChange={e => setEditing({ ...editing, nameEn: e.target.value })} placeholder="Product name" className="rounded-xl border bg-background p-2.5" />
             <select value={editing.category} onChange={e => setEditing({ ...editing, category: e.target.value as AgriStoreCategory })} className="rounded-xl border bg-background p-2.5 arabic">{categories.map(c => <option key={c.id} value={c.id}>{c.ar}</option>)}</select>
-            <input type="number" min="0" step="0.01" value={editing.price} onChange={e => setEditing({ ...editing, price: Number(e.target.value) })} placeholder="السعر بالدينار *" className="rounded-xl border bg-background p-2.5 arabic" />
+             <input type="number" min="0" step="0.01" value={editing.price} onChange={e => setEditing({ ...editing, price: Number(e.target.value) })} placeholder="السعر الأساسي" className="rounded-xl border bg-background p-2.5 arabic" />
             <textarea value={editing.descriptionAr} onChange={e => setEditing({ ...editing, descriptionAr: e.target.value })} placeholder="وصف المنتج" className="rounded-xl border bg-background p-2.5 arabic sm:col-span-2" />
           </div>
-          <div className="flex items-center gap-3"><label className="cursor-pointer rounded-xl border border-dashed p-3 text-sm arabic"><ImagePlus className="w-4 h-4 inline me-1" />{uploading ? 'جاري الرفع...' : 'اختيار صورة'}<input type="file" accept="image/*" className="hidden" onChange={e => pickImage(e.target.files?.[0])} /></label>{editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded-lg object-cover" />}</div>
+           <div className="rounded-xl border bg-muted/30 p-3 space-y-2 sm:col-span-2">
+             <div className="flex items-center justify-between gap-2"><span className="font-bold text-sm arabic">صور المنتج وأسعارها</span><label className="cursor-pointer rounded-lg bg-[#e5f2e9] text-[#004f31] px-3 py-2 text-xs font-bold arabic"><ImagePlus className="w-4 h-4 inline me-1 align-middle" />{uploading ? 'جاري الرفع...' : 'إضافة صورة'}<input type="file" accept="image/*" className="hidden" onChange={e => pickImage(e.target.files?.[0])} /></label></div>
+             {editing.variants?.map((variant: AgriStoreProductVariant, index: number) => <div key={variant.id} className="flex items-center gap-2 rounded-lg border bg-background p-2">
+               <img src={variant.image} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+               <span className="text-xs text-muted-foreground arabic flex-1">الصورة {index + 1}</span>
+               <input type="number" min="0" step="0.01" value={variant.price} onChange={e => setEditing({ ...editing, variants: editing.variants?.map(item => item.id === variant.id ? { ...item, price: Number(e.target.value) } : item) })} placeholder="السعر" className="w-28 rounded-lg border bg-background p-2 text-sm arabic" />
+               <span className="text-xs">د.أ</span>
+               <button onClick={() => setEditing({ ...editing, variants: editing.variants?.filter(item => item.id !== variant.id) })} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>
+             </div>)}
+             {!editing.variants?.length && <p className="text-xs text-muted-foreground arabic">أضف صورة واحدة على الأقل، ثم حدد سعرها.</p>}
+           </div>
            <div className="flex gap-2"><button onClick={save} disabled={uploading} className="flex-1 rounded-xl bg-[#004f31] text-white py-2 font-bold arabic hover:bg-[#003d26] transition-colors">حفظ المنتج</button><button onClick={() => setEditing(null)} className="rounded-xl border px-5 py-2 arabic">إلغاء</button></div>
         </div>}
          <div className="border-t pt-4 space-y-3">

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, Leaf, MapPin, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { AgriStoreCategory, AgriStoreProduct, QuoteItem, submitQuote } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, AgriStoreProductVariant, QuoteItem, submitQuote } from '@/lib/storage';
 import { toast } from 'sonner';
 import gardeningToolIcon from '@/assets/store-icons/gardening-tool.png';
 import seedIcon from '@/assets/store-icons/seed.png';
@@ -10,7 +10,9 @@ import fertilizerIcon from '@/assets/store-icons/fertilizer.png';
 import npkIcon from '@/assets/store-icons/npk.png';
 import plantIcon from '@/assets/store-icons/plant.png';
 
-type CartLine = { product: AgriStoreProduct; quantity: number };
+type CartLine = { product: AgriStoreProduct; quantity: number; image: string; price: number };
+const productVariants = (product: AgriStoreProduct): AgriStoreProductVariant[] =>
+  product.variants?.length ? product.variants : [{ id: `${product.id}-image`, image: product.image, price: product.price }];
 
 const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string }[] = [
   { id: 'tools', ar: 'عدد زراعية', en: 'Agricultural Tools', icon: gardeningToolIcon },
@@ -33,21 +35,26 @@ export default function AgriStorePage() {
   const [governorate, setGovernorate] = useState('');
   const [location, setLocation] = useState('');
   const [sending, setSending] = useState(false);
+  const [detailVariantId, setDetailVariantId] = useState<string | null>(null);
 
   const visibleProducts = useMemo(() => products.filter(p => p.category === category), [products, category]);
   const detailId = window.location.pathname.match(/^\/agri-store\/product\/([^/]+)$/)?.[1];
   const detailProduct = detailId ? products.find(product => product.id === decodeURIComponent(detailId)) : null;
+  const detailVariants = detailProduct ? productVariants(detailProduct) : [];
+  const detailVariant = detailVariants.find(variant => variant.id === detailVariantId) ?? detailVariants[0];
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const subtotal = cart.reduce((sum, line) => sum + line.quantity * Number(line.product.price || 0), 0);
+  const subtotal = cart.reduce((sum, line) => sum + line.quantity * Number(line.price || 0), 0);
   const shippingZones = siteData.shippingZones ?? [];
   const shippingFee = shippingZones.find(zone => zone.id === governorate)?.fee ?? 0;
   const total = subtotal + (governorate ? shippingFee : 0);
 
-  const addToCart = (product: AgriStoreProduct) => {
+  const addToCart = (product: AgriStoreProduct, variant?: AgriStoreProductVariant) => {
+    const selectedImage = variant?.image ?? product.image;
+    const selectedPrice = variant?.price ?? product.price;
     setCart(prev => {
-      const found = prev.find(line => line.product.id === product.id);
-      if (found) return prev.map(line => line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line);
-      return [...prev, { product, quantity: 1 }];
+      const found = prev.find(line => line.product.id === product.id && line.image === selectedImage && line.price === selectedPrice);
+      if (found) return prev.map(line => line === found ? { ...line, quantity: line.quantity + 1 } : line);
+      return [...prev, { product, quantity: 1, image: selectedImage, price: selectedPrice }];
     });
     toast.success(isAr ? 'تمت إضافة المنتج للسلة' : 'Product added to cart');
   };
@@ -68,16 +75,16 @@ export default function AgriStorePage() {
       return;
     }
     setSending(true);
-    const items: QuoteItem[] = cart.map(({ product, quantity }) => ({
+    const items: QuoteItem[] = cart.map(({ product, quantity, image, price }) => ({
       plantId: product.id,
       plantNameAr: product.nameAr,
       plantNameEn: product.nameEn,
-      plantImage: product.image,
+      plantImage: image,
       sectionNameAr: categories.find(c => c.id === product.category)?.ar ?? '',
       sectionNameEn: categories.find(c => c.id === product.category)?.en ?? '',
       quantity,
       size: '',
-      price: Number(product.price || 0),
+      price: Number(price || 0),
     }));
     const id = await submitQuote({
       orderType: 'agri_store',
@@ -121,14 +128,15 @@ export default function AgriStorePage() {
           <article className="overflow-hidden rounded-[2rem] border border-[#d7e7de] bg-white shadow-xl">
             <div className="grid md:grid-cols-2">
               <div className="aspect-square md:aspect-auto md:min-h-[460px] bg-[#edf6f0]">
-                <img src={detailProduct.image} alt={isAr ? detailProduct.nameAr : detailProduct.nameEn} className="w-full h-full object-cover" />
+                <img src={detailVariant?.image ?? detailProduct.image} alt={isAr ? detailProduct.nameAr : detailProduct.nameEn} className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col justify-center p-6 sm:p-10">
                 <p className="text-sm font-bold text-[#5c7b6b] arabic">{categories.find(item => item.id === detailProduct.category)?.[isAr ? 'ar' : 'en']}</p>
                 <h2 className="mt-2 text-2xl sm:text-4xl font-bold arabic leading-tight">{isAr ? detailProduct.nameAr : detailProduct.nameEn}</h2>
                 <p className="mt-5 text-base leading-8 text-[#648273] arabic whitespace-pre-line">{isAr ? detailProduct.descriptionAr : detailProduct.descriptionEn}</p>
-                <p className="mt-6 text-xl font-bold text-[#004f31] arabic">{detailProduct.price > 0 ? `${detailProduct.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
-                <button onClick={() => { addToCart(detailProduct); navigate('/agri-store'); }} className="mt-7 w-full rounded-xl bg-[#004f31] text-white py-3.5 font-bold arabic hover:bg-[#003d26] transition-colors">
+                {detailVariants.length > 1 && <div className="mt-6 grid grid-cols-4 gap-2">{detailVariants.map((variant, index) => <button key={variant.id} onClick={() => setDetailVariantId(variant.id)} className={`overflow-hidden rounded-lg border-2 ${detailVariant?.id === variant.id ? 'border-[#004f31]' : 'border-transparent'}`}><img src={variant.image} alt={`${isAr ? 'الصورة' : 'Image'} ${index + 1}`} className="aspect-square w-full object-cover" /></button>)}</div>}
+                <p className="mt-6 text-xl font-bold text-[#004f31] arabic">{detailVariant && detailVariant.price > 0 ? `${detailVariant.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+                <button onClick={() => { addToCart(detailProduct, detailVariant); navigate('/agri-store'); }} className="mt-7 w-full rounded-xl bg-[#004f31] text-white py-3.5 font-bold arabic hover:bg-[#003d26] transition-colors">
                   <ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}
                 </button>
               </div>
@@ -189,12 +197,12 @@ export default function AgriStorePage() {
                <article key={product.id} className="group flex h-full flex-col rounded-2xl overflow-hidden border border-[#d7e7de] bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl transition-all">
                  <button onClick={() => navigate(`/agri-store/product/${encodeURIComponent(product.id)}`)} className="block w-full flex-1 text-start">
                    <div className="aspect-square overflow-hidden bg-[#edf6f0]">
-                    <img src={product.image} alt={isAr ? product.nameAr : product.nameEn} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                     <img src={productVariants(product)[0].image} alt={isAr ? product.nameAr : product.nameEn} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                    <div className="p-5">
                     <h3 className="font-bold arabic text-base">{isAr ? product.nameAr : product.nameEn}</h3>
                       <p className="text-sm text-[#648273] arabic mt-1 line-clamp-3">{isAr ? product.descriptionAr : product.descriptionEn}</p>
-                      <p className="text-[#004f31] font-bold mt-3 arabic">{product.price > 0 ? `${product.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+                       <p className="text-[#004f31] font-bold mt-3 arabic">{productVariants(product)[0].price > 0 ? `${productVariants(product)[0].price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
                   </div>
                 </button>
                  <div className="px-5 pb-5 mt-auto">
@@ -217,8 +225,8 @@ export default function AgriStorePage() {
                 <>
                   <div className="space-y-2">
                     {cart.map(line => <div key={line.product.id} className="flex items-center gap-3 border-b border-border pb-2">
-                      <img src={line.product.image} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                      <div className="flex-1 min-w-0"><p className="font-bold arabic truncate">{isAr ? line.product.nameAr : line.product.nameEn}</p><p className="text-xs text-muted-foreground arabic">{line.product.price > 0 ? `${(line.product.price * line.quantity).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p></div>
+                       <img src={line.image} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                       <div className="flex-1 min-w-0"><p className="font-bold arabic truncate">{isAr ? line.product.nameAr : line.product.nameEn}</p><p className="text-xs text-muted-foreground arabic">{line.price > 0 ? `${(line.price * line.quantity).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p></div>
                       <div className="flex items-center gap-1"><button onClick={() => updateQuantity(line.product.id, -1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Minus className="w-3 h-3" /></button><span className="w-6 text-center">{line.quantity}</span><button onClick={() => updateQuantity(line.product.id, 1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Plus className="w-3 h-3" /></button></div>
                       <button onClick={() => updateQuantity(line.product.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
                     </div>)}
