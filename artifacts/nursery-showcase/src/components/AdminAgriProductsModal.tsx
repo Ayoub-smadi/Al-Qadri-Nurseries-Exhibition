@@ -47,6 +47,7 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
       agriStoreProducts: products,
       shippingZones: zones,
     });
+    onClose();
   };
   return <div className="fixed inset-0 z-[75] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
     <div className="bg-card w-full sm:max-w-3xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl overflow-y-auto shadow-2xl">
