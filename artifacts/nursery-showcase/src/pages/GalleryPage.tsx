@@ -2101,8 +2101,8 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '💰 السجلات المالية' : '💰 Financial'}>
                       <SideBtnBadge icon={<Inbox className="w-4 h-4" />} label={isAr ? 'طلبات العروض' : 'Quote Requests'} badge={pendingQuoteCount} onClick={() => { setAdminQuotesOpen(true); setPendingQuoteCount(0); }} />
-                       <SideBtnBadge icon={<ShoppingCart className="w-4 h-4" />} label={isAr ? 'طلبات مواد زراعية' : 'Agricultural Orders'} badge={pendingAgriCount} onClick={() => { setAdminAgriOrdersOpen(true); setPendingAgriCount(0); }} />
-                       <SideBtn icon={<Package className="w-4 h-4" />} label={isAr ? 'منتجات المواد الزراعية' : 'Agricultural Products'} onClick={() => setAdminAgriProductsOpen(true)} />
+                       <SideBtnBadge icon={<ShoppingCart className="w-4 h-4" />} label={isAr ? 'طلبات المتجر' : 'Store Orders'} badge={pendingAgriCount} onClick={() => { setAdminAgriOrdersOpen(true); setPendingAgriCount(0); }} />
+                       <SideBtn icon={<Package className="w-4 h-4" />} label={isAr ? 'المتجر' : 'Store'} onClick={() => setAdminAgriProductsOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
