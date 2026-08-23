@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { AgriStoreCategory, AgriStoreProduct, ShippingZone, uploadImage } from '@/lib/storage';
 import { useApp } from '@/lib/context';
 import { toast } from 'sonner';
@@ -36,6 +36,13 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
     updateSiteData({ shippingZones: [...zones, zone] });
     setNewZone({ nameAr: '', fee: '' });
   };
+  const saveAllData = () => {
+    updateSiteData({
+      agriStoreContent: siteData.agriStoreContent,
+      agriStoreProducts: products,
+      shippingZones: zones,
+    });
+  };
   return <div className="fixed inset-0 z-[75] bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" dir="rtl">
     <div className="bg-card w-full sm:max-w-3xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl overflow-y-auto shadow-2xl">
       <div className="p-4 border-b flex justify-between items-center"><div><h2 className="font-bold arabic">إدارة منتجات المواد الزراعية</h2><p className="text-xs text-muted-foreground arabic">أضف المنتجات مع صورها وأسعارها ليظهر السعر جاهزاً للعميل</p></div><button onClick={onClose}><X className="w-5 h-5" /></button></div>
@@ -49,7 +56,7 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
            <input value={siteData.agriStoreContent?.titleAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, titleAr: e.target.value } })} placeholder="عنوان المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
            <textarea value={siteData.agriStoreContent?.descriptionAr ?? ''} onChange={e => updateSiteData({ agriStoreContent: { ...siteData.agriStoreContent!, descriptionAr: e.target.value } })} placeholder="وصف المتجر" className="w-full rounded-xl border bg-background p-2.5 arabic" />
          </div>
-        <button onClick={() => setEditing(empty())} className="w-full rounded-xl bg-primary text-primary-foreground py-2 font-bold arabic"><Plus className="w-4 h-4 inline me-1" />إضافة منتج</button>
+         <button onClick={() => setEditing(empty())} className="w-full rounded-xl bg-[#004f31] text-white py-2 font-bold arabic hover:bg-[#003d26] transition-colors"><Plus className="w-4 h-4 inline me-1" />إضافة منتج</button>
         {products.map(p => <div key={p.id} className="flex items-center gap-3 border rounded-xl p-2">
           <img src={p.image} alt="" className="w-14 h-14 rounded-lg object-cover bg-muted" /><div className="flex-1"><b className="arabic">{p.nameAr}</b><p className="text-xs text-primary">{Number(p.price).toFixed(2)} د.أ · {categories.find(c => c.id === p.category)?.ar}</p></div>
           <button onClick={() => setEditing(p)} className="p-2 text-primary"><Pencil className="w-4 h-4" /></button>
@@ -70,7 +77,8 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
          <div className="border-t pt-4 space-y-3">
            <div><h3 className="font-bold arabic">مناطق التوصيل ورسوم الشحن</h3><p className="text-xs text-muted-foreground arabic">لا تُضاف الرسوم للطلب إلا بعد اختيار العميل لمنطقة.</p></div>
            {zones.map(zone => <div key={zone.id} className="flex items-center gap-2 border rounded-xl p-2"><span className="flex-1 arabic">{zone.nameAr}</span><input type="number" min="0" step="0.01" value={zone.fee} onChange={e => updateSiteData({ shippingZones: zones.map(item => item.id === zone.id ? { ...item, fee: Number(e.target.value) } : item) })} className="w-24 rounded-lg border bg-background p-2 text-sm" /><span className="text-xs">د.أ</span><button onClick={() => updateSiteData({ shippingZones: zones.filter(item => item.id !== zone.id) })} className="p-2 text-destructive"><Trash2 className="w-4 h-4" /></button></div>)}
-           <div className="flex gap-2"><input value={newZone.nameAr} onChange={e => setNewZone({ ...newZone, nameAr: e.target.value })} placeholder="اسم المنطقة" className="flex-1 rounded-xl border bg-background p-2.5 arabic" /><input value={newZone.fee} onChange={e => setNewZone({ ...newZone, fee: e.target.value })} type="number" min="0" step="0.01" placeholder="الرسوم" className="w-28 rounded-xl border bg-background p-2.5 arabic" /><button onClick={saveZone} className="rounded-xl bg-primary text-primary-foreground px-4 font-bold arabic">إضافة</button></div>
+            <div className="flex gap-2"><input value={newZone.nameAr} onChange={e => setNewZone({ ...newZone, nameAr: e.target.value })} placeholder="اسم المنطقة" className="flex-1 rounded-xl border bg-background p-2.5 arabic" /><input value={newZone.fee} onChange={e => setNewZone({ ...newZone, fee: e.target.value })} type="number" min="0" step="0.01" placeholder="الرسوم" className="w-28 rounded-xl border bg-background p-2.5 arabic" /><button onClick={saveZone} className="rounded-xl bg-[#004f31] text-white px-4 font-bold arabic hover:bg-[#003d26] transition-colors">إضافة</button></div>
+            <button onClick={saveAllData} className="w-full rounded-xl border border-[#004f31] bg-[#e5f2e9] text-[#004f31] py-2.5 font-bold arabic hover:bg-[#d4eadb] transition-colors"><Save className="w-4 h-4 inline me-1 align-middle" />حفظ البيانات</button>
          </div>
       </div>
     </div>
