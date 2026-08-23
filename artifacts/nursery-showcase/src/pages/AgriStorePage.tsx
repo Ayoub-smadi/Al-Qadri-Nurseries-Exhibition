@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import gardeningToolIcon from '@/assets/store-icons/gardening-tool.png';
 import seedIcon from '@/assets/store-icons/seed.png';
 import fertilizerIcon from '@/assets/store-icons/fertilizer.png';
-import npkIcon from '@/assets/store-icons/npk.png';
+import pesticideIcon from '@/assets/store-icons/pesticide.png';
 import plantIcon from '@/assets/store-icons/plant.png';
 
 type CartLine = { product: AgriStoreProduct; quantity: number };
@@ -16,7 +16,7 @@ const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string 
   { id: 'tools', ar: 'عدد زراعية', en: 'Agricultural Tools', icon: gardeningToolIcon },
   { id: 'seeds', ar: 'بذور', en: 'Seeds', icon: seedIcon },
   { id: 'fertilizers', ar: 'أسمدة', en: 'Fertilizers', icon: fertilizerIcon },
-  { id: 'pesticides', ar: 'مبيدات', en: 'Pesticides', icon: npkIcon },
+  { id: 'pesticides', ar: 'مبيدات', en: 'Pesticides', icon: pesticideIcon },
   { id: 'irrigation', ar: 'شبكات ري', en: 'Irrigation', icon: plantIcon },
 ];
 
