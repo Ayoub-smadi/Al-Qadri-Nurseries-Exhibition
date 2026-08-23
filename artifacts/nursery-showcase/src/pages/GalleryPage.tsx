@@ -1206,6 +1206,7 @@ export default function GalleryPage() {
   const ticker = siteData.newsTicker;
   const tickerActive = ticker?.enabled && ticker?.text;
   const galleryTitle = siteData.galleryTitle ?? DEFAULT_DATA.galleryTitle;
+  const storeShowcaseTitle = siteData.storeShowcaseTitle ?? DEFAULT_DATA.storeShowcaseTitle;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300" dir={isAr ? 'rtl' : 'ltr'}>
@@ -1535,6 +1536,8 @@ export default function GalleryPage() {
         isAr={isAr}
         isAdmin={isAdmin}
         onUpdate={items => updateSiteData({ storeShowcase: items })}
+        title={storeShowcaseTitle}
+        onUpdateTitle={title => updateSiteData({ storeShowcaseTitle: title })}
         onOpenStore={() => navigate('/agri-store')}
       />
 
@@ -3259,11 +3262,13 @@ function getVideoEmbed(url: string): { type: 'youtube' | 'vimeo' | 'direct'; emb
 }
 
 /* ── Store Showcase Section ──────────────────────────────── */
-function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, onOpenStore }: {
+function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, title, onUpdateTitle, onOpenStore }: {
   items: ShowcaseItem[];
   isAr: boolean;
   isAdmin: boolean;
   onUpdate: (items: ShowcaseItem[]) => void;
+  title: { ar: string; en: string };
+  onUpdateTitle: (title: { ar: string; en: string }) => void;
   onOpenStore: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -3328,8 +3333,16 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, onOpenStore }: {
       <div className="flex items-center justify-center gap-4 mb-10">
         <div className="flex-1 h-px bg-foreground/15" />
         <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'محلاتنا وأعمالنا' : 'Our Stores & Work'}</h2>
-          <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Stores & Work' : 'محلاتنا وأعمالنا'}</p>
+          {isAdmin ? (
+            <InlineEdit
+              value={isAr ? title.ar : title.en}
+              onSave={value => onUpdateTitle(isAr ? { ...title, ar: value } : { ...title, en: value })}
+              className="text-2xl md:text-3xl font-bold arabic text-foreground"
+            />
+          ) : (
+            <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? title.ar : title.en}</h2>
+          )}
+          <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? title.en : title.ar}</p>
         </div>
         <div className="flex-1 h-px bg-foreground/15" />
       </div>
