@@ -119,7 +119,6 @@ export interface SiteData {
   socialLinks: SocialLink[];
   shippingZones?: ShippingZone[];
   storeShowcase?: ShowcaseItem[];
-  storeShowcaseTitle?: { ar: string; en: string };
   agriStoreProducts?: AgriStoreProduct[];
   agriStoreContent?: AgriStoreContent;
   footer: {
@@ -155,14 +154,10 @@ export const DEFAULT_DATA: SiteData = {
     { id: 'sc2', imageUrl: '/store-2.jpg', captionAr: 'معرض القادري أون لاين', captionEn: 'Al-Kadri Online Showroom' },
     { id: 'sc3', imageUrl: '/store-3.jpg', captionAr: 'مشتل القادري — أبو عقاب', captionEn: 'Al-Qadri Nursery – Abu Aqab' },
   ],
-<<<<<<< HEAD
   shippingZones: [
     { id: 'amman', nameAr: 'عمّان', nameEn: 'Amman', fee: 2 },
     { id: 'other', nameAr: 'المحافظات الأخرى', nameEn: 'Other governorates', fee: 3 },
   ],
-=======
-  storeShowcaseTitle: { ar: 'محلاتنا وأعمالنا', en: 'Our Stores & Work' },
->>>>>>> 1c54f08 (Update gallery page and storage utilities)
   agriStoreProducts: [
     { id: 'tool-1', category: 'tools', image: '/store-1.jpg', nameAr: 'عدد وأدوات زراعية', nameEn: 'Agricultural Tools', descriptionAr: 'مجموعة مختارة من أدوات العمل والحدائق.', descriptionEn: 'A selected range of tools for gardening and agricultural work.', price: 0 },
     { id: 'seed-1', category: 'seeds', image: '/store-2.jpg', nameAr: 'بذور موسمية', nameEn: 'Seasonal Seeds', descriptionAr: 'بذور مختارة لموسم زراعي ناجح.', descriptionEn: 'Selected seeds for a successful growing season.', price: 0 },
@@ -340,7 +335,6 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
           storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
-<<<<<<< HEAD
           agriStoreContent: {
             storeTitleAr: p.agriStoreContent?.storeTitleAr ?? DEFAULT_DATA.agriStoreContent!.storeTitleAr,
             storeTitleEn: p.agriStoreContent?.storeTitleEn ?? DEFAULT_DATA.agriStoreContent!.storeTitleEn,
@@ -353,9 +347,6 @@ export async function fetchSiteData(): Promise<SiteData | null> {
             descriptionAr: p.agriStoreContent?.descriptionAr ?? DEFAULT_DATA.agriStoreContent!.descriptionAr,
             descriptionEn: p.agriStoreContent?.descriptionEn ?? DEFAULT_DATA.agriStoreContent!.descriptionEn,
           },
-=======
-          storeShowcaseTitle: { ...DEFAULT_DATA.storeShowcaseTitle, ...p.storeShowcaseTitle },
->>>>>>> 1c54f08 (Update gallery page and storage utilities)
           agriStoreProducts: (() => {
             const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
             const missingDefaults = (DEFAULT_DATA.agriStoreProducts ?? []).filter(
