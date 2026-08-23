@@ -37,7 +37,7 @@ function RouterView() {
   if (path === "/old-quotation") return <OldStyleQuotationPage />;
   if (path === "/no-header-quotation") return <NoHeaderQuotationPage />;
   if (path === "/qadri-old-quotation") return <QadriOldQuotationPage />;
-  if (path === "/agri-store") return <AgriStorePage />;
+  if (path === "/agri-store" || path.startsWith("/agri-store/product/")) return <AgriStorePage />;
   return <GalleryPage />;
 }
 

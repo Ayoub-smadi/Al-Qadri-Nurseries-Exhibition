@@ -27,7 +27,6 @@ export default function AgriStorePage() {
   const content = siteData.agriStoreContent;
   const [category, setCategory] = useState<AgriStoreCategory>('tools');
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [selected, setSelected] = useState<AgriStoreProduct | null>(null);
   const [checkout, setCheckout] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -36,6 +35,8 @@ export default function AgriStorePage() {
   const [sending, setSending] = useState(false);
 
   const visibleProducts = useMemo(() => products.filter(p => p.category === category), [products, category]);
+  const detailId = window.location.pathname.match(/^\/agri-store\/product\/([^/]+)$/)?.[1];
+  const detailProduct = detailId ? products.find(product => product.id === decodeURIComponent(detailId)) : null;
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = cart.reduce((sum, line) => sum + line.quantity * Number(line.product.price || 0), 0);
   const shippingZones = siteData.shippingZones ?? [];
@@ -48,7 +49,6 @@ export default function AgriStorePage() {
       if (found) return prev.map(line => line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line);
       return [...prev, { product, quantity: 1 }];
     });
-    setSelected(null);
     toast.success(isAr ? 'تمت إضافة المنتج للسلة' : 'Product added to cart');
   };
 
@@ -102,6 +102,43 @@ export default function AgriStorePage() {
     toast.success(isAr ? 'تم إرسال الطلب بنجاح، سنتواصل معك قريباً' : 'Order sent successfully');
   };
 
+  if (detailId && detailProduct) {
+    return (
+      <div dir={isAr ? 'rtl' : 'ltr'} className="store-page min-h-screen bg-[#f8fbf8] text-[#123b2b]">
+        <header className="sticky top-0 z-40 border-b border-[#d7e7de] bg-white/95 backdrop-blur">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <button onClick={() => navigate('/agri-store')} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm arabic hover:bg-[#e5f2e9] transition-colors">
+              <ArrowRight className="w-4 h-4" /> {isAr ? 'العودة للمتجر' : 'Back to store'}
+            </button>
+            <h1 className="font-bold text-base sm:text-xl arabic truncate">{isAr ? (content?.storeTitleAr ?? 'متجر المواد الزراعية') : (content?.storeTitleEn ?? 'Agricultural Supplies Store')}</h1>
+            <button onClick={() => setCheckout(true)} className="relative inline-flex items-center gap-1.5 rounded-xl bg-[#004f31] text-white px-3 py-2 text-sm font-bold arabic shadow-lg shadow-[#004f31]/20">
+              <ShoppingCart className="w-4 h-4" /><span className="hidden sm:inline">{isAr ? 'السلة' : 'Cart'}</span>
+              {cartCount > 0 && <span className="absolute -top-2 -end-2 min-w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">{cartCount}</span>}
+            </button>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-4 py-8 sm:py-12">
+          <article className="overflow-hidden rounded-[2rem] border border-[#d7e7de] bg-white shadow-xl">
+            <div className="grid md:grid-cols-2">
+              <div className="aspect-square md:aspect-auto md:min-h-[460px] bg-[#edf6f0]">
+                <img src={detailProduct.image} alt={isAr ? detailProduct.nameAr : detailProduct.nameEn} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col justify-center p-6 sm:p-10">
+                <p className="text-sm font-bold text-[#5c7b6b] arabic">{categories.find(item => item.id === detailProduct.category)?.[isAr ? 'ar' : 'en']}</p>
+                <h2 className="mt-2 text-2xl sm:text-4xl font-bold arabic leading-tight">{isAr ? detailProduct.nameAr : detailProduct.nameEn}</h2>
+                <p className="mt-5 text-base leading-8 text-[#648273] arabic whitespace-pre-line">{isAr ? detailProduct.descriptionAr : detailProduct.descriptionEn}</p>
+                <p className="mt-6 text-xl font-bold text-[#004f31] arabic">{detailProduct.price > 0 ? `${detailProduct.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+                <button onClick={() => { addToCart(detailProduct); navigate('/agri-store'); }} className="mt-7 w-full rounded-xl bg-[#004f31] text-white py-3.5 font-bold arabic hover:bg-[#003d26] transition-colors">
+                  <ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}
+                </button>
+              </div>
+            </div>
+          </article>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="store-page min-h-screen bg-[#f8fbf8] text-[#123b2b]">
       <header className="sticky top-0 z-40 border-b border-[#d7e7de] bg-white/95 backdrop-blur">
@@ -147,20 +184,20 @@ export default function AgriStorePage() {
         {visibleProducts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-16 text-center text-muted-foreground arabic">{isAr ? 'لا توجد منتجات في هذا القسم حالياً' : 'No products in this category yet'}</div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
              {visibleProducts.map(product => (
-              <article key={product.id} className="group rounded-2xl overflow-hidden border border-[#d7e7de] bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl transition-all">
-                <button onClick={() => setSelected(product)} className="block w-full text-start">
+               <article key={product.id} className="group flex h-full flex-col rounded-2xl overflow-hidden border border-[#d7e7de] bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl transition-all">
+                 <button onClick={() => navigate(`/agri-store/product/${encodeURIComponent(product.id)}`)} className="block w-full flex-1 text-start">
                    <div className="aspect-square overflow-hidden bg-[#edf6f0]">
                     <img src={product.image} alt={isAr ? product.nameAr : product.nameEn} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
-                  <div className="p-4">
+                   <div className="p-5">
                     <h3 className="font-bold arabic text-base">{isAr ? product.nameAr : product.nameEn}</h3>
-                     <p className="text-sm text-[#648273] arabic mt-1 line-clamp-2">{isAr ? product.descriptionAr : product.descriptionEn}</p>
-                     <p className="text-[#004f31] font-bold mt-3 arabic">{product.price > 0 ? `${product.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+                      <p className="text-sm text-[#648273] arabic mt-1 line-clamp-3">{isAr ? product.descriptionAr : product.descriptionEn}</p>
+                      <p className="text-[#004f31] font-bold mt-3 arabic">{product.price > 0 ? `${product.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
                   </div>
                 </button>
-                <div className="px-4 pb-4">
+                 <div className="px-5 pb-5 mt-auto">
                    <button onClick={() => addToCart(product)} className="w-full rounded-xl bg-[#e5f2e9] text-[#004f31] hover:bg-[#004f31] hover:text-white py-2.5 text-sm font-bold arabic transition-colors">
                     <Plus className="w-4 h-4 inline-block me-1 align-middle" /> {isAr ? 'إضافة للسلة' : 'Add to cart'}
                   </button>
@@ -170,20 +207,6 @@ export default function AgriStorePage() {
           </div>
         )}
       </main>
-
-      {selected && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSelected(null)}>
-          <div className="bg-card w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="relative aspect-[16/9] bg-muted"><img src={selected.image} alt="" className="w-full h-full object-cover" /><button onClick={() => setSelected(null)} className="absolute top-3 end-3 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center"><X className="w-4 h-4" /></button></div>
-            <div className="p-5">
-              <h2 className="text-xl font-bold arabic">{isAr ? selected.nameAr : selected.nameEn}</h2>
-              <p className="text-muted-foreground arabic leading-relaxed mt-2">{isAr ? selected.descriptionAr : selected.descriptionEn}</p>
-              <p className="text-[#004f31] font-bold arabic mt-4">{selected.price > 0 ? `${selected.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
-              <button onClick={() => addToCart(selected)} className="w-full mt-4 rounded-xl bg-[#004f31] text-white py-3 font-bold arabic"><ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {checkout && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setCheckout(false)}>
