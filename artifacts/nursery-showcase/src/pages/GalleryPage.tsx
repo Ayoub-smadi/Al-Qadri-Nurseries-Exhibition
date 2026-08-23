@@ -3328,8 +3328,8 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, onOpenStore }: {
       <div className="flex items-center justify-center gap-4 mb-10">
         <div className="flex-1 h-px bg-foreground/15" />
         <div className="text-center">
-          <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'محلاتنا' : 'Our Stores'}</h2>
-          <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Stores' : 'محلاتنا'}</p>
+          <h2 className="text-2xl md:text-3xl font-bold arabic text-foreground">{isAr ? 'أعمالنا' : 'Our Work'}</h2>
+          <p className="text-xs text-muted-foreground tracking-widest uppercase latin mt-0.5">{isAr ? 'Our Work' : 'أعمالنا'}</p>
         </div>
         <div className="flex-1 h-px bg-foreground/15" />
       </div>
