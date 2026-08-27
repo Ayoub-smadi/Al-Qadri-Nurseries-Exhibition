@@ -64,7 +64,7 @@ export interface ShowcaseItem {
   locationUrl?: string;
 }
 
-export type AgriStoreCategory = 'tools' | 'seeds' | 'fertilizers' | 'pesticides' | 'irrigation' | 'seedling-supplies';
+export type AgriStoreCategory = 'tools' | 'seeds' | 'fertilizers' | 'pesticides' | 'irrigation' | 'seedling-supplies' | 'pots';
 
 export interface AgriStoreProduct {
   id: string;
