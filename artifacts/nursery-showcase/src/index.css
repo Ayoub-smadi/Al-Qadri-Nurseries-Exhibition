@@ -576,8 +576,8 @@
 
 .official-paper-stamp {
   display: block;
-  width: 82px;
-  height: 82px;
+  width: 120px;
+  height: 120px;
   margin: 0 auto;
   object-fit: contain;
 }
@@ -713,7 +713,7 @@
   }
 
   .official-paper-stamp {
-    width: 56px;
-    height: 56px;
+  width: 88px;
+  height: 88px;
   }
 }
