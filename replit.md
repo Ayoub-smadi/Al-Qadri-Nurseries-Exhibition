@@ -23,6 +23,7 @@ The API server requires `DATABASE_URL` (PostgreSQL), `ADMIN_SETUP_SECRET`, and `
 - `/quotation-history` — Saved quotations
 - `/old-quotation` — OldStyle quotation template
 - `/no-header-quotation` — Headerless quotation template
+- `/official-documents` — Editable official letters, saved local history, logo/stamp controls, and PDF export
 
 ## User preferences
 - Arabic-language UI throughout (RTL, Cairo font)

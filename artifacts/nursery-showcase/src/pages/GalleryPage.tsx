@@ -2113,6 +2113,7 @@ export default function GalleryPage() {
 
                     <SideSection label={isAr ? '📄 التقارير' : '📄 Reports'}>
                       <SideBtn icon={<Award className="w-4 h-4" />} label={isAr ? 'شهادة خبرة' : 'Certificate'} onClick={() => setCertOpen(true)} />
+                      <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'كتب رسمية' : 'Official Documents'} onClick={() => navigate('/official-documents')} />
                       <SideBtn icon={<FileDown className="w-4 h-4" />} label={isAr ? 'كتالوج PDF' : 'PDF Catalog'} highlight onClick={() => setPdfModalTarget('all')} />
                       <SideBtn icon={<FileSpreadsheet className="w-4 h-4" />} label={isAr ? 'استيراد Excel' : 'Import Excel'} onClick={() => { setXlsxOpen(true); setXlsxResult(null); setXlsxError(null); }} />
                     </SideSection>
