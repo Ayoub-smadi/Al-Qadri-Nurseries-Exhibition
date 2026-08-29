@@ -362,7 +362,7 @@ export default function OfficialDocumentsPage() {
                 <div className="official-paper-brand">
                   <img src={draft.logoUrl || fallbackLogo} alt="شعار المؤسسة" className="official-paper-logo" crossOrigin="anonymous" />
                   <Field value={draft.institution} onChange={update("institution")} className="official-paper-brand-name" ariaLabel="اسم المؤسسة في الترويسة" />
-                  <span className="official-paper-subtitle">مؤسسة ومشاتل القادري الزراعية</span>
+                  <span className="official-paper-subtitle">مؤسسة القادري الزراعية</span>
                 </div>
                 <div className="official-paper-meta">
                   <label>رقم الكتاب <Field value={draft.documentNumber} onChange={update("documentNumber")} ariaLabel="رقم الكتاب" /></label>
