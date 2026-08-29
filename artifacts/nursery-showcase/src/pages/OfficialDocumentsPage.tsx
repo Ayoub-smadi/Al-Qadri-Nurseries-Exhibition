@@ -232,10 +232,57 @@ export default function OfficialDocumentsPage() {
     if (!paperRef.current) return;
     const button = document.activeElement as HTMLElement | null;
     button?.blur();
+    const sourcePaper = paperRef.current;
+    const pdfPaper = sourcePaper.cloneNode(true) as HTMLDivElement;
+    pdfPaper.classList.add("official-pdf-render");
+    pdfPaper.style.width = "794px";
+    pdfPaper.style.minHeight = "1123px";
+    pdfPaper.style.margin = "0";
+    pdfPaper.style.boxShadow = "none";
+
+    // html2canvas can render native form controls blurry or with misplaced
+    // Arabic text. Replace them with ordinary text nodes in the PDF clone.
+    pdfPaper.querySelectorAll("input, textarea").forEach((field) => {
+      const isTextarea = field.tagName.toLowerCase() === "textarea";
+      const value = (field as HTMLInputElement | HTMLTextAreaElement).value;
+      const replacement = document.createElement(isTextarea ? "div" : "span");
+      replacement.className = `${field.className} official-pdf-value`;
+      replacement.textContent = value;
+      replacement.setAttribute("dir", "auto");
+      replacement.style.border = "0";
+      replacement.style.background = "transparent";
+      replacement.style.outline = "none";
+      replacement.style.cursor = "default";
+      replacement.style.transition = "none";
+      if (isTextarea) {
+        replacement.style.display = "block";
+        replacement.style.width = "100%";
+        replacement.style.height = "auto";
+        replacement.style.minHeight = "0";
+        replacement.style.whiteSpace = "pre-wrap";
+        replacement.style.overflow = "visible";
+        replacement.style.overflowWrap = "break-word";
+      }
+      field.replaceWith(replacement);
+    });
+
+    const host = document.createElement("div");
+    host.className = "official-pdf-host";
+    host.appendChild(pdfPaper);
+    document.body.appendChild(host);
+
     try {
       await document.fonts.ready;
-      const canvas = await html2canvas(paperRef.current, {
-        scale: 2,
+      const images = Array.from(host.querySelectorAll("img"));
+      await Promise.all(images.map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }));
+      const canvas = await html2canvas(pdfPaper, {
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -248,6 +295,8 @@ export default function OfficialDocumentsPage() {
       toast.success("تم تنزيل الكتاب بصيغة PDF");
     } catch {
       toast.error("تعذر إنشاء ملف PDF، حاول مرة أخرى");
+    } finally {
+      host.remove();
     }
   };
 
