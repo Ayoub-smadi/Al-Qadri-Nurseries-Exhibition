@@ -62,30 +62,30 @@ function createDefaultDocument(logoUrl = ""): OfficialDocumentRecord {
     issueDate: today(),
     bismillah: "بسم الله الرحمن الرحيم",
     heading: "كتاب رسمي / شهادة وتعهد",
-    recipient: "إلى السادة: _______________________________________________",
+    recipient: "إلى السادة:",
     greeting: "تحية طيبة وبعد،،،",
-    institution: "_______________________________________________",
-    owner: "_______________________________________________",
-    seedlings: "_______________________________________________",
-    variety: "_______________________________________________",
-    source: "_______________________________________________",
-    sourceLocation: "_______________________________________________",
-    sourceGovernorate: "_______________________________________________",
-    sourceCountry: "_______________________________________________",
-    producedFrom: "_______________________________________________",
-    bodyHealth: "ونؤكد أن الشتلات ناتجة عن _______________________________________________، وسليمة وخالية من الأمراض والآفات الحشرية والفطرية، ومطابقة للمواصفات المطلوبة.",
+    institution: "",
+    owner: "",
+    seedlings: "",
+    variety: "",
+    source: "",
+    sourceLocation: "",
+    sourceGovernorate: "",
+    sourceCountry: "",
+    producedFrom: "",
+    bodyHealth: "ونؤكد أن الشتلات ناتجة عن ، وسليمة وخالية من الأمراض والآفات الحشرية والفطرية، ومطابقة للمواصفات المطلوبة.",
     bodyWarranty: "كما أن الشتلات مكفولة من المشتل المصدر من حيث الصنف والحالة الصحية، وسيتم إرفاق نسخة من شهادة الكفالة والمستندات والوثائق اللازمة حسب الأصول.",
     bodyCommitment: "وتتعهد المؤسسة بأن تكون الشتلات مطابقة للصنف والعدد والمواصفات المطلوبة، وفقًا للإجراءات والاشتراطات والتعليمات الرسمية المعمول بها.",
     closing: "وتفضلوا بقبول فائق الاحترام والتقدير،،،",
     institutionLabel: "اسم المؤسسة",
-    institutionName: "______________________________________",
+    institutionName: "",
     ownerLabel: "اسم المالك / المفوض",
-    ownerName: "______________________________________",
+    ownerName: "",
     signatureLabel: "التوقيع",
-    signatureName: "______________________________________",
+    signatureName: "",
     stampLabel: "الختم",
     dateLabel: "التاريخ",
-    dateValue: "____ / ____ / __________",
+    dateValue: "",
     logoUrl: logoUrl || "/logo-alkadri.jpg",
     stampUrl: "/stamp-qadri.png",
   };
@@ -120,10 +120,11 @@ function Field({
   ariaLabel: string;
 }) {
   return (
-    <input
+      <input
       aria-label={ariaLabel}
       value={value}
       placeholder={placeholder}
+        size={Math.max(value.length, 3)}
       onChange={(event) => onChange(event.target.value)}
       className={`official-paper-field ${className}`}
     />
@@ -411,7 +412,6 @@ export default function OfficialDocumentsPage() {
                 <div className="official-paper-brand">
                   <img src={draft.logoUrl || fallbackLogo} alt="شعار المؤسسة" className="official-paper-logo" crossOrigin="anonymous" />
                   <Field value={draft.institution} onChange={update("institution")} className="official-paper-brand-name" ariaLabel="اسم المؤسسة في الترويسة" />
-                  <span className="official-paper-subtitle">مؤسسة القادري الزراعية</span>
                 </div>
                 <div className="official-paper-meta">
                   <label>رقم الكتاب <Field value={draft.documentNumber} onChange={update("documentNumber")} ariaLabel="رقم الكتاب" /></label>

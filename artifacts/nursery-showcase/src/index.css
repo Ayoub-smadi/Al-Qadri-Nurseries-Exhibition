@@ -483,7 +483,7 @@
 .official-paper-title-rule {
   width: 132px;
   height: 3px;
-  margin-top: 9px;
+  margin-top: 16px;
   border-radius: 99px;
   background: #b08a45;
 }
@@ -518,7 +518,8 @@
   display: inline;
   width: auto;
   max-width: 100%;
-  min-width: 45px;
+  min-width: 2.25rem;
+  border-bottom-color: rgba(28,107,70,.38);
   color: #1c6b46;
   font-weight: 800;
 }
