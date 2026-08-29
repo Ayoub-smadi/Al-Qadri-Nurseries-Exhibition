@@ -1431,47 +1431,50 @@ export interface CertificateData {
 
 export async function downloadCertificatePDF(data: CertificateData): Promise<void> {
   const logoDataUrl  = data.logoUrl  ? await toDataUrl(data.logoUrl).catch(() => '') : '';
-  const stampDataUrl = await toDataUrl('/stamp.jpeg').catch(() => '');
+  const stampDataUrl = data.stampUrl
+    ? await toDataUrl(data.stampUrl).catch(() => '')
+    : await toDataUrl('/stamp.jpeg').catch(() => '');
 
   const html = `
-    <div style="font-family:'Cairo',sans-serif;background:#fff;width:794px;min-height:1122px;direction:rtl;color:#111;font-size:14px;position:relative;box-sizing:border-box;">
+    <div dir="rtl" style="font-family:'Cairo',sans-serif;background:#fff;width:794px;height:1122px;direction:rtl;unicode-bidi:plaintext;color:#111;font-size:14px;position:relative;box-sizing:border-box;overflow:hidden;">
 
       <!-- DECORATIVE BORDER -->
       <div style="position:absolute;inset:0;border:10px solid #1a3a8a;pointer-events:none;z-index:0;"></div>
       <div style="position:absolute;inset:14px;border:2px solid #b8922a;pointer-events:none;z-index:0;"></div>
 
       <!-- INNER CONTENT -->
-      <div style="position:relative;z-index:1;padding:48px 56px;">
+      <div style="position:relative;z-index:1;padding:38px 56px;">
 
-        <!-- HEADER ROW: logo + contact -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;border-bottom:3px double #1a3a8a;padding-bottom:20px;">
-          <!-- logo + name center -->
-          <div style="text-align:center;flex:1;">
-            ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:90px;height:90px;object-fit:contain;display:inline-block;" />` : ''}
-            <div style="font-size:20px;font-weight:900;color:#1a3a8a;margin-top:4px;">مؤسسة القادري الزراعية</div>
-          </div>
-          <!-- contact block -->
-          <div style="text-align:right;font-size:11px;color:#444;line-height:2;min-width:160px;">
-            <div style="font-weight:700;color:#1a3a8a;font-size:12px;">Al-Qadri Agricultural Foundation</div>
-            <div style="color:#666;margin-bottom:4px;">Jarash - Al-Rashaydeh</div>
-            <div dir="ltr" style="font-weight:700;">${data.phone || '+962 777 772 211'}</div>
-            <div dir="ltr">tamerqadri@gmail.com</div>
-          </div>
-        </div>
+        <!-- HEADER ROW: table layout keeps RTL positions stable in html2canvas -->
+        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:20px;border-bottom:3px double #1a3a8a;padding-bottom:16px;">
+          <tr>
+            <td style="width:28%;text-align:right;vertical-align:middle;font-size:11px;color:#444;line-height:2;">
+              <div style="font-weight:700;color:#1a3a8a;font-size:12px;direction:ltr;text-align:right;">Al-Qadri Agricultural Foundation</div>
+              <div style="color:#666;margin-bottom:4px;direction:ltr;text-align:right;">Jarash - Al-Rashaydeh</div>
+              <div dir="ltr" style="font-weight:700;text-align:right;">${data.phone || '+962 777 772 211'}</div>
+              <div dir="ltr" style="text-align:right;">tamerqadri@gmail.com</div>
+            </td>
+            <td style="width:44%;text-align:center;vertical-align:middle;">
+              ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:126px;height:126px;object-fit:contain;display:inline-block;" />` : ''}
+              <div style="font-size:22px;font-weight:900;color:#1a3a8a;margin-top:3px;white-space:nowrap;">مؤسسة القادري الزراعية</div>
+            </td>
+            <td style="width:28%;text-align:left;vertical-align:middle;"></td>
+          </tr>
+        </table>
 
         <!-- TITLE -->
-        <div style="text-align:center;margin-bottom:32px;">
-          <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:10px 56px;background:#fdf8ee;">
+        <div style="text-align:center;margin-bottom:26px;">
+          <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:9px 56px;background:#fdf8ee;">
             <span style="font-size:24px;font-weight:900;color:#1a3a8a;letter-spacing:0;">شهادة خبرة</span>
           </div>
         </div>
 
         <!-- SALUTATION -->
-        <p style="font-size:14px;font-weight:700;color:#333;margin-bottom:22px;text-align:center;">إلى من يهمه الأمر،،،</p>
+        <p style="font-size:15px;font-weight:700;color:#333;margin:0 0 20px;text-align:center;direction:rtl;unicode-bidi:plaintext;">إلى من يهمه الأمر،،،</p>
 
         <!-- BODY TEXT -->
-        <div style="font-size:15px;line-height:2.2;color:#222;text-align:justify;">
-          <p style="margin-bottom:16px;">
+        <div dir="rtl" style="font-size:15px;line-height:2.05;color:#222;text-align:right;direction:rtl;unicode-bidi:plaintext;word-spacing:normal;letter-spacing:0;">
+          <p style="margin:0 0 14px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
             تشهد <strong>مؤسسة القادري الزراعية</strong> بأن الموظف
             <strong style="color:#1a3a8a;">&nbsp;${data.employeeName}&nbsp;</strong>${data.nationalId ? `،
             حامل الرقم الوطني
@@ -1484,26 +1487,26 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
             <strong>&nbsp;${data.endDate}&nbsp;</strong>،
             وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.
           </p>
-          <p style="margin-bottom:16px;">
+          <p style="margin:0 0 14px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
             كما أظهر كفاءة عالية في أداء المهام الموكلة إليه، وكان يتمتع بروح العمل الجماعي والقدرة على تحمل ضغط العمل.
           </p>
-          <p style="margin-bottom:28px;">
+          <p style="margin:0 0 22px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
             وقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.
           </p>
-          <p style="margin-bottom:32px;text-align:right;">
+          <p style="margin:0 0 26px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
             وتفضلوا بقبول فائق الاحترام ،،،
           </p>
         </div>
 
         <!-- SIGNATURE + STAMP ROW -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:4px;direction:rtl;">
           <!-- stamp right (RTL) -->
-          <div style="text-align:center;width:160px;">
-            <div style="font-size:12px;color:#555;margin-bottom:8px;">الختم</div>
-            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:120px;height:120px;object-fit:contain;" />` : '<div style="width:120px;height:120px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
+          <div style="text-align:center;width:200px;">
+            <div style="font-size:13px;color:#555;margin-bottom:4px;">الختم</div>
+            ${stampDataUrl ? `<img src="${stampDataUrl}" style="width:170px;height:170px;object-fit:contain;display:block;margin:0 auto;" />` : '<div style="width:170px;height:170px;border:1px dashed #ccc;border-radius:50%;margin:auto;"></div>'}
           </div>
           <!-- signature left (RTL) -->
-          <div style="text-align:center;width:200px;">
+          <div style="text-align:center;width:220px;">
             <div style="font-size:12px;color:#555;margin-bottom:6px;">التوقيع</div>
             <div style="border-top:1px solid #333;padding-top:6px;">
               <div style="font-size:14px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
@@ -1513,7 +1516,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
         </div>
 
         <!-- ISSUE DATE -->
-        <div style="margin-top:28px;text-align:center;font-size:12px;color:#666;border-top:1px solid #ddd;padding-top:12px;">
+        <div style="margin-top:18px;text-align:center;font-size:12px;color:#666;border-top:1px solid #ddd;padding-top:10px;direction:rtl;unicode-bidi:plaintext;">
           <span style="font-weight:600;">التاريخ:</span> ${data.issueDate}
         </div>
 
