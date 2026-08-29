@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ArrowRight, Check, Download, FileDown, FilePlus2, ImagePlus, Pencil, Plus, Search, Stamp, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, Download, FileDown, FilePlus2, ImagePlus, Loader2, Pencil, Plus, Search, Stamp, Trash2, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { navigate } from "@/App";
@@ -7,6 +7,7 @@ import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { deleteOfficialDocument, fetchOfficialDocuments, loadSavedToken, uploadImageBase64, upsertOfficialDocument } from "@/lib/storage";
 
 const STORAGE_KEY = "alqadri_official_documents";
 
@@ -103,7 +104,20 @@ function loadDocuments(): OfficialDocumentRecord[] {
 }
 
 function saveDocuments(records: OfficialDocumentRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  } catch { /* local cache is best-effort; the server is the source of truth */ }
+}
+
+async function makeServerDocument(record: OfficialDocumentRecord): Promise<OfficialDocumentRecord> {
+  const resolveImage = async (value: string) => (
+    value.startsWith("data:") ? uploadImageBase64(value) : value
+  );
+  return {
+    ...record,
+    logoUrl: await resolveImage(record.logoUrl),
+    stampUrl: await resolveImage(record.stampUrl),
+  };
 }
 
 function Field({
@@ -172,10 +186,42 @@ export default function OfficialDocumentsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [exportAfterLoad, setExportAfterLoad] = useState(false);
   const paperRef = useRef<HTMLDivElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const stampInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loadSavedToken()) return;
+    let active = true;
+    void (async () => {
+      const serverRecords = await fetchOfficialDocuments();
+      if (serverRecords === null || !active) return;
+
+      const localRecords = loadDocuments();
+      const serverIds = new Set(serverRecords.map((record: OfficialDocumentRecord) => record.id));
+      const localOnly = localRecords.filter((record) => !serverIds.has(record.id));
+
+      // Import records created before central storage was enabled. Uploaded images
+      // become permanent /api/images URLs before the JSON record is written.
+      for (const localRecord of localOnly) {
+        try {
+          const prepared = await makeServerDocument(localRecord);
+          await upsertOfficialDocument(prepared as unknown as Record<string, unknown>, prepared.id);
+        } catch (error) {
+          console.warn("[official-documents] migration skipped", error);
+        }
+      }
+
+      const refreshed = localOnly.length > 0 ? await fetchOfficialDocuments() : serverRecords;
+      if (active && refreshed) {
+        setRecords(refreshed as OfficialDocumentRecord[]);
+        saveDocuments(refreshed as OfficialDocumentRecord[]);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!draft.logoUrl || draft.logoUrl === "/logo-alkadri.jpg") {
@@ -201,17 +247,46 @@ export default function OfficialDocumentsPage() {
     setSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (saving) return;
     const record = { ...draft, updatedAt: new Date().toISOString() };
-    const next = records.some((item) => item.id === record.id)
-      ? records.map((item) => (item.id === record.id ? record : item))
-      : [record, ...records];
-    setRecords(next);
-    saveDocuments(next);
-    setDraft(record);
-    setSelectedId(record.id);
-    setSaved(true);
-    toast.success("تم حفظ الكتاب الرسمي في السجل");
+    setSaving(true);
+    try {
+      if (loadSavedToken()) {
+        const prepared = await makeServerDocument(record);
+        const serverRecord = await upsertOfficialDocument(prepared as unknown as Record<string, unknown>, prepared.id);
+        if (!serverRecord) {
+          toast.error("فشل الحفظ المركزي — تحقق من تسجيل الدخول والاتصال");
+          return;
+        }
+        const savedRecord = serverRecord as OfficialDocumentRecord;
+        const next = records.some((item) => item.id === savedRecord.id)
+          ? records.map((item) => (item.id === savedRecord.id ? savedRecord : item))
+          : [savedRecord, ...records];
+        setRecords(next);
+        saveDocuments(next);
+        setDraft(savedRecord);
+        setSelectedId(savedRecord.id);
+        setSaved(true);
+        toast.success("تم حفظ الكتاب الرسمي في السجل المركزي");
+        return;
+      }
+
+      // Keep the existing local path useful while the admin is not signed in.
+      const next = records.some((item) => item.id === record.id)
+        ? records.map((item) => (item.id === record.id ? record : item))
+        : [record, ...records];
+      setRecords(next);
+      saveDocuments(next);
+      setDraft(record);
+      setSelectedId(record.id);
+      setSaved(true);
+      toast.success("تم الحفظ محلياً — سجّل الدخول لمشاركته بين الأجهزة");
+    } catch (error) {
+      toast.error(`فشل حفظ الكتاب: ${(error as Error).message || "خطأ غير معروف"}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleOpen = (record: OfficialDocumentRecord) => {
@@ -220,8 +295,15 @@ export default function OfficialDocumentsPage() {
     setSaved(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm("هل تريد حذف هذا الكتاب من السجل؟")) return;
+    if (loadSavedToken()) {
+      const deleted = await deleteOfficialDocument(id);
+      if (!deleted) {
+        toast.error("فشل حذف الكتاب من السجل المركزي");
+        return;
+      }
+    }
     const next = records.filter((record) => record.id !== id);
     setRecords(next);
     saveDocuments(next);
@@ -339,9 +421,9 @@ export default function OfficialDocumentsPage() {
           <Button variant="outline" onClick={handleNew} className="gap-2 rounded-xl border-[#d6e0d8] bg-white arabic">
             <Plus className="h-4 w-4" /> كتاب جديد
           </Button>
-          <Button onClick={handleSave} className="gap-2 rounded-xl bg-[#1c6b46] text-white hover:bg-[#155437] arabic">
-            {saved ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-            {saved ? "محفوظ" : "حفظ في السجل"}
+           <Button onClick={() => void handleSave()} disabled={saving} className="gap-2 rounded-xl bg-[#1c6b46] text-white hover:bg-[#155437] arabic">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            {saving ? "جاري الحفظ..." : saved ? "محفوظ" : "حفظ في السجل"}
           </Button>
         </div>
       </header>

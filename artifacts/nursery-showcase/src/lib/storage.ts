@@ -962,6 +962,75 @@ export async function deleteQadriOldQuotation(id: string): Promise<boolean> {
   } catch { return false; }
 }
 
+async function fetchSyncedJsonRecords(path: string): Promise<any[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const json = await res.json() as { records?: any[] };
+      return json.records ?? [];
+    }
+    if (res.status === 401 || res.status === 403) return null;
+  } catch { /* keep local fallback available */ }
+  return null;
+}
+
+async function upsertSyncedJsonRecord(path: string, data: Record<string, unknown>, id?: string): Promise<any | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(id ? { ...data, id } : data),
+    });
+    if (res.ok) {
+      const json = await res.json() as { record?: any };
+      return json.record ?? null;
+    }
+  } catch { /* keep local fallback available */ }
+  return null;
+}
+
+async function deleteSyncedJsonRecord(path: string, id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/${path}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+export function fetchOfficialDocuments(): Promise<any[] | null> {
+  return fetchSyncedJsonRecords("official-documents");
+}
+
+export function upsertOfficialDocument(data: Record<string, unknown>, id?: string): Promise<any | null> {
+  return upsertSyncedJsonRecord("official-documents", data, id);
+}
+
+export function deleteOfficialDocument(id: string): Promise<boolean> {
+  return deleteSyncedJsonRecord("official-documents", id);
+}
+
+export function fetchNoHeaderQuotations(): Promise<any[] | null> {
+  return fetchSyncedJsonRecords("no-header-quotations");
+}
+
+export function upsertNoHeaderQuotation(data: Record<string, unknown>, id?: string): Promise<any | null> {
+  return upsertSyncedJsonRecord("no-header-quotations", data, id);
+}
+
+export function deleteNoHeaderQuotation(id: string): Promise<boolean> {
+  return deleteSyncedJsonRecord("no-header-quotations", id);
+}
+
 export function resolveImageSrc(src: string): string {
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {

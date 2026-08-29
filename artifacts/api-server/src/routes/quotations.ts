@@ -76,9 +76,9 @@ router.get("/quotations", async (_req, res) => {
       );
       result.push({ ...q, items });
     }
-    res.json(result);
+    return res.json(result);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -87,9 +87,9 @@ router.get("/quotations/:id", async (req, res) => {
     await dbReady;
     const q = await getQuotationWithItems(Number(req.params.id));
     if (!q) return res.status(404).json({ message: "Not found" });
-    res.json(q);
+    return res.json(q);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -114,10 +114,10 @@ router.post("/quotations", async (req, res) => {
       );
     }
     const result = await getQuotationWithItems(newQ.id);
-    res.status(201).json(result);
+    return res.status(201).json(result);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -142,9 +142,9 @@ router.put("/quotations/:id", async (req, res) => {
       );
     }
     const result = await getQuotationWithItems(id);
-    res.json(result);
+    return res.json(result);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -152,9 +152,9 @@ router.delete("/quotations/:id", async (req, res) => {
   try {
     await dbReady;
     await pool.query(`UPDATE aq_quotations SET deleted_at=NOW() WHERE id=$1`, [Number(req.params.id)]);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -162,9 +162,9 @@ router.get("/products", async (_req, res) => {
   try {
     await dbReady;
     const { rows } = await pool.query(`SELECT * FROM aq_products ORDER BY sort_order, created_at`);
-    res.json(rows);
+    return res.json(rows);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -179,9 +179,9 @@ router.post("/products", async (req, res) => {
       [name, description ?? null, unit ?? 'وحدة', price ?? '0',
        stock ?? 0, imageUrl ?? null, category ?? null, sortOrder ?? 0]
     );
-    res.status(201).json(p);
+    return res.status(201).json(p);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -202,9 +202,9 @@ router.put("/products/:id", async (req, res) => {
        price ?? null, imageUrl ?? null, category ?? null, Number(req.params.id)]
     );
     if (!p) return res.status(404).json({ message: "Not found" });
-    res.json(p);
+    return res.json(p);
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -212,9 +212,9 @@ router.delete("/products/:id", async (req, res) => {
   try {
     await dbReady;
     await pool.query(`DELETE FROM aq_products WHERE id=$1`, [Number(req.params.id)]);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 
@@ -300,9 +300,9 @@ router.post("/parse-text", async (req, res) => {
       })
       .filter(item => item !== null);
 
-    res.json({ items });
+    return res.json({ items });
   } catch (e) {
-    res.status(500).json({ message: "Internal Error" });
+    return res.status(500).json({ message: "Internal Error" });
   }
 });
 

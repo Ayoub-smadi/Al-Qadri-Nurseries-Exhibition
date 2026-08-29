@@ -1,1 +1,2 @@
 - [Agricultural store orders](agri-store-orders.md) — preserve product image URLs in order items and calculate shipping only after a configured area is selected.
+- [Imported pnpm workspaces](imported-workspace-setup.md) — imported workspaces may need a lockfile install before their configured workflows can start.

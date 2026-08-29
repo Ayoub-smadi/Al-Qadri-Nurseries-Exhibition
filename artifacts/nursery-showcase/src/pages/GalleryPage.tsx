@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement, fetchNoHeaderQuotations, upsertNoHeaderQuotation, deleteNoHeaderQuotation, uploadImageBase64 } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
 import { AdminAgriOrdersModal } from '@/components/AdminAgriOrdersModal';
@@ -6986,6 +6986,7 @@ type NoHeaderRec = {
   details: { customerName: string; date: string; quotationNumber: string };
   items: { id: string; name: string; [k: string]: unknown }[];
   logoUrl: string; logoText: string; stampUrl: string; colorKey: string;
+  discountPct?: number; taxPct?: number;
   createdAt: string; updatedAt: string;
 };
 
@@ -6993,26 +6994,70 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const RECS_KEY  = 'aq_no_header_records';
   const EDIT_KEY  = 'aq_no_header_edit_id';
   const DRAFT_KEY = 'aq_no_header_draft';
+  const { isAdmin } = useApp();
   const [records, setRecords] = React.useState<NoHeaderRec[]>([]);
+  const [loading, setLoading] = React.useState(false);
   const groupedRecords = React.useMemo(() => groupRecordsByMonth(records), [records]);
 
   React.useEffect(() => {
     if (!open) return;
-    try { const r = localStorage.getItem(RECS_KEY); setRecords(r ? JSON.parse(r) : []); } catch { setRecords([]); }
-  }, [open]);
+    let active = true;
+    let localRecs: NoHeaderRec[] = [];
+    try { const r = localStorage.getItem(RECS_KEY); localRecs = r ? JSON.parse(r) : []; } catch {}
+    setRecords(localRecs);
+    if (!isAdmin) return () => { active = false; };
+
+    setLoading(true);
+    void (async () => {
+      const serverRecs = await fetchNoHeaderQuotations();
+      if (serverRecs === null || !active) return;
+
+      const serverIds = new Set(serverRecs.map((record: NoHeaderRec) => record.id));
+      const localOnly = localRecs.filter(record => !serverIds.has(record.id));
+      for (const localRecord of localOnly) {
+        try {
+          const resolveImage = async (value: string) => (
+            value?.startsWith('data:') ? uploadImageBase64(value) : value
+          );
+          const prepared = {
+            ...localRecord,
+            logoUrl: await resolveImage(localRecord.logoUrl),
+            stampUrl: await resolveImage(localRecord.stampUrl),
+          };
+          const { id, ...data } = prepared;
+          await upsertNoHeaderQuotation(data as unknown as Record<string, unknown>, id);
+        } catch (error) {
+          console.warn('[no-header] migration skipped', error);
+        }
+      }
+      const refreshed = localOnly.length > 0 ? await fetchNoHeaderQuotations() : serverRecs;
+      if (active && refreshed) {
+        setRecords(refreshed as NoHeaderRec[]);
+        try { localStorage.setItem(RECS_KEY, JSON.stringify(refreshed)); } catch {}
+      }
+    })().finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [open, isAdmin]);
 
   const openRec = (rec: NoHeaderRec) => {
     try {
       sessionStorage.setItem(EDIT_KEY, rec.id);
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, logoText: rec.logoText, stampUrl: rec.stampUrl, colorKey: rec.colorKey }));
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details: rec.details, items: rec.items, logoUrl: rec.logoUrl, logoText: rec.logoText, stampUrl: rec.stampUrl, colorKey: rec.colorKey, discountPct: rec.discountPct ?? 0, taxPct: rec.taxPct ?? 0 }));
     } catch {}
     navigate('/no-header-quotation');
     onClose();
   };
 
-  const deleteRec = (id: string) => {
+  const deleteRec = async (id: string) => {
+    if (isAdmin) {
+      const deleted = await deleteNoHeaderQuotation(id);
+      if (!deleted) {
+        toast.error('فشل حذف العرض من السجل المركزي');
+        return;
+      }
+    }
     const updated = records.filter(r => r.id !== id);
-    localStorage.setItem(RECS_KEY, JSON.stringify(updated));
+    try { localStorage.setItem(RECS_KEY, JSON.stringify(updated)); } catch {}
     setRecords(updated);
   };
 
@@ -7037,7 +7082,12 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {records.length === 0 ? (
+          {loading && records.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+              <Loader2 className="w-8 h-8 animate-spin opacity-50" />
+              <p className="text-sm arabic">جاري تحميل السجل المركزي...</p>
+            </div>
+          ) : records.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
               <FileText className="w-10 h-10 opacity-20" />
               <p className="text-sm arabic">لا توجد عروض محفوظة بعد</p>

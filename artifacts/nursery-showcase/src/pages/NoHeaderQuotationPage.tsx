@@ -9,6 +9,12 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
+import {
+  fetchNoHeaderQuotations,
+  loadSavedToken,
+  uploadImageBase64,
+  upsertNoHeaderQuotation,
+} from "@/lib/storage";
 
 /* ─── Color schemes ─────────────────────────────────────── */
 const SCHEMES = {
@@ -48,7 +54,29 @@ function loadNoHeaderRecords(): any[] {
   try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
 
-function persistNoHeaderRecord(data: { details: Details; items: Item[]; logoUrl: string; logoText: string; stampUrl: string; colorKey: string }, id?: string): string {
+type NoHeaderRecordData = {
+  details: Details;
+  items: Item[];
+  logoUrl: string;
+  logoText: string;
+  stampUrl: string;
+  colorKey: string;
+  discountPct: number;
+  taxPct: number;
+};
+
+async function makeServerNoHeaderRecord(record: NoHeaderRecordData): Promise<NoHeaderRecordData> {
+  const resolveImage = async (value: string) => (
+    value.startsWith("data:") ? uploadImageBase64(value) : value
+  );
+  return {
+    ...record,
+    logoUrl: await resolveImage(record.logoUrl),
+    stampUrl: await resolveImage(record.stampUrl),
+  };
+}
+
+function persistNoHeaderRecord(data: NoHeaderRecordData, id?: string): string {
   const records = loadNoHeaderRecords();
   const now = new Date().toISOString();
   if (id) {
@@ -119,6 +147,7 @@ export default function NoHeaderQuotationPage() {
   const [taxPct, setTaxPct] = useState<number>(initial?.taxPct ?? 0);
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const C = SCHEMES[colorKey];
 
@@ -127,6 +156,34 @@ export default function NoHeaderQuotationPage() {
     try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ details, items, logoUrl, logoText, stampUrl, colorKey, discountPct, taxPct })); } catch {}
   }, [details, items, logoUrl, logoText, stampUrl, colorKey, discountPct, taxPct]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
+
+  useEffect(() => {
+    if (!loadSavedToken()) return;
+    let active = true;
+    void (async () => {
+      const serverRecords = await fetchNoHeaderQuotations();
+      if (serverRecords === null || !active) return;
+
+      const localRecords = loadNoHeaderRecords();
+      const serverIds = new Set(serverRecords.map((record: { id: string }) => record.id));
+      const localOnly = localRecords.filter((record) => !serverIds.has(record.id));
+
+      for (const localRecord of localOnly) {
+        try {
+          const prepared = await makeServerNoHeaderRecord(localRecord);
+          await upsertNoHeaderQuotation(prepared as unknown as Record<string, unknown>, localRecord.id);
+        } catch (error) {
+          console.warn("[no-header] migration skipped", error);
+        }
+      }
+
+      const refreshed = localOnly.length > 0 ? await fetchNoHeaderQuotations() : serverRecords;
+      if (active && refreshed) {
+        try { localStorage.setItem(RECORDS_KEY, JSON.stringify(refreshed)); } catch {}
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
@@ -137,10 +194,41 @@ export default function NoHeaderQuotationPage() {
   };
 
   /* ─── Save to records ────────────────────────────────── */
-  const handleSave = () => {
-    const id = persistNoHeaderRecord({ details, items, logoUrl, logoText, stampUrl, colorKey }, currentRecordId ?? undefined);
-    if (!currentRecordId) setCurrentRecordId(id);
-    toast.success("✅ تم الحفظ في السجل");
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    const record: NoHeaderRecordData = {
+      details, items, logoUrl, logoText, stampUrl, colorKey, discountPct, taxPct,
+    };
+    try {
+      if (loadSavedToken()) {
+        const prepared = await makeServerNoHeaderRecord(record);
+        const serverRecord = await upsertNoHeaderQuotation(
+          prepared as unknown as Record<string, unknown>,
+          currentRecordId ?? undefined,
+        );
+        if (!serverRecord) {
+          toast.error("فشل الحفظ المركزي — تحقق من تسجيل الدخول والاتصال");
+          return;
+        }
+        const savedRecord = serverRecord as NoHeaderRecordData & { id: string };
+        if (!currentRecordId) setCurrentRecordId(savedRecord.id);
+        setLogoUrl(savedRecord.logoUrl);
+        setStampUrl(savedRecord.stampUrl);
+        setItems(savedRecord.items);
+        persistNoHeaderRecord(savedRecord, savedRecord.id);
+        toast.success("✅ تم الحفظ في السجل المركزي");
+        return;
+      }
+
+      const id = persistNoHeaderRecord(record, currentRecordId ?? undefined);
+      if (!currentRecordId) setCurrentRecordId(id);
+      toast.success("✅ تم الحفظ محلياً — سجّل الدخول لمشاركته بين الأجهزة");
+    } catch (error) {
+      toast.error(`فشل الحفظ: ${(error as Error).message || "خطأ غير معروف"}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* ─── Totals ───────────────────────────────────────────── */
