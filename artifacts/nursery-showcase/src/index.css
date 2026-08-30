@@ -545,8 +545,9 @@
 
 .official-paper-signatures {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 13px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 28px;
+  row-gap: 18px;
   align-items: end;
   margin-top: 31px;
 }
@@ -766,6 +767,7 @@
   }
 
   .official-paper-signatures {
+    grid-template-columns: 1fr;
     gap: 4px;
   }
 
