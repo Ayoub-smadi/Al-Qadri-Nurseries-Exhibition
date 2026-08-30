@@ -6870,7 +6870,7 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
 
     // Admin: sync with server in the background
     setLoading(true);
-    import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation }) => {
+    import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation, uploadImageBase64 }) => {
       const serverRecs = await fetchQadriOldQuotations();
       if (serverRecs === null) {
         // Server unreachable or not logged in — local records already shown, nothing to do
@@ -6882,8 +6882,28 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
       const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
       if (toMigrate.length > 0) {
         for (const rec of toMigrate) {
-          const { id, ...rest } = rec;
-          await upsertQadriOldQuotation(rest as unknown as Record<string, unknown>, id);
+          try {
+            const resolveImage = async (value: unknown) => (
+              typeof value === 'string' && value.startsWith('data:')
+                ? uploadImageBase64(value)
+                : value
+            );
+            const { id, ...rest } = rec;
+            const prepared = {
+              ...rest,
+              logoUrl: await resolveImage(rest.logoUrl),
+              stampUrl: await resolveImage(rest.stampUrl),
+              items: await Promise.all(
+                rec.items.map(async item => ({
+                  ...item,
+                  imageUrl: await resolveImage(item.imageUrl),
+                })),
+              ),
+            };
+            await upsertQadriOldQuotation(prepared as unknown as Record<string, unknown>, id);
+          } catch (error) {
+            console.warn('[qadri-old] image migration skipped', error);
+          }
         }
         // Reload after migration
         const refreshed = await fetchQadriOldQuotations();

@@ -48,31 +48,19 @@ function loadQadriRecords(): any[] {
   try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
 
-/** Strip base64 data-URLs from item imageUrls before persisting.
- *  Plant-picker images can be several hundred KB each; storing them in
- *  localStorage multiplies across every record and quickly hits the ~5-10 MB
- *  per-origin quota.  Only short URL strings (e.g. /api/images/…) are kept. */
-function stripItemImages(items: Item[]): Item[] {
-  return items.map(item => ({
-    ...item,
-    imageUrl: item.imageUrl?.startsWith("data:") ? undefined : item.imageUrl,
-  }));
-}
-
 function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number; hiddenParts?: Record<string, boolean> }, id?: string): string {
   const records = loadQadriRecords();
   const now = new Date().toISOString();
-  const sanitized = { ...data, items: stripItemImages(data.items) };
   if (id) {
     const idx = records.findIndex((r: any) => r.id === id);
     if (idx >= 0) {
-      records[idx] = { ...records[idx], ...sanitized, updatedAt: now };
+      records[idx] = { ...records[idx], ...data, updatedAt: now };
       localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
       return id;
     }
   }
   const newId = Date.now().toString();
-  records.unshift({ ...sanitized, id: newId, createdAt: now, updatedAt: now });
+  records.unshift({ ...data, id: newId, createdAt: now, updatedAt: now });
   localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
   return newId;
 }
@@ -201,7 +189,7 @@ export default function QadriOldQuotationPage() {
   const saveDraft = useCallback(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        details, items: stripItemImages(items), logoUrl, stampUrl, discountPct, taxPct, hiddenParts,
+        details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts,
       }));
     } catch {}
   }, [details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts]);
