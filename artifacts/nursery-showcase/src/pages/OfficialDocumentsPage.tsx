@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ArrowRight, Check, Download, FileDown, FilePlus2, ImagePlus, Loader2, Pencil, Plus, Search, Stamp, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, Download, FileDown, FilePlus2, Globe2, ImagePlus, Loader2, Mail, Pencil, Phone, Plus, Search, Stamp, Trash2, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { navigate } from "@/App";
@@ -52,6 +52,9 @@ export interface OfficialDocumentRecord {
   stampLabel: string;
   dateLabel: string;
   dateValue: string;
+  contactPhone: string;
+  contactEmail: string;
+  contactWebsite: string;
   logoUrl: string;
   stampUrl: string;
 }
@@ -94,6 +97,9 @@ function normalizeDocument(record: OfficialDocumentRecord): OfficialDocumentReco
     locationPrefix: record.locationPrefix ?? " الكائن في ",
     locationSeparator: record.locationSeparator ?? " – ",
     sentenceEnd: record.sentenceEnd ?? ".",
+    contactPhone: record.contactPhone ?? "0777772211",
+    contactEmail: record.contactEmail ?? "tamerqadri@gmail.com",
+    contactWebsite: record.contactWebsite ?? "https://www.alqadrioffers.online",
   };
 }
 
@@ -144,6 +150,9 @@ function createDefaultDocument(logoUrl = ""): OfficialDocumentRecord {
     stampLabel: "الختم",
     dateLabel: "التاريخ",
     dateValue: "",
+    contactPhone: "0777772211",
+    contactEmail: "tamerqadri@gmail.com",
+    contactWebsite: "https://www.alqadrioffers.online",
     logoUrl: logoUrl || "/logo-alkadri.jpg",
     stampUrl: "/stamp-qadri.png",
   };
@@ -602,9 +611,22 @@ export default function OfficialDocumentsPage() {
                   <img src={draft.stampUrl || "/stamp-qadri.png"} alt="ختم المؤسسة" className="official-paper-stamp" crossOrigin="anonymous" />
                 </div>
               </div>
-              <div className="official-paper-footer-date">
-                <Field value={draft.dateLabel} onChange={update("dateLabel")} ariaLabel="تسمية التاريخ" />
-                <Field value={draft.dateValue} onChange={update("dateValue")} ariaLabel="قيمة التاريخ" />
+              <div className="official-paper-footer-contact" aria-label="معلومات الاتصال">
+                <div className="official-paper-contact-item">
+                  <span className="official-paper-contact-icon" aria-hidden="true"><Phone className="h-3.5 w-3.5" /></span>
+                  <span className="official-paper-contact-label">هاتف:</span>
+                  <Field value={draft.contactPhone} onChange={update("contactPhone")} ariaLabel="رقم الهاتف" className="official-paper-contact-value" />
+                </div>
+                <div className="official-paper-contact-item">
+                  <span className="official-paper-contact-icon" aria-hidden="true"><Mail className="h-3.5 w-3.5" /></span>
+                  <span className="official-paper-contact-label">البريد الإلكتروني:</span>
+                  <Field value={draft.contactEmail} onChange={update("contactEmail")} ariaLabel="البريد الإلكتروني" className="official-paper-contact-value" />
+                </div>
+                <div className="official-paper-contact-item">
+                  <span className="official-paper-contact-icon" aria-hidden="true"><Globe2 className="h-3.5 w-3.5" /></span>
+                  <span className="official-paper-contact-label">الموقع:</span>
+                  <Field value={draft.contactWebsite} onChange={update("contactWebsite")} ariaLabel="الموقع الإلكتروني" className="official-paper-contact-value" />
+                </div>
               </div>
             </div>
           </div>
