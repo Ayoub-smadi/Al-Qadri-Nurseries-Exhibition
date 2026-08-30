@@ -21,6 +21,7 @@ export interface OfficialDocumentRecord {
   heading: string;
   recipient: string;
   greeting: string;
+  introParagraph: string;
   testifiesText: string;
   institution: string;
   ownerPrefix: string;
@@ -58,10 +59,33 @@ export interface OfficialDocumentRecord {
 const today = () => new Date().toLocaleDateString("ar-JO");
 const toArabicDigits = (value: string) => value.replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
 
+function composeLegacyIntro(record: Partial<OfficialDocumentRecord>) {
+  return [
+    record.testifiesText ?? "",
+    record.institution ?? "",
+    record.ownerPrefix ?? "",
+    record.owner ?? "",
+    record.bringingPrefix ?? "",
+    record.seedlings ?? "",
+    record.varietyPrefix ?? "",
+    record.variety ?? "",
+    record.sourcePrefix ?? "",
+    record.source ?? "",
+    record.locationPrefix ?? "",
+    record.sourceLocation ?? "",
+    record.locationSeparator ?? "",
+    record.sourceGovernorate ?? "",
+    record.locationSeparator ?? "",
+    record.sourceCountry ?? "",
+    record.sentenceEnd ?? "",
+  ].join("").trim();
+}
+
 function normalizeDocument(record: OfficialDocumentRecord): OfficialDocumentRecord {
   return {
     ...record,
     documentNumber: toArabicDigits(record.documentNumber || ""),
+    introParagraph: record.introParagraph ?? composeLegacyIntro(record),
     testifiesText: record.testifiesText ?? "تشهد ",
     ownerPrefix: record.ownerPrefix ?? "، ومالكها السيد ",
     bringingPrefix: record.bringingPrefix ?? "، بأنها بصدد جلب شتلات ",
@@ -89,6 +113,7 @@ function createDefaultDocument(logoUrl = ""): OfficialDocumentRecord {
     heading: "كتاب رسمي / شهادة وتعهد",
     recipient: "إلى السادة:",
     greeting: "تحية طيبة وبعد،،،",
+    introParagraph: "تشهد مؤسسة القادري الزراعية، ومالكها السيد ثامر احمد عبد الرحمن القادري، بأنها بصدد جلب شتلات منجى من صنف منجا مصرية من مصر الكائن في القاهرة عمان.",
     testifiesText: "تشهد ",
     institution: "",
     ownerPrefix: "، ومالكها السيد ",
@@ -549,9 +574,7 @@ export default function OfficialDocumentsPage() {
               </div>
 
               <div className="official-paper-body">
-                 <p>
-                   <Field value={draft.testifiesText} onChange={update("testifiesText")} ariaLabel="بداية عبارة التشهد" /><Field value={draft.institution} onChange={update("institution")} ariaLabel="اسم المؤسسة في نص الكتاب" /><Field value={draft.ownerPrefix} onChange={update("ownerPrefix")} ariaLabel="العبارة قبل اسم المالك" /><Field value={draft.owner} onChange={update("owner")} ariaLabel="اسم المالك" /><Field value={draft.bringingPrefix} onChange={update("bringingPrefix")} ariaLabel="عبارة جلب الشتلات" /><Field value={draft.seedlings} onChange={update("seedlings")} ariaLabel="نوع الشتلات" /><Field value={draft.varietyPrefix} onChange={update("varietyPrefix")} ariaLabel="العبارة قبل الصنف" /><Field value={draft.variety} onChange={update("variety")} ariaLabel="صنف الشتلات" /><Field value={draft.sourcePrefix} onChange={update("sourcePrefix")} ariaLabel="العبارة قبل المصدر" /><Field value={draft.source} onChange={update("source")} ariaLabel="مصدر الشتلات" /><Field value={draft.locationPrefix} onChange={update("locationPrefix")} ariaLabel="العبارة قبل مكان المصدر" /><Field value={draft.sourceLocation} onChange={update("sourceLocation")} ariaLabel="مكان المصدر" /><Field value={draft.locationSeparator} onChange={update("locationSeparator")} ariaLabel="الفاصل الأول للموقع" /><Field value={draft.sourceGovernorate} onChange={update("sourceGovernorate")} ariaLabel="محافظة المصدر" /><Field value={draft.locationSeparator} onChange={update("locationSeparator")} ariaLabel="الفاصل الثاني للموقع" /><Field value={draft.sourceCountry} onChange={update("sourceCountry")} ariaLabel="دولة المصدر" /><Field value={draft.sentenceEnd} onChange={update("sentenceEnd")} ariaLabel="نهاية الجملة" />
-                </p>
+                 <TextField value={draft.introParagraph} onChange={update("introParagraph")} ariaLabel="الفقرة الأولى" />
                 <TextField value={draft.bodyHealth} onChange={update("bodyHealth")} ariaLabel="فقرة سلامة الشتلات" />
                 <TextField value={draft.bodyWarranty} onChange={update("bodyWarranty")} ariaLabel="فقرة الكفالة والمستندات" />
                 <TextField value={draft.bodyCommitment} onChange={update("bodyCommitment")} ariaLabel="فقرة التعهد" />
