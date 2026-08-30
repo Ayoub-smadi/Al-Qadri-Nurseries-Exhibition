@@ -7,7 +7,7 @@ import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { deleteOfficialDocument, fetchOfficialDocuments, loadSavedToken, uploadImageBase64, upsertOfficialDocument } from "@/lib/storage";
+import { deleteOfficialDocument, fetchOfficialDocuments, loadSavedToken, migrateAllLegacyImages, uploadImageBase64, upsertOfficialDocument } from "@/lib/storage";
 
 const STORAGE_KEY = "alqadri_official_documents";
 
@@ -196,6 +196,7 @@ export default function OfficialDocumentsPage() {
     if (!loadSavedToken()) return;
     let active = true;
     void (async () => {
+      void migrateAllLegacyImages();
       const serverRecords = await fetchOfficialDocuments();
       if (serverRecords === null || !active) return;
 

@@ -23,6 +23,23 @@ type Item = {
   imageUrl?: string;
 };
 
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  mapper: (value: T, index: number) => Promise<R>,
+  concurrency = 6,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(values[index], index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker));
+  return results;
+}
+
 type Details = {
   quotationNumber: string;
   customerName: string;
@@ -252,13 +269,7 @@ export default function QadriOldQuotationPage() {
    *  If the value is already a server URL (or empty) it is returned as-is. */
   const ensureServerUrl = async (src: string): Promise<string> => {
     if (!src || !src.startsWith("data:")) return src;
-    try {
-      return await uploadImageBase64(src);
-    } catch {
-      // If upload fails, keep the original data URL so the image isn't lost
-      // from the UI. The quotation will still be saved with the embedded image.
-      return src;
-    }
+    return uploadImageBase64(src);
   };
 
   const handleSave = async () => {
@@ -273,11 +284,13 @@ export default function QadriOldQuotationPage() {
         const [resolvedLogo, resolvedStamp, resolvedItems] = await Promise.all([
           ensureServerUrl(logoUrl),
           ensureServerUrl(stampUrl),
-          Promise.all(
-            items.map(async (item) => ({
+          mapWithConcurrency(
+            items,
+            async (item) => ({
               ...item,
               imageUrl: item.imageUrl ? await ensureServerUrl(item.imageUrl) : undefined,
-            }))
+            }),
+            6,
           ),
         ]);
 

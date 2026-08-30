@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import pg from "pg";
 import crypto from "crypto";
+import { put } from "@vercel/blob";
 import { logger } from "../lib/logger";
 
 const { Pool } = pg;
@@ -23,6 +24,11 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`CREATE TABLE IF NOT EXISTS admins (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS quote_requests (id TEXT PRIMARY KEY, customer_name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', items JSONB NOT NULL DEFAULT '[]', notes TEXT NOT NULL DEFAULT '', discount NUMERIC NOT NULL DEFAULT 0, tax NUMERIC NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY, data TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'image/jpeg', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_url TEXT`);
+      await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_pathname TEXT`);
+      await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS sha256 TEXT`);
+      await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS size_bytes INTEGER`);
+      await client.query(`CREATE INDEX IF NOT EXISTS images_sha256_idx ON images (sha256)`);
       await client.query(`CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, number TEXT NOT NULL, customer_name TEXT NOT NULL DEFAULT '', date TEXT NOT NULL DEFAULT '', items JSONB NOT NULL DEFAULT '[]', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_destination TEXT NOT NULL DEFAULT ''`);
       await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS shipping_fee NUMERIC NOT NULL DEFAULT 0`);
@@ -86,6 +92,19 @@ function requireSession(req: Request, res: Response): boolean {
     res.status(403).json({ error: "Forbidden" });
     return false;
   }
+  return true;
+}
+
+function containsEmbeddedImageData(value: unknown): boolean {
+  if (typeof value === "string") return /^data:image\//i.test(value);
+  if (Array.isArray(value)) return value.some(containsEmbeddedImageData);
+  if (value && typeof value === "object") return Object.values(value).some(containsEmbeddedImageData);
+  return false;
+}
+
+function rejectEmbeddedImageData(res: Response, value: unknown): boolean {
+  if (!containsEmbeddedImageData(value)) return false;
+  res.status(422).json({ error: "Images must be uploaded to Blob storage before saving the record" });
   return true;
 }
 
@@ -538,6 +557,7 @@ router.post("/qadri-old-quotations", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   const { id: incomingId, ...data } = req.body as { id?: string; [k: string]: unknown };
+  if (rejectEmbeddedImageData(res, data)) return;
   const recordId = incomingId || `qoq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   try {
     await pool.query(
@@ -619,6 +639,7 @@ router.post("/official-documents", async (req, res) => {
     res.status(400).json({ error: "Invalid document" });
     return;
   }
+  if (rejectEmbeddedImageData(res, data)) return;
   const id = incomingId || `official-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     res.json({ record: await upsertJsonRecord("official_documents", id, data) });
@@ -656,6 +677,7 @@ router.post("/no-header-quotations", async (req, res) => {
     res.status(400).json({ error: "Invalid quotation" });
     return;
   }
+  if (rejectEmbeddedImageData(res, data)) return;
   const id = incomingId || `no-header-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     res.json({ record: await upsertJsonRecord("no_header_quotations", id, data) });
@@ -674,6 +696,101 @@ router.delete("/no-header-quotations/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to delete no-header quotation", detail: (e as Error).message });
   }
 });
+
+type StoredImage = {
+  id: string;
+  url: string;
+  pathname: string;
+  sha256: string;
+  sizeBytes: number;
+  mimeType: string;
+};
+
+function imageExtension(mimeType: string): string {
+  const subtype = mimeType.split("/")[1]?.split(";")[0]?.toLowerCase();
+  return subtype === "jpeg" ? "jpg" : (subtype && /^[a-z0-9]+$/.test(subtype) ? subtype : "bin");
+}
+
+async function uploadImageBytes(buffer: Buffer, mimeType: string): Promise<Omit<StoredImage, "id">> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  if (!mimeType.startsWith("image/")) throw new Error("Only image files are allowed");
+  if (buffer.length === 0 || buffer.length > 3 * 1024 * 1024) {
+    throw new Error("Image must be between 1 byte and 3MB");
+  }
+
+  const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+  const existing = await pool.query(
+    `SELECT blob_url, blob_pathname, mime_type, size_bytes FROM images
+     WHERE sha256 = $1 AND blob_url IS NOT NULL AND blob_url <> ''
+     ORDER BY created_at ASC LIMIT 1`,
+    [sha256],
+  );
+  if (existing.rows.length > 0) {
+    const row = existing.rows[0] as { blob_url: string; blob_pathname: string; mime_type: string; size_bytes: number | null };
+    return {
+      url: row.blob_url,
+      pathname: row.blob_pathname,
+      sha256,
+      sizeBytes: row.size_bytes ?? buffer.length,
+      mimeType: row.mime_type || mimeType,
+    };
+  }
+
+  const pathname = `qadri/images/${sha256}.${imageExtension(mimeType)}`;
+  const blob = await put(pathname, buffer, {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: mimeType,
+    token,
+  });
+  return { url: blob.url, pathname, sha256, sizeBytes: buffer.length, mimeType };
+}
+
+async function saveImageRecord(image: Omit<StoredImage, "id">): Promise<StoredImage> {
+  const id = `img-${image.sha256.slice(0, 24)}`;
+  await pool.query(
+    `INSERT INTO images (id, data, mime_type, blob_url, blob_pathname, sha256, size_bytes)
+     VALUES ($1, '', $2, $3, $4, $5, $6)
+     ON CONFLICT (id) DO UPDATE SET
+       mime_type = EXCLUDED.mime_type,
+       blob_url = EXCLUDED.blob_url,
+       blob_pathname = EXCLUDED.blob_pathname,
+       sha256 = EXCLUDED.sha256,
+       size_bytes = EXCLUDED.size_bytes`,
+    [id, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
+  );
+  return { id, ...image };
+}
+
+async function migrateLegacyImages(limit = 50): Promise<{ migrated: number; remaining: number }> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const legacy = await pool.query(
+    `SELECT id, data, mime_type FROM images
+     WHERE (blob_url IS NULL OR blob_url = '') AND data <> ''
+     ORDER BY created_at ASC LIMIT $1`,
+    [limit],
+  );
+  const migratedRows = await Promise.all((legacy.rows as { id: string; data: string; mime_type: string }[]).map(async (row) => {
+    try {
+      const image = await uploadImageBytes(Buffer.from(row.data, "base64"), row.mime_type || "image/jpeg");
+      await pool.query(
+        `UPDATE images SET data = '', mime_type = $2, blob_url = $3, blob_pathname = $4, sha256 = $5, size_bytes = $6 WHERE id = $1`,
+        [row.id, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
+      );
+      return 1;
+    } catch (error) {
+      logger.warn({ err: error, imageId: row.id }, "Legacy image migration skipped");
+      return 0;
+    }
+  }));
+  const migrated = migratedRows.reduce((total, value) => total + value, 0);
+  const remainingResult = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM images WHERE (blob_url IS NULL OR blob_url = '') AND data <> ''`,
+  );
+  return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
+}
 
 router.post("/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
@@ -726,16 +843,15 @@ router.post("/images/from-url", async (req, res) => {
       res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 3MB) — يُرجى استخدام صورة أصغر" });
       return;
     }
-    const base64 = Buffer.from(buffer).toString("base64");
     const mime = contentType.split(";")[0].trim();
-    const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    await pool.query(
-      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
-      [id, base64, mime]
-    );
-    res.json({ id, url: `/api/images/${id}` });
+    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(buffer), mime));
+    res.json({ id: stored.id, url: stored.url });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
     if (msg.includes("abort") || msg.includes("timeout")) {
       res.status(400).json({ error: "انتهت مهلة التنزيل — تأكد أن الرابط سريع وعام" });
     } else {
@@ -748,16 +864,17 @@ router.post("/images", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { data, mimeType } = req.body as { data?: string; mimeType?: string };
   if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
-  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const mime = mimeType ?? "image/jpeg";
   try {
     const raw = data.startsWith("data:") ? data.split(",")[1] : data;
-    await pool.query(
-      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
-      [id, raw, mime]
-    );
-    res.json({ id, url: `/api/images/${id}` });
-  } catch {
+    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(raw, "base64"), mime));
+    res.json({ id: stored.id, url: stored.url });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
     res.status(500).json({ error: "Failed to save image" });
   }
 });
@@ -765,18 +882,39 @@ router.post("/images", async (req, res) => {
 router.get("/images/:id", async (req, res) => {
   const { id } = req.params;
   try {
+    await dbReady;
     const result = await pool.query(
-      `SELECT data, mime_type FROM images WHERE id = $1`,
+      `SELECT data, mime_type, blob_url FROM images WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) { res.status(404).end(); return; }
-    const { data, mime_type } = result.rows[0] as { data: string; mime_type: string };
+    const { data, mime_type, blob_url } = result.rows[0] as { data: string; mime_type: string; blob_url?: string | null };
+    if (blob_url) {
+      res.redirect(302, blob_url);
+      return;
+    }
+    if (!data) { res.status(404).end(); return; }
     const buf = Buffer.from(data, "base64");
     res.setHeader("Content-Type", mime_type);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.end(buf);
   } catch {
     res.status(500).end();
+  }
+});
+
+router.post("/images/migrate-legacy", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    res.json(await migrateLegacyImages());
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
+    res.status(500).json({ error: "Failed to migrate legacy images" });
   }
 });
 

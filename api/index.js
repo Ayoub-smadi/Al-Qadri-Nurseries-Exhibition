@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import pg from "pg";
 import crypto from "crypto";
+import { put } from "@vercel/blob";
 
 const { Pool } = pg;
 
@@ -57,6 +58,11 @@ const dbReady = pool.connect().then(async (client) => {
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
     `);
+    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_url TEXT`);
+    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_pathname TEXT`);
+    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS sha256 TEXT`);
+    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS size_bytes INTEGER`);
+    await client.query(`CREATE INDEX IF NOT EXISTS images_sha256_idx ON images (sha256)`);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS planting_fee NUMERIC NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE quote_requests ADD COLUMN IF NOT EXISTS order_type TEXT NOT NULL DEFAULT 'plant_quote'`);
@@ -108,6 +114,19 @@ function requireSession(req, res) {
     res.status(403).json({ error: "Forbidden" });
     return false;
   }
+  return true;
+}
+
+function containsEmbeddedImageData(value) {
+  if (typeof value === "string") return /^data:image\//i.test(value);
+  if (Array.isArray(value)) return value.some(containsEmbeddedImageData);
+  if (value && typeof value === "object") return Object.values(value).some(containsEmbeddedImageData);
+  return false;
+}
+
+function rejectEmbeddedImageData(res, value) {
+  if (!containsEmbeddedImageData(value)) return false;
+  res.status(422).json({ error: "Images must be uploaded to Blob storage before saving the record" });
   return true;
 }
 
@@ -563,6 +582,7 @@ app.post("/api/qadri-old-quotations", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   const { id: bodyId, ...rest } = req.body ?? {};
+  if (rejectEmbeddedImageData(res, rest)) return;
   const id = bodyId || `qoq-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   try {
     await pool.query(
@@ -588,6 +608,92 @@ app.delete("/api/qadri-old-quotations/:id", async (req, res) => {
 });
 
 /* ── Images ─────────────────────────────────────────────── */
+
+function imageExtension(mimeType) {
+  const subtype = mimeType.split("/")[1]?.split(";")[0]?.toLowerCase();
+  return subtype === "jpeg" ? "jpg" : (subtype && /^[a-z0-9]+$/.test(subtype) ? subtype : "bin");
+}
+
+async function uploadImageBytes(buffer, mimeType) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  if (!mimeType.startsWith("image/")) throw new Error("Only image files are allowed");
+  if (buffer.length === 0 || buffer.length > 3 * 1024 * 1024) {
+    throw new Error("Image must be between 1 byte and 3MB");
+  }
+
+  const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+  const existing = await pool.query(
+    `SELECT blob_url, blob_pathname, mime_type, size_bytes FROM images
+     WHERE sha256 = $1 AND blob_url IS NOT NULL AND blob_url <> ''
+     ORDER BY created_at ASC LIMIT 1`,
+    [sha256],
+  );
+  if (existing.rows.length > 0) {
+    const row = existing.rows[0];
+    return {
+      url: row.blob_url,
+      pathname: row.blob_pathname,
+      sha256,
+      sizeBytes: row.size_bytes ?? buffer.length,
+      mimeType: row.mime_type || mimeType,
+    };
+  }
+
+  const pathname = `qadri/images/${sha256}.${imageExtension(mimeType)}`;
+  const blob = await put(pathname, buffer, {
+    access: "public",
+    addRandomSuffix: false,
+    contentType: mimeType,
+    token,
+  });
+  return { url: blob.url, pathname, sha256, sizeBytes: buffer.length, mimeType };
+}
+
+async function saveImageRecord(image) {
+  const id = `img-${image.sha256.slice(0, 24)}`;
+  await pool.query(
+    `INSERT INTO images (id, data, mime_type, blob_url, blob_pathname, sha256, size_bytes)
+     VALUES ($1, '', $2, $3, $4, $5, $6)
+     ON CONFLICT (id) DO UPDATE SET
+       mime_type = EXCLUDED.mime_type,
+       blob_url = EXCLUDED.blob_url,
+       blob_pathname = EXCLUDED.blob_pathname,
+       sha256 = EXCLUDED.sha256,
+       size_bytes = EXCLUDED.size_bytes`,
+    [id, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
+  );
+  return { id, ...image };
+}
+
+async function migrateLegacyImages(limit = 50) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+  const legacy = await pool.query(
+    `SELECT id, data, mime_type FROM images
+     WHERE (blob_url IS NULL OR blob_url = '') AND data <> ''
+     ORDER BY created_at ASC LIMIT $1`,
+    [limit],
+  );
+  const migratedRows = await Promise.all(legacy.rows.map(async (row) => {
+    try {
+      const image = await uploadImageBytes(Buffer.from(row.data, "base64"), row.mime_type || "image/jpeg");
+      await pool.query(
+        `UPDATE images SET data = '', mime_type = $2, blob_url = $3, blob_pathname = $4, sha256 = $5, size_bytes = $6 WHERE id = $1`,
+        [row.id, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
+      );
+      return 1;
+    } catch (error) {
+      console.warn("[images] legacy migration skipped", row.id, error);
+      return 0;
+    }
+  }));
+  const migrated = migratedRows.reduce((total, value) => total + value, 0);
+  const remainingResult = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM images WHERE (blob_url IS NULL OR blob_url = '') AND data <> ''`,
+  );
+  return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
+}
 
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
@@ -636,16 +742,15 @@ app.post("/api/images/from-url", async (req, res) => {
       res.status(400).json({ error: "الصورة كبيرة جداً (أكثر من 3MB) — يُرجى استخدام صورة أصغر" });
       return;
     }
-    const base64 = Buffer.from(buffer).toString("base64");
     const mime = contentType.split(";")[0].trim();
-    const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    await pool.query(
-      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
-      [id, base64, mime]
-    );
-    res.json({ id, url: `/api/images/${id}` });
+    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(buffer), mime));
+    res.json({ id: stored.id, url: stored.url });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
     if (msg.includes("abort") || msg.includes("timeout")) {
       res.status(400).json({ error: "انتهت مهلة التنزيل" });
     } else {
@@ -658,16 +763,17 @@ app.post("/api/images", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { data, mimeType } = req.body ?? {};
   if (!data) { res.status(400).json({ error: "Missing image data" }); return; }
-  const id = `img-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const mime = mimeType ?? "image/jpeg";
   try {
     const raw = data.startsWith("data:") ? data.split(",")[1] : data;
-    await pool.query(
-      `INSERT INTO images (id, data, mime_type) VALUES ($1, $2, $3)`,
-      [id, raw, mime]
-    );
-    res.json({ id, url: `/api/images/${id}` });
-  } catch {
+    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(raw, "base64"), mime));
+    res.json({ id: stored.id, url: stored.url });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
     res.status(500).json({ error: "Failed to save image" });
   }
 });
@@ -675,18 +781,39 @@ app.post("/api/images", async (req, res) => {
 app.get("/api/images/:id", async (req, res) => {
   const { id } = req.params;
   try {
+    await dbReady;
     const result = await pool.query(
-      `SELECT data, mime_type FROM images WHERE id = $1`,
+      `SELECT data, mime_type, blob_url FROM images WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) { res.status(404).end(); return; }
-    const { data, mime_type } = result.rows[0];
+    const { data, mime_type, blob_url } = result.rows[0];
+    if (blob_url) {
+      res.redirect(302, blob_url);
+      return;
+    }
+    if (!data) { res.status(404).end(); return; }
     const buf = Buffer.from(data, "base64");
     res.setHeader("Content-Type", mime_type);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.end(buf);
   } catch {
     res.status(500).end();
+  }
+});
+
+app.post("/api/images/migrate-legacy", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    res.json(await migrateLegacyImages());
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
+      res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم. أضف BLOB_READ_WRITE_TOKEN في Vercel." });
+      return;
+    }
+    res.status(500).json({ error: "Failed to migrate legacy images" });
   }
 });
 

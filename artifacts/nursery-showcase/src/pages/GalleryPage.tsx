@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement, fetchNoHeaderQuotations, upsertNoHeaderQuotation, deleteNoHeaderQuotation, uploadImageBase64 } from '@/lib/storage';
+import { Photo, Section, Branch, SocialLink, SocialPlatform, Highlight, FeaturedImage, ShowcaseItem, DEFAULT_DATA, uploadImage, uploadImageFromUrl, adminLogin, adminSetup, checkNeedsSetup, setSessionToken, loadSavedToken, validateToken, QuoteItem, QuoteRequest, Invoice, InvoiceItem, Receipt, Disbursement, submitQuote, fetchQuotes, updateQuote, deleteQuote, restoreQuote, permanentDeleteQuote, adminCreateQuote, fetchInvoices, createInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus, fetchReceipts, createReceipt, updateReceipt, deleteReceipt, fetchDisbursements, createDisbursement, updateDisbursement, deleteDisbursement, fetchNoHeaderQuotations, upsertNoHeaderQuotation, deleteNoHeaderQuotation, uploadImageBase64, migrateAllLegacyImages } from '@/lib/storage';
 import { QuotationForm } from '@/components/QuotationForm';
 import { AdminQuotationsList } from '@/components/AdminQuotationsList';
 import { AdminAgriOrdersModal } from '@/components/AdminAgriOrdersModal';
@@ -6871,6 +6871,7 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
     // Admin: sync with server in the background
     setLoading(true);
     import('@/lib/storage').then(async ({ fetchQadriOldQuotations, upsertQadriOldQuotation, uploadImageBase64 }) => {
+      void migrateAllLegacyImages();
       const serverRecs = await fetchQadriOldQuotations();
       if (serverRecs === null) {
         // Server unreachable or not logged in — local records already shown, nothing to do
@@ -7029,6 +7030,7 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
 
     setLoading(true);
     void (async () => {
+      void migrateAllLegacyImages();
       const serverRecs = await fetchNoHeaderQuotations();
       if (serverRecs === null || !active) return;
 

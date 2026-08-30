@@ -231,6 +231,8 @@ const getApiBase = (): string => {
   return '/api';
 };
 
+const pendingImageUploads = new Map<string, Promise<string>>();
+
 export function setSessionToken(token: string | null) {
   _sessionToken = token;
   try {
@@ -421,24 +423,55 @@ export async function persistSiteData(data: SiteData): Promise<{ ok: boolean; un
 export async function uploadImageBase64(dataUrl: string): Promise<string> {
   const token = getToken();
   if (!token) throw new Error("Not authenticated");
+  const pending = pendingImageUploads.get(dataUrl);
+  if (pending) return pending;
   // Extract mime type from data URL header (e.g. "data:image/jpeg;base64,...")
   const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
   const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-  const res = await fetch(`${getApiBase()}/images`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify({ data: dataUrl, mimeType }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(err.error ?? `Server error ${res.status}`);
+  const upload = (async () => {
+    const res = await fetch(`${getApiBase()}/images`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ data: dataUrl, mimeType }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(err.error ?? `Server error ${res.status}`);
+    }
+    const json = await res.json() as { url?: string };
+    if (!json.url) throw new Error("No URL returned");
+    return json.url;
+  })();
+  pendingImageUploads.set(dataUrl, upload);
+  try {
+    return await upload;
+  } finally {
+    if (pendingImageUploads.get(dataUrl) === upload) pendingImageUploads.delete(dataUrl);
   }
-  const json = await res.json() as { url?: string };
-  if (!json.url) throw new Error("No URL returned");
-  return json.url;
+}
+
+export async function migrateLegacyImages(): Promise<{ migrated: number; remaining: number } | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${getApiBase()}/images/migrate-legacy`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) return await res.json() as { migrated: number; remaining: number };
+  } catch { /* legacy images remain readable until storage is configured */ }
+  return null;
+}
+
+export async function migrateAllLegacyImages(): Promise<void> {
+  for (let batch = 0; batch < 20; batch += 1) {
+    const result = await migrateLegacyImages();
+    if (!result || result.remaining === 0 || result.migrated === 0) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
