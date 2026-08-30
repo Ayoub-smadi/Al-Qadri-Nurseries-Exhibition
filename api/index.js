@@ -71,6 +71,8 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, number TEXT NOT NULL, received_from TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
   } catch (e) {
     console.error("DB init error:", e.message);
   } finally {
@@ -604,6 +606,114 @@ app.delete("/api/qadri-old-quotations/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete record" });
+  }
+});
+
+/* ── Official documents and no-header quotations ───────── */
+
+function serializeJsonRecord(row) {
+  return {
+    id: row.id,
+    ...row.data,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function listJsonRecords(table) {
+  const result = await pool.query(
+    `SELECT id, data, created_at, updated_at FROM ${table} ORDER BY updated_at DESC`,
+  );
+  return result.rows.map(serializeJsonRecord);
+}
+
+async function upsertJsonRecord(table, id, data) {
+  const result = await pool.query(
+    `INSERT INTO ${table} (id, data) VALUES ($1, $2)
+     ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()
+     RETURNING id, data, created_at, updated_at`,
+    [id, JSON.stringify(data)],
+  );
+  return serializeJsonRecord(result.rows[0]);
+}
+
+async function deleteJsonRecord(table, id) {
+  await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+}
+
+app.get("/api/official-documents", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    res.json({ records: await listJsonRecords("official_documents") });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load official documents", detail: e.message });
+  }
+});
+
+app.post("/api/official-documents", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: incomingId, ...data } = req.body ?? {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    res.status(400).json({ error: "Invalid document" });
+    return;
+  }
+  if (rejectEmbeddedImageData(res, data)) return;
+  const id = incomingId || `official-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    res.json({ record: await upsertJsonRecord("official_documents", id, data) });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save official document", detail: e.message });
+  }
+});
+
+app.delete("/api/official-documents/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await deleteJsonRecord("official_documents", req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to delete official document", detail: e.message });
+  }
+});
+
+app.get("/api/no-header-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    res.json({ records: await listJsonRecords("no_header_quotations") });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load no-header quotations", detail: e.message });
+  }
+});
+
+app.post("/api/no-header-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: incomingId, ...data } = req.body ?? {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    res.status(400).json({ error: "Invalid quotation" });
+    return;
+  }
+  if (rejectEmbeddedImageData(res, data)) return;
+  const id = incomingId || `no-header-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    res.json({ record: await upsertJsonRecord("no_header_quotations", id, data) });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save no-header quotation", detail: e.message });
+  }
+});
+
+app.delete("/api/no-header-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await deleteJsonRecord("no_header_quotations", req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to delete no-header quotation", detail: e.message });
   }
 });
 

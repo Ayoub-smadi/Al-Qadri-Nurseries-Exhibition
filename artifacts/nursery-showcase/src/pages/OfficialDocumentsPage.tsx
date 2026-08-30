@@ -211,7 +211,7 @@ function readImage(file: File, onRead: (dataUrl: string) => void) {
 }
 
 export default function OfficialDocumentsPage() {
-  const { siteData } = useApp();
+  const { siteData, isAdmin } = useApp();
   const fallbackLogo = siteData.logo?.customUrl || "/logo-alkadri.jpg";
   const [records, setRecords] = useState<OfficialDocumentRecord[]>(() => loadDocuments());
   const [draft, setDraft] = useState<OfficialDocumentRecord>(() => createDefaultDocument(fallbackLogo));
@@ -225,7 +225,7 @@ export default function OfficialDocumentsPage() {
   const stampInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!loadSavedToken()) return;
+    if (!isAdmin) return;
     let active = true;
     void (async () => {
       void migrateAllLegacyImages();
@@ -255,7 +255,7 @@ export default function OfficialDocumentsPage() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!draft.logoUrl || draft.logoUrl === "/logo-alkadri.jpg") {

@@ -116,7 +116,7 @@ function fmt(n: number) {
 /* ══════════════════════════════════════════════════════════ */
 export default function NoHeaderQuotationPage() {
   const docRef = useRef<HTMLDivElement>(null);
-  const { siteData } = useApp();
+  const { siteData, isAdmin } = useApp();
 
   /* ─── Load prefill / draft ─────────────────────────────── */
   /* ─── Load edit ID (set by records modal) ───────────── */
@@ -158,7 +158,7 @@ export default function NoHeaderQuotationPage() {
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   useEffect(() => {
-    if (!loadSavedToken()) return;
+    if (!isAdmin) return;
     let active = true;
     void (async () => {
       const serverRecords = await fetchNoHeaderQuotations();
@@ -183,7 +183,7 @@ export default function NoHeaderQuotationPage() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [isAdmin]);
 
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
