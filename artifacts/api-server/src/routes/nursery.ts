@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import pg from "pg";
 import crypto from "crypto";
-import { put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import { logger } from "../lib/logger";
 
 const { Pool } = pg;
@@ -739,7 +739,7 @@ async function uploadImageBytes(buffer: Buffer, mimeType: string): Promise<Omit<
 
   const pathname = `qadri/images/${sha256}.${imageExtension(mimeType)}`;
   const blob = await put(pathname, buffer, {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     contentType: mimeType,
     token,
@@ -845,7 +845,7 @@ router.post("/images/from-url", async (req, res) => {
     }
     const mime = contentType.split(";")[0].trim();
     const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(buffer), mime));
-    res.json({ id: stored.id, url: stored.url });
+    res.json({ id: stored.id, url: `/api/images/${encodeURIComponent(stored.id)}` });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
@@ -868,7 +868,7 @@ router.post("/images", async (req, res) => {
   try {
     const raw = data.startsWith("data:") ? data.split(",")[1] : data;
     const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(raw, "base64"), mime));
-    res.json({ id: stored.id, url: stored.url });
+    res.json({ id: stored.id, url: `/api/images/${encodeURIComponent(stored.id)}` });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes("BLOB_READ_WRITE_TOKEN")) {
@@ -890,7 +890,58 @@ router.get("/images/:id", async (req, res) => {
     if (result.rows.length === 0) { res.status(404).end(); return; }
     const { data, mime_type, blob_url } = result.rows[0] as { data: string; mime_type: string; blob_url?: string | null };
     if (blob_url) {
-      res.redirect(302, blob_url);
+      let isPrivateBlob = false;
+      try {
+        isPrivateBlob = new URL(blob_url).hostname.includes(".private.blob.vercel-storage.com");
+      } catch {
+        // Keep the legacy redirect behavior for non-URL values.
+      }
+
+      if (!isPrivateBlob) {
+        res.redirect(302, blob_url);
+        return;
+      }
+
+      const token = process.env.BLOB_READ_WRITE_TOKEN;
+      if (!token) {
+        res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم" });
+        return;
+      }
+
+      const blob = await get(blob_url, {
+        access: "private",
+        token,
+        ifNoneMatch: typeof req.headers["if-none-match"] === "string"
+          ? req.headers["if-none-match"]
+          : undefined,
+      });
+      if (!blob) { res.status(404).end(); return; }
+      if (blob.statusCode === 304) {
+        res.status(304);
+        res.setHeader("ETag", blob.blob.etag);
+        res.setHeader("Cache-Control", "private, no-cache");
+        res.end();
+        return;
+      }
+
+      res.status(200);
+      res.setHeader("Content-Type", blob.blob.contentType || mime_type);
+      res.setHeader("Content-Length", String(blob.blob.size));
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("ETag", blob.blob.etag);
+      res.setHeader("Cache-Control", "private, no-cache");
+
+      const reader = blob.stream.getReader();
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          res.write(Buffer.from(chunk.value));
+        }
+        res.end();
+      } finally {
+        reader.releaseLock();
+      }
       return;
     }
     if (!data) { res.status(404).end(); return; }
