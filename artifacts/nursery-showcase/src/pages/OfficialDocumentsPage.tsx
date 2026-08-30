@@ -21,14 +21,22 @@ export interface OfficialDocumentRecord {
   heading: string;
   recipient: string;
   greeting: string;
+  testifiesText: string;
   institution: string;
+  ownerPrefix: string;
   owner: string;
+  bringingPrefix: string;
   seedlings: string;
+  varietyPrefix: string;
   variety: string;
+  sourcePrefix: string;
   source: string;
+  locationPrefix: string;
   sourceLocation: string;
+  locationSeparator: string;
   sourceGovernorate: string;
   sourceCountry: string;
+  sentenceEnd: string;
   producedFrom: string;
   bodyHealth: string;
   bodyWarranty: string;
@@ -48,6 +56,22 @@ export interface OfficialDocumentRecord {
 }
 
 const today = () => new Date().toLocaleDateString("ar-JO");
+const toArabicDigits = (value: string) => value.replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
+
+function normalizeDocument(record: OfficialDocumentRecord): OfficialDocumentRecord {
+  return {
+    ...record,
+    documentNumber: toArabicDigits(record.documentNumber || ""),
+    testifiesText: record.testifiesText ?? "تشهد ",
+    ownerPrefix: record.ownerPrefix ?? "، ومالكها السيد ",
+    bringingPrefix: record.bringingPrefix ?? "، بأنها بصدد جلب شتلات ",
+    varietyPrefix: record.varietyPrefix ?? " من صنف ",
+    sourcePrefix: record.sourcePrefix ?? " من ",
+    locationPrefix: record.locationPrefix ?? " الكائن في ",
+    locationSeparator: record.locationSeparator ?? " – ",
+    sentenceEnd: record.sentenceEnd ?? ".",
+  };
+}
 
 function makeId() {
   return `official-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -59,20 +83,28 @@ function createDefaultDocument(logoUrl = ""): OfficialDocumentRecord {
     id: makeId(),
     createdAt: now,
     updatedAt: now,
-    documentNumber: "01 / 2026",
+    documentNumber: "٠١ / ٢٠٢٦",
     issueDate: today(),
     bismillah: "بسم الله الرحمن الرحيم",
     heading: "كتاب رسمي / شهادة وتعهد",
     recipient: "إلى السادة:",
     greeting: "تحية طيبة وبعد،،،",
+    testifiesText: "تشهد ",
     institution: "",
+    ownerPrefix: "، ومالكها السيد ",
     owner: "",
+    bringingPrefix: "، بأنها بصدد جلب شتلات ",
     seedlings: "",
+    varietyPrefix: " من صنف ",
     variety: "",
+    sourcePrefix: " من ",
     source: "",
+    locationPrefix: " الكائن في ",
     sourceLocation: "",
+    locationSeparator: " – ",
     sourceGovernorate: "",
     sourceCountry: "",
+    sentenceEnd: ".",
     producedFrom: "",
     bodyHealth: "ونؤكد أن الشتلات ناتجة عن ، وسليمة وخالية من الأمراض والآفات الحشرية والفطرية، ومطابقة للمواصفات المطلوبة.",
     bodyWarranty: "كما أن الشتلات مكفولة من المشتل المصدر من حيث الصنف والحالة الصحية، وسيتم إرفاق نسخة من شهادة الكفالة والمستندات والوثائق اللازمة حسب الأصول.",
@@ -97,7 +129,7 @@ function loadDocuments(): OfficialDocumentRecord[] {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return [];
     const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map((record) => normalizeDocument(record)) : [];
   } catch {
     return [];
   }
@@ -217,8 +249,9 @@ export default function OfficialDocumentsPage() {
 
       const refreshed = localOnly.length > 0 ? await fetchOfficialDocuments() : serverRecords;
       if (active && refreshed) {
-        setRecords(refreshed as OfficialDocumentRecord[]);
-        saveDocuments(refreshed as OfficialDocumentRecord[]);
+        const normalized = (refreshed as OfficialDocumentRecord[]).map(normalizeDocument);
+        setRecords(normalized);
+        saveDocuments(normalized);
       }
     })();
     return () => { active = false; };
@@ -291,7 +324,7 @@ export default function OfficialDocumentsPage() {
   };
 
   const handleOpen = (record: OfficialDocumentRecord) => {
-    setDraft(record);
+    setDraft(normalizeDocument(record));
     setSelectedId(record.id);
     setSaved(true);
   };
@@ -497,7 +530,7 @@ export default function OfficialDocumentsPage() {
                   <Field value={draft.institution} onChange={update("institution")} className="official-paper-brand-name" ariaLabel="اسم المؤسسة في الترويسة" />
                 </div>
                 <div className="official-paper-meta">
-                  <label>رقم الكتاب <Field value={draft.documentNumber} onChange={update("documentNumber")} ariaLabel="رقم الكتاب" /></label>
+                  <label>رقم الكتاب <Field value={draft.documentNumber} onChange={(value) => update("documentNumber")(toArabicDigits(value))} ariaLabel="رقم الكتاب" /></label>
                   <label>التاريخ <Field value={draft.issueDate} onChange={update("issueDate")} ariaLabel="تاريخ الكتاب" /></label>
                 </div>
               </div>
@@ -516,8 +549,8 @@ export default function OfficialDocumentsPage() {
               </div>
 
               <div className="official-paper-body">
-                <p>
-                  تشهد مؤسسة <Field value={draft.institution} onChange={update("institution")} ariaLabel="اسم المؤسسة في نص الكتاب" />، ومالكها السيد <Field value={draft.owner} onChange={update("owner")} ariaLabel="اسم المالك" />، بأنها بصدد جلب شتلات <Field value={draft.seedlings} onChange={update("seedlings")} ariaLabel="نوع الشتلات" /> من صنف <Field value={draft.variety} onChange={update("variety")} ariaLabel="صنف الشتلات" /> من <Field value={draft.source} onChange={update("source")} ariaLabel="مصدر الشتلات" /> الكائن في <Field value={draft.sourceLocation} onChange={update("sourceLocation")} ariaLabel="مكان المصدر" /> – <Field value={draft.sourceGovernorate} onChange={update("sourceGovernorate")} ariaLabel="محافظة المصدر" /> – <Field value={draft.sourceCountry} onChange={update("sourceCountry")} ariaLabel="دولة المصدر" />.
+                 <p>
+                   <Field value={draft.testifiesText} onChange={update("testifiesText")} ariaLabel="بداية عبارة التشهد" /><Field value={draft.institution} onChange={update("institution")} ariaLabel="اسم المؤسسة في نص الكتاب" /><Field value={draft.ownerPrefix} onChange={update("ownerPrefix")} ariaLabel="العبارة قبل اسم المالك" /><Field value={draft.owner} onChange={update("owner")} ariaLabel="اسم المالك" /><Field value={draft.bringingPrefix} onChange={update("bringingPrefix")} ariaLabel="عبارة جلب الشتلات" /><Field value={draft.seedlings} onChange={update("seedlings")} ariaLabel="نوع الشتلات" /><Field value={draft.varietyPrefix} onChange={update("varietyPrefix")} ariaLabel="العبارة قبل الصنف" /><Field value={draft.variety} onChange={update("variety")} ariaLabel="صنف الشتلات" /><Field value={draft.sourcePrefix} onChange={update("sourcePrefix")} ariaLabel="العبارة قبل المصدر" /><Field value={draft.source} onChange={update("source")} ariaLabel="مصدر الشتلات" /><Field value={draft.locationPrefix} onChange={update("locationPrefix")} ariaLabel="العبارة قبل مكان المصدر" /><Field value={draft.sourceLocation} onChange={update("sourceLocation")} ariaLabel="مكان المصدر" /><Field value={draft.locationSeparator} onChange={update("locationSeparator")} ariaLabel="الفاصل الأول للموقع" /><Field value={draft.sourceGovernorate} onChange={update("sourceGovernorate")} ariaLabel="محافظة المصدر" /><Field value={draft.locationSeparator} onChange={update("locationSeparator")} ariaLabel="الفاصل الثاني للموقع" /><Field value={draft.sourceCountry} onChange={update("sourceCountry")} ariaLabel="دولة المصدر" /><Field value={draft.sentenceEnd} onChange={update("sentenceEnd")} ariaLabel="نهاية الجملة" />
                 </p>
                 <TextField value={draft.bodyHealth} onChange={update("bodyHealth")} ariaLabel="فقرة سلامة الشتلات" />
                 <TextField value={draft.bodyWarranty} onChange={update("bodyWarranty")} ariaLabel="فقرة الكفالة والمستندات" />
