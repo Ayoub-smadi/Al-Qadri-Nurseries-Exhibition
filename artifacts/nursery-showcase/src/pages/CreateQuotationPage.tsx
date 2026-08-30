@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { navigate } from "@/App";
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
@@ -75,6 +76,7 @@ export default function CreateQuotationPage() {
   const isEditMode = editId !== null;
 
   const { siteData } = useApp();
+  const queryClient = useQueryClient();
   const { data: existingQuotation, isLoading: loadingEdit } = useQuotation(editId ?? 0);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -394,6 +396,7 @@ export default function CreateQuotationPage() {
         throw new Error(msg);
       }
 
+      queryClient.invalidateQueries({ queryKey: ["/api/quotations"] });
       toast.success(isEditMode ? "تم تحديث عرض السعر ✅" : "تم حفظ عرض السعر ✅");
       if (!isEditMode) sessionStorage.removeItem(DRAFT_KEY);
       navigate("/quotation-history");

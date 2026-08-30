@@ -19,6 +19,8 @@ export function useQuotations() {
       if (!res.ok) throw new Error("Failed to fetch quotations");
       return res.json();
     },
+    placeholderData: (previousData) => previousData,
+    staleTime: 15_000,
   });
 }
 

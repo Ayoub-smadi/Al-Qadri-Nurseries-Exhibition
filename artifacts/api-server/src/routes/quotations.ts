@@ -47,6 +47,8 @@ const dbReady = (async () => {
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       )
     `);
+    await client.query(`CREATE INDEX IF NOT EXISTS aq_quotations_history_idx ON aq_quotations (deleted_at, created_at DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS aq_quotation_items_quotation_idx ON aq_quotation_items (quotation_id, id)`);
   } finally {
     client.release();
   }
@@ -54,29 +56,74 @@ const dbReady = (async () => {
 
 const router = Router();
 
-async function getQuotationWithItems(id: number) {
-  const { rows: [q] } = await pool.query(`SELECT * FROM aq_quotations WHERE id = $1`, [id]);
-  if (!q) return null;
-  const { rows: items } = await pool.query(
-    `SELECT * FROM aq_quotation_items WHERE quotation_id = $1 ORDER BY id`, [id]
+const quotationDetailSql = `
+  SELECT q.*,
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', i.id,
+          'quotation_id', i.quotation_id,
+          'name', i.name,
+          'description', i.description,
+          'category', i.category,
+          'quantity', i.quantity,
+          'price', i.price,
+          'total', i.total,
+          'image_url', i.image_url
+        ) ORDER BY i.id
+      ) FILTER (WHERE i.id IS NOT NULL),
+      '[]'::json
+    ) AS items
+  FROM aq_quotations q
+  LEFT JOIN aq_quotation_items i ON i.quotation_id = q.id
+  WHERE q.id = $1
+  GROUP BY q.id
+`;
+
+async function getQuotationWithItems(db: any, id: number) {
+  const { rows } = await db.query(quotationDetailSql, [id]);
+  return rows[0] ?? null;
+}
+
+async function insertQuotationItems(db: any, quotationId: number, items: any[]) {
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  const values: unknown[] = [];
+  const placeholders = items.map((item, index) => {
+    const offset = index * 8;
+    values.push(
+      quotationId,
+      item.name,
+      item.description ?? null,
+      item.category ?? null,
+      item.quantity,
+      item.price,
+      item.total,
+      item.imageUrl ?? item.image_url ?? null,
+    );
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
+  });
+
+  await db.query(
+    `INSERT INTO aq_quotation_items (quotation_id, name, description, category, quantity, price, total, image_url)
+     VALUES ${placeholders.join(", ")}`,
+    values,
   );
-  return { ...q, items };
 }
 
 router.get("/quotations", async (_req, res) => {
   try {
     await dbReady;
     const { rows } = await pool.query(
-      `SELECT * FROM aq_quotations WHERE deleted_at IS NULL ORDER BY created_at DESC`
+      `SELECT q.*, COUNT(i.id)::int AS item_count
+       FROM aq_quotations q
+       LEFT JOIN aq_quotation_items i ON i.quotation_id = q.id
+       WHERE q.deleted_at IS NULL
+       GROUP BY q.id
+       ORDER BY q.created_at DESC`
     );
-    const result = [];
-    for (const q of rows) {
-      const { rows: items } = await pool.query(
-        `SELECT * FROM aq_quotation_items WHERE quotation_id = $1 ORDER BY id`, [q.id]
-      );
-      result.push({ ...q, items });
-    }
-    return res.json(result);
+    res.setHeader("Cache-Control", "private, max-age=5, stale-while-revalidate=30");
+    return res.json(rows);
   } catch (e) {
     return res.status(500).json({ message: "Internal Error" });
   }
@@ -85,7 +132,7 @@ router.get("/quotations", async (_req, res) => {
 router.get("/quotations/:id", async (req, res) => {
   try {
     await dbReady;
-    const q = await getQuotationWithItems(Number(req.params.id));
+    const q = await getQuotationWithItems(pool, Number(req.params.id));
     if (!q) return res.status(404).json({ message: "Not found" });
     return res.json(q);
   } catch (e) {
@@ -94,57 +141,60 @@ router.get("/quotations/:id", async (req, res) => {
 });
 
 router.post("/quotations", async (req, res) => {
+  let client: any;
   try {
     await dbReady;
     const { quotationNumber, customerName, date, notes, grandTotal, items = [] } = req.body;
     if (!quotationNumber || !customerName || grandTotal === undefined || grandTotal === null || grandTotal === '') {
       return res.status(400).json({ message: "Missing required fields" });
     }
-    const { rows: [newQ] } = await pool.query(
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows: [newQ] } = await client.query(
       `INSERT INTO aq_quotations (quotation_number, customer_name, date, notes, grand_total)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [quotationNumber, customerName, date ? new Date(date) : new Date(), notes ?? null, grandTotal]
     );
-    for (const item of items) {
-      await pool.query(
-        `INSERT INTO aq_quotation_items (quotation_id, name, description, category, quantity, price, total, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [newQ.id, item.name, item.description ?? null, item.category ?? null,
-         item.quantity, item.price, item.total, item.imageUrl ?? null]
-      );
-    }
-    const result = await getQuotationWithItems(newQ.id);
+    await insertQuotationItems(client, newQ.id, items);
+    const result = await getQuotationWithItems(client, newQ.id);
+    await client.query("COMMIT");
     return res.status(201).json(result);
   } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
     console.error(e);
     return res.status(500).json({ message: "Internal Error" });
+  } finally {
+    client?.release();
   }
 });
 
 router.put("/quotations/:id", async (req, res) => {
+  let client: any;
   try {
     await dbReady;
     const id = Number(req.params.id);
     const { quotationNumber, customerName, date, notes, grandTotal, items = [] } = req.body;
-    const { rows: [updated] } = await pool.query(
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows: [updated] } = await client.query(
       `UPDATE aq_quotations SET quotation_number=$1, customer_name=$2, date=$3, notes=$4, grand_total=$5
        WHERE id=$6 RETURNING *`,
       [quotationNumber, customerName, date ? new Date(date) : new Date(), notes ?? null, grandTotal, id]
     );
-    if (!updated) return res.status(404).json({ message: "Not found" });
-    await pool.query(`DELETE FROM aq_quotation_items WHERE quotation_id=$1`, [id]);
-    for (const item of items) {
-      await pool.query(
-        `INSERT INTO aq_quotation_items (quotation_id, name, description, category, quantity, price, total, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [id, item.name, item.description ?? null, item.category ?? null,
-         item.quantity, item.price, item.total, item.imageUrl ?? null]
-      );
+    if (!updated) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Not found" });
     }
-    const result = await getQuotationWithItems(id);
+    await client.query(`DELETE FROM aq_quotation_items WHERE quotation_id=$1`, [id]);
+    await insertQuotationItems(client, id, items);
+    const result = await getQuotationWithItems(client, id);
+    await client.query("COMMIT");
     return res.json(result);
   } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
     return res.status(500).json({ message: "Internal Error" });
+  } finally {
+    client?.release();
   }
 });
 

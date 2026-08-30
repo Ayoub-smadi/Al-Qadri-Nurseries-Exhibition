@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { navigate } from "@/App";
 import { FileText, Calendar, User, Search, Hash, Trash2, Plus, ArrowRight, Pencil, ChevronDown, ChevronUp } from "lucide-react";
-import { useQuotations, useDeleteQuotation } from "@/hooks/use-quotations-v2";
+import { useQuotations, useQuotation, useDeleteQuotation } from "@/hooks/use-quotations-v2";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -12,6 +12,7 @@ export default function QuotationHistoryPage() {
   const [search, setSearch] = useState("");
   const [confirmId, setConfirmId] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const { data: expandedQuotation, isLoading: loadingExpanded } = useQuotation(expandedId ?? 0);
 
   const handleDelete = (id: number) => {
     deleteMutation.mutate(id, {
@@ -106,7 +107,7 @@ export default function QuotationHistoryPage() {
                         <Calendar className="w-3.5 h-3.5 text-green-500" />
                         <span>{format(new Date(quote.date || quote.created_at), "dd MMMM yyyy", { locale: ar })}</span>
                         <span className="text-slate-300">·</span>
-                        <span>{quote.items?.length || 0} أصناف</span>
+                         <span>{Number(quote.item_count ?? quote.items?.length ?? 0)} أصناف</span>
                       </div>
                     </div>
 
@@ -155,8 +156,17 @@ export default function QuotationHistoryPage() {
                   </div>
 
                   {/* Expanded Items */}
-                  {isExpanded && Array.isArray(quote.items) && quote.items.length > 0 && (
+                  {isExpanded && (
                     <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                      {loadingExpanded ? (
+                        <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+                          <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                          جاري تحميل الأصناف...
+                        </div>
+                      ) : expandedQuotation?.id !== quote.id || !Array.isArray(expandedQuotation.items) || expandedQuotation.items.length === 0 ? (
+                        <p className="text-center py-5 text-sm text-slate-400">لا توجد أصناف في هذا العرض</p>
+                      ) : (
+                      <>
                       <div className="overflow-x-auto rounded-lg border border-slate-200">
                         <table className="w-full text-right text-xs">
                           <thead>
@@ -170,7 +180,7 @@ export default function QuotationHistoryPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {quote.items.map((item: any, idx: number) => (
+                             {expandedQuotation.items.map((item: any, idx: number) => (
                               <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                                 <td className="p-2 text-slate-500">{idx + 1}</td>
                                 <td className="p-2 font-semibold text-slate-800">
@@ -194,10 +204,12 @@ export default function QuotationHistoryPage() {
                           </tfoot>
                         </table>
                       </div>
-                      {quote.notes && (
+                      {expandedQuotation.notes && (
                         <p className="mt-2 text-xs text-slate-500 bg-slate-50 rounded-lg p-2 border border-slate-200">
-                          <span className="font-bold text-slate-700">ملاحظات: </span>{quote.notes}
+                          <span className="font-bold text-slate-700">ملاحظات: </span>{expandedQuotation.notes}
                         </p>
+                      )}
+                      </>
                       )}
                     </div>
                   )}
