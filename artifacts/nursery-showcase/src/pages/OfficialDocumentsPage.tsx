@@ -613,18 +613,24 @@ export default function OfficialDocumentsPage() {
               </div>
               <div className="official-paper-footer-contact" aria-label="معلومات الاتصال">
                 <div className="official-paper-contact-item">
-                  <span className="official-paper-contact-icon" aria-hidden="true"><Phone className="h-3.5 w-3.5" /></span>
-                  <span className="official-paper-contact-label">هاتف:</span>
+                  <div className="official-paper-contact-heading">
+                    <span className="official-paper-contact-icon" aria-hidden="true"><Phone className="h-3.5 w-3.5" /></span>
+                    <span className="official-paper-contact-label">هاتف:</span>
+                  </div>
                   <Field value={draft.contactPhone} onChange={update("contactPhone")} ariaLabel="رقم الهاتف" className="official-paper-contact-value" />
                 </div>
                 <div className="official-paper-contact-item">
-                  <span className="official-paper-contact-icon" aria-hidden="true"><Mail className="h-3.5 w-3.5" /></span>
-                  <span className="official-paper-contact-label">البريد الإلكتروني:</span>
+                  <div className="official-paper-contact-heading">
+                    <span className="official-paper-contact-icon" aria-hidden="true"><Mail className="h-3.5 w-3.5" /></span>
+                    <span className="official-paper-contact-label">البريد الإلكتروني:</span>
+                  </div>
                   <Field value={draft.contactEmail} onChange={update("contactEmail")} ariaLabel="البريد الإلكتروني" className="official-paper-contact-value" />
                 </div>
                 <div className="official-paper-contact-item">
-                  <span className="official-paper-contact-icon" aria-hidden="true"><Globe2 className="h-3.5 w-3.5" /></span>
-                  <span className="official-paper-contact-label">الموقع:</span>
+                  <div className="official-paper-contact-heading">
+                    <span className="official-paper-contact-icon" aria-hidden="true"><Globe2 className="h-3.5 w-3.5" /></span>
+                    <span className="official-paper-contact-label">الموقع:</span>
+                  </div>
                   <Field value={draft.contactWebsite} onChange={update("contactWebsite")} ariaLabel="الموقع الإلكتروني" className="official-paper-contact-value" />
                 </div>
               </div>

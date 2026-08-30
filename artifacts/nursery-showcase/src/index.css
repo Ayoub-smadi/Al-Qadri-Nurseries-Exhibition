@@ -598,15 +598,24 @@
 
 .official-paper-contact-item {
   display: flex;
+  flex-direction: column;
   min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px 5px;
+  padding: 6px 7px 5px;
   border: 1px solid #e2e9e3;
   border-radius: 8px;
   background: rgba(246, 250, 246, .78);
   direction: rtl;
+}
+
+.official-paper-contact-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
 }
 
 .official-paper-contact-icon {
@@ -629,14 +638,14 @@
 }
 
 .official-paper-contact-value {
+  display: block;
   min-width: 0;
   width: 100%;
-  overflow: hidden;
+  padding-inline: 1px;
   color: #1c6b46;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 800;
   text-align: center;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -755,8 +764,12 @@
   }
 
   .official-paper-contact-item {
-    justify-content: flex-start;
+    align-items: stretch;
     padding-inline: 8px;
+  }
+
+  .official-paper-contact-heading {
+    justify-content: flex-start;
   }
 
   .official-paper-contact-value {
