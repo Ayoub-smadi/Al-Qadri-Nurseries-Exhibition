@@ -45,6 +45,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`ALTER TABLE disbursements ADD COLUMN IF NOT EXISTS name_prefix TEXT NOT NULL DEFAULT 'السيد'`);
       await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`ALTER TABLE official_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
       await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
@@ -585,20 +586,28 @@ type JsonRecordRow = {
   data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 };
 
 function serializeJsonRecord(row: JsonRecordRow): Record<string, unknown> {
-  return {
+  const record: Record<string, unknown> = {
     id: row.id,
     ...row.data,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+  if (row.deleted_at !== undefined) record.deletedAt = row.deleted_at;
+  return record;
 }
 
-async function listJsonRecords(table: "official_documents" | "no_header_quotations") {
+async function listJsonRecords(table: "official_documents" | "no_header_quotations", trash = false) {
+  const officialDocument = table === "official_documents";
+  const deletedColumn = officialDocument ? ", deleted_at" : "";
+  const deletedFilter = officialDocument
+    ? trash ? " WHERE deleted_at IS NOT NULL" : " WHERE deleted_at IS NULL"
+    : "";
   const result = await pool.query(
-    `SELECT id, data, created_at, updated_at FROM ${table} ORDER BY updated_at DESC`,
+    `SELECT id, data, created_at, updated_at${deletedColumn} FROM ${table}${deletedFilter} ORDER BY updated_at DESC`,
   );
   return result.rows.map((row: JsonRecordRow) => serializeJsonRecord(row));
 }
@@ -621,11 +630,19 @@ async function deleteJsonRecord(table: "official_documents" | "no_header_quotati
   await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
 }
 
+async function restoreOfficialDocument(id: string) {
+  await pool.query(`UPDATE official_documents SET deleted_at = NULL WHERE id = $1`, [id]);
+}
+
+async function permanentlyDeleteOfficialDocument(id: string) {
+  await pool.query(`DELETE FROM official_documents WHERE id = $1 AND deleted_at IS NOT NULL`, [id]);
+}
+
 router.get("/official-documents", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   try {
-    res.json({ records: await listJsonRecords("official_documents") });
+    res.json({ records: await listJsonRecords("official_documents", req.query.trash === "1") });
   } catch (e) {
     res.status(500).json({ error: "Failed to load official documents", detail: (e as Error).message });
   }
@@ -652,10 +669,32 @@ router.delete("/official-documents/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   try {
-    await deleteJsonRecord("official_documents", req.params.id);
+    await pool.query(`UPDATE official_documents SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, [req.params.id]);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: "Failed to delete official document", detail: (e as Error).message });
+    res.status(500).json({ error: "Failed to move official document to trash", detail: (e as Error).message });
+  }
+});
+
+router.post("/official-documents/:id/restore", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await restoreOfficialDocument(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to restore official document", detail: (e as Error).message });
+  }
+});
+
+router.delete("/official-documents/:id/permanent", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await permanentlyDeleteOfficialDocument(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to permanently delete official document", detail: (e as Error).message });
   }
 });
 

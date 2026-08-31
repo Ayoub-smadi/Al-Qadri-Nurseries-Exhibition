@@ -72,6 +72,7 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`CREATE TABLE IF NOT EXISTS disbursements (id TEXT PRIMARY KEY, number TEXT NOT NULL, paid_to TEXT NOT NULL DEFAULT '', amount NUMERIC NOT NULL DEFAULT 0, amount_text TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'cash', date TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`ALTER TABLE official_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
     await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
   } catch (e) {
     console.error("DB init error:", e.message);
@@ -620,11 +621,20 @@ function serializeJsonRecord(row) {
   };
 }
 
-async function listJsonRecords(table) {
+async function listJsonRecords(table, trash = false) {
+  const officialDocument = table === "official_documents";
+  const deletedColumn = officialDocument ? ", deleted_at" : "";
+  const deletedFilter = officialDocument
+    ? (trash ? " WHERE deleted_at IS NOT NULL" : " WHERE deleted_at IS NULL")
+    : "";
   const result = await pool.query(
-    `SELECT id, data, created_at, updated_at FROM ${table} ORDER BY updated_at DESC`,
+    `SELECT id, data, created_at, updated_at${deletedColumn} FROM ${table}${deletedFilter} ORDER BY updated_at DESC`,
   );
-  return result.rows.map(serializeJsonRecord);
+  return result.rows.map((row) => {
+    const record = serializeJsonRecord(row);
+    if (row.deleted_at !== undefined) record.deletedAt = row.deleted_at;
+    return record;
+  });
 }
 
 async function upsertJsonRecord(table, id, data) {
@@ -645,7 +655,7 @@ app.get("/api/official-documents", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   try {
-    res.json({ records: await listJsonRecords("official_documents") });
+    res.json({ records: await listJsonRecords("official_documents", req.query.trash === "1") });
   } catch (e) {
     res.status(500).json({ error: "Failed to load official documents", detail: e.message });
   }
@@ -672,10 +682,32 @@ app.delete("/api/official-documents/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   await dbReady;
   try {
-    await deleteJsonRecord("official_documents", req.params.id);
+    await pool.query(`UPDATE official_documents SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, [req.params.id]);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: "Failed to delete official document", detail: e.message });
+    res.status(500).json({ error: "Failed to move official document to trash", detail: e.message });
+  }
+});
+
+app.post("/api/official-documents/:id/restore", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await pool.query(`UPDATE official_documents SET deleted_at = NULL WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to restore official document", detail: e.message });
+  }
+});
+
+app.delete("/api/official-documents/:id/permanent", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await pool.query(`DELETE FROM official_documents WHERE id = $1 AND deleted_at IS NOT NULL`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to permanently delete official document", detail: e.message });
   }
 });
 

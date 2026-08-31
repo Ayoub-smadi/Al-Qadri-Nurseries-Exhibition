@@ -995,11 +995,11 @@ export async function deleteQadriOldQuotation(id: string): Promise<boolean> {
   } catch { return false; }
 }
 
-async function fetchSyncedJsonRecords(path: string): Promise<any[] | null> {
+async function fetchSyncedJsonRecords(path: string, query = ""): Promise<any[] | null> {
   const token = getToken();
   if (!token) return null;
   try {
-    const res = await fetch(`${getApiBase()}/${path}`, {
+    const res = await fetch(`${getApiBase()}/${path}${query}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
@@ -1044,12 +1044,40 @@ export function fetchOfficialDocuments(): Promise<any[] | null> {
   return fetchSyncedJsonRecords("official-documents");
 }
 
+export function fetchOfficialDocumentsTrash(): Promise<any[] | null> {
+  return fetchSyncedJsonRecords("official-documents", "?trash=1");
+}
+
 export function upsertOfficialDocument(data: Record<string, unknown>, id?: string): Promise<any | null> {
   return upsertSyncedJsonRecord("official-documents", data, id);
 }
 
 export function deleteOfficialDocument(id: string): Promise<boolean> {
   return deleteSyncedJsonRecord("official-documents", id);
+}
+
+export async function restoreOfficialDocument(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/official-documents/${encodeURIComponent(id)}/restore`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+export async function permanentlyDeleteOfficialDocument(id: string): Promise<boolean> {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${getApiBase()}/official-documents/${encodeURIComponent(id)}/permanent`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch { return false; }
 }
 
 export function fetchNoHeaderQuotations(): Promise<any[] | null> {

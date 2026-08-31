@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ArrowRight, Check, Download, FileDown, FilePlus2, Globe2, ImagePlus, Loader2, Mail, Pencil, Phone, Plus, Search, Stamp, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, Download, FileDown, FilePlus2, Globe2, ImagePlus, Loader2, Mail, Pencil, Phone, Plus, RotateCcw, Search, Stamp, Trash2, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { navigate } from "@/App";
@@ -7,9 +7,10 @@ import { useApp } from "@/lib/context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { deleteOfficialDocument, fetchOfficialDocuments, loadSavedToken, migrateAllLegacyImages, uploadImageBase64, upsertOfficialDocument } from "@/lib/storage";
+import { deleteOfficialDocument, fetchOfficialDocuments, fetchOfficialDocumentsTrash, loadSavedToken, migrateAllLegacyImages, permanentlyDeleteOfficialDocument, restoreOfficialDocument, uploadImageBase64, upsertOfficialDocument } from "@/lib/storage";
 
 const STORAGE_KEY = "alqadri_official_documents";
+const TRASH_STORAGE_KEY = "alqadri_official_documents_trash";
 
 export interface OfficialDocumentRecord {
   id: string;
@@ -175,6 +176,23 @@ function saveDocuments(records: OfficialDocumentRecord[]) {
   } catch { /* local cache is best-effort; the server is the source of truth */ }
 }
 
+function loadDeletedDocuments(): OfficialDocumentRecord[] {
+  try {
+    const saved = localStorage.getItem(TRASH_STORAGE_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed.map((record) => normalizeDocument(record)) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDeletedDocuments(records: OfficialDocumentRecord[]) {
+  try {
+    localStorage.setItem(TRASH_STORAGE_KEY, JSON.stringify(records));
+  } catch { /* local cache is best-effort; the server is the source of truth */ }
+}
+
 async function makeServerDocument(record: OfficialDocumentRecord): Promise<OfficialDocumentRecord> {
   const resolveImage = async (value: string) => (
     value.startsWith("data:") ? uploadImageBase64(value) : value
@@ -248,9 +266,11 @@ export default function OfficialDocumentsPage() {
   const { siteData, isAdmin } = useApp();
   const fallbackLogo = siteData.logo?.customUrl || "/logo-alkadri.jpg";
   const [records, setRecords] = useState<OfficialDocumentRecord[]>(() => loadDocuments());
+  const [deletedRecords, setDeletedRecords] = useState<OfficialDocumentRecord[]>(() => loadDeletedDocuments());
   const [draft, setDraft] = useState<OfficialDocumentRecord>(() => createDefaultDocument(fallbackLogo));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [showTrash, setShowTrash] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exportAfterLoad, setExportAfterLoad] = useState(false);
@@ -264,6 +284,7 @@ export default function OfficialDocumentsPage() {
     void (async () => {
       void migrateAllLegacyImages();
       const serverRecords = await fetchOfficialDocuments();
+      const serverDeletedRecords = await fetchOfficialDocumentsTrash();
       if (serverRecords === null || !active) return;
 
       const localRecords = loadDocuments();
@@ -287,6 +308,11 @@ export default function OfficialDocumentsPage() {
         setRecords(normalized);
         saveDocuments(normalized);
       }
+      if (active && serverDeletedRecords) {
+        const normalizedDeleted = (serverDeletedRecords as OfficialDocumentRecord[]).map(normalizeDocument);
+        setDeletedRecords(normalizedDeleted);
+        saveDeletedDocuments(normalizedDeleted);
+      }
     })();
     return () => { active = false; };
   }, [isAdmin]);
@@ -304,10 +330,11 @@ export default function OfficialDocumentsPage() {
 
   const filteredRecords = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return [...records]
+    const sourceRecords = showTrash ? deletedRecords : records;
+    return [...sourceRecords]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .filter((record) => !term || `${record.heading} ${record.documentNumber} ${record.recipient}`.toLowerCase().includes(term));
-  }, [records, search]);
+  }, [deletedRecords, records, search, showTrash]);
 
   const handleNew = () => {
     setDraft(createDefaultDocument(fallbackLogo));
@@ -365,6 +392,8 @@ export default function OfficialDocumentsPage() {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("هل تريد حذف هذا الكتاب من السجل؟")) return;
+    const record = records.find((item) => item.id === id);
+    if (!record) return;
     if (loadSavedToken()) {
       const deleted = await deleteOfficialDocument(id);
       if (!deleted) {
@@ -373,10 +402,47 @@ export default function OfficialDocumentsPage() {
       }
     }
     const next = records.filter((record) => record.id !== id);
+    const nextDeleted = [record, ...deletedRecords.filter((item) => item.id !== id)];
     setRecords(next);
+    setDeletedRecords(nextDeleted);
     saveDocuments(next);
+    saveDeletedDocuments(nextDeleted);
     if (selectedId === id) handleNew();
-    toast.success("تم حذف الكتاب الرسمي");
+    toast.success("تم نقل الكتاب إلى سجل المحذوفات");
+  };
+
+  const handleRestore = async (id: string) => {
+    const record = deletedRecords.find((item) => item.id === id);
+    if (!record) return;
+    if (loadSavedToken()) {
+      const restored = await restoreOfficialDocument(id);
+      if (!restored) {
+        toast.error("فشلت استعادة الكتاب من السجل المركزي");
+        return;
+      }
+    }
+    const nextDeleted = deletedRecords.filter((item) => item.id !== id);
+    const next = [record, ...records.filter((item) => item.id !== id)];
+    setDeletedRecords(nextDeleted);
+    setRecords(next);
+    saveDeletedDocuments(nextDeleted);
+    saveDocuments(next);
+    toast.success("تمت استعادة الكتاب إلى السجل");
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    if (!window.confirm("سيتم حذف هذا الكتاب نهائياً ولا يمكن استعادته. هل أنت متأكد؟")) return;
+    if (loadSavedToken()) {
+      const deleted = await permanentlyDeleteOfficialDocument(id);
+      if (!deleted) {
+        toast.error("فشل الحذف النهائي من السجل المركزي");
+        return;
+      }
+    }
+    const nextDeleted = deletedRecords.filter((record) => record.id !== id);
+    setDeletedRecords(nextDeleted);
+    saveDeletedDocuments(nextDeleted);
+    toast.success("تم حذف الكتاب نهائياً");
   };
 
   const exportPdf = async () => {
@@ -501,36 +567,66 @@ export default function OfficialDocumentsPage() {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold tracking-[0.18em] text-[#b08a45]">ARCHIVE</p>
-              <h2 className="mt-1 text-xl font-black text-[#153d2b]">سجل الكتب</h2>
+               <h2 className="mt-1 text-xl font-black text-[#153d2b]">{showTrash ? "سجل المحذوفات" : "سجل الكتب"}</h2>
             </div>
-            <span className="rounded-full bg-[#edf5ef] px-2.5 py-1 text-xs font-bold text-[#1c6b46]">{records.length}</span>
+             <span className="rounded-full bg-[#edf5ef] px-2.5 py-1 text-xs font-bold text-[#1c6b46]">{showTrash ? deletedRecords.length : records.length}</span>
           </div>
           <div className="relative mb-4">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ابحث في السجل..." className="h-10 rounded-xl border-[#dbe4dc] bg-[#fbfcfa] pr-9 text-right arabic" />
+             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={showTrash ? "ابحث في المحذوفات..." : "ابحث في السجل..."} className="h-10 rounded-xl border-[#dbe4dc] bg-[#fbfcfa] pr-9 text-right arabic" />
           </div>
-          <button onClick={handleNew} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#aac7b2] bg-[#f4faf5] px-3 py-2.5 text-sm font-bold text-[#1c6b46] transition hover:bg-[#e8f4eb]">
-            <Plus className="h-4 w-4" /> إنشاء كتاب جديد
-          </button>
+           <button
+             onClick={() => { setShowTrash((current) => !current); setSearch(""); }}
+             className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#aac7b2] bg-[#f4faf5] px-3 py-2.5 text-sm font-bold text-[#1c6b46] transition hover:bg-[#e8f4eb]"
+           >
+             {showTrash ? <FilePlus2 className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
+             {showTrash ? "العودة إلى سجل الكتب" : "سجل المحذوفات"}
+             {!showTrash && deletedRecords.length > 0 && <span className="rounded-full bg-[#dceee0] px-1.5 text-xs">{deletedRecords.length}</span>}
+           </button>
+           {!showTrash && (
+             <button onClick={handleNew} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#aac7b2] bg-[#f4faf5] px-3 py-2.5 text-sm font-bold text-[#1c6b46] transition hover:bg-[#e8f4eb]">
+               <Plus className="h-4 w-4" /> إنشاء كتاب جديد
+             </button>
+           )}
           <div className="space-y-2">
             {filteredRecords.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[#d8e1d9] px-4 py-10 text-center text-sm text-slate-400">
-                <FilePlus2 className="mx-auto mb-2 h-8 w-8 text-[#b8cabc]" />
-                لا توجد كتب محفوظة بعد
+                 {showTrash ? <Trash2 className="mx-auto mb-2 h-8 w-8 text-[#b8cabc]" /> : <FilePlus2 className="mx-auto mb-2 h-8 w-8 text-[#b8cabc]" />}
+                 {showTrash ? "سجل المحذوفات فارغ" : "لا توجد كتب محفوظة بعد"}
               </div>
             ) : filteredRecords.map((record) => (
               <div key={record.id} className={`official-history-card ${selectedId === record.id ? "is-selected" : ""}`}>
-                <button onClick={() => handleOpen(record)} className="min-w-0 flex-1 text-right">
-                  <span className="block truncate text-sm font-bold text-[#153d2b]">{record.heading || "كتاب رسمي"}</span>
-                  <span className="mt-1 block truncate text-xs text-slate-500">{record.documentNumber || "بدون رقم"} · {record.issueDate}</span>
-                </button>
+                 {showTrash ? (
+                   <div className="min-w-0 flex-1 text-right">
+                     <span className="block truncate text-sm font-bold text-[#153d2b]">{record.heading || "كتاب رسمي"}</span>
+                     <span className="mt-1 block truncate text-xs text-slate-500">{record.documentNumber || "بدون رقم"} · {record.issueDate}</span>
+                   </div>
+                 ) : (
+                   <button onClick={() => handleOpen(record)} className="min-w-0 flex-1 text-right">
+                     <span className="block truncate text-sm font-bold text-[#153d2b]">{record.heading || "كتاب رسمي"}</span>
+                     <span className="mt-1 block truncate text-xs text-slate-500">{record.documentNumber || "بدون رقم"} · {record.issueDate}</span>
+                   </button>
+                 )}
                 <div className="flex shrink-0 items-center gap-0.5">
-                  <button onClick={() => handleHistoryExport(record)} className="official-small-button text-[#1c6b46]" title="تنزيل PDF" aria-label="تنزيل PDF">
-                    <FileDown className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => handleDelete(record.id)} className="official-small-button text-slate-400 hover:text-red-600" title="حذف" aria-label="حذف">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                   {showTrash ? (
+                     <>
+                       <button onClick={() => void handleRestore(record.id)} className="official-small-button text-[#1c6b46]" title="استعادة الكتاب" aria-label="استعادة الكتاب">
+                         <RotateCcw className="h-4 w-4" />
+                       </button>
+                       <button onClick={() => void handlePermanentDelete(record.id)} className="official-small-button text-slate-400 hover:text-red-600" title="حذف نهائي" aria-label="حذف نهائي">
+                         <Trash2 className="h-4 w-4" />
+                       </button>
+                     </>
+                   ) : (
+                     <>
+                       <button onClick={() => handleHistoryExport(record)} className="official-small-button text-[#1c6b46]" title="تنزيل PDF" aria-label="تنزيل PDF">
+                         <FileDown className="h-4 w-4" />
+                       </button>
+                       <button onClick={() => void handleDelete(record.id)} className="official-small-button text-slate-400 hover:text-red-600" title="نقل إلى المحذوفات" aria-label="نقل إلى المحذوفات">
+                         <Trash2 className="h-4 w-4" />
+                       </button>
+                     </>
+                   )}
                 </div>
               </div>
             ))}
