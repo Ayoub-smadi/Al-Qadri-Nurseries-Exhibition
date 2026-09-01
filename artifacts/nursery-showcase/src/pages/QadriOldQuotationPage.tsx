@@ -44,6 +44,9 @@ type Details = {
   quotationNumber: string;
   customerName: string;
   date: string;
+  dateLabel: string;
+  quotationNumberLabel: string;
+  customerLabel: string;
   notes: string;
   phone: string;
   email: string;
@@ -86,6 +89,9 @@ const mkDefault = (): Details => ({
   quotationNumber: format(new Date(), "yyyyMMdd"),
   customerName: "",
   date: format(new Date(), "yyyy-MM-dd"),
+  dateLabel: "التاريخ",
+  quotationNumberLabel: "عرض سعر رقم",
+  customerLabel: "العميل",
   notes: "",
   phone: "00962777772211",
   email: "tamerqadri@gmail.com",
@@ -135,10 +141,12 @@ export default function QadriOldQuotationPage() {
   };
   const draft = loadDraft();
 
-  const normalizeDetails = (d: Details): Details =>
-    d.website && d.website.includes("alkadri-plants.com")
-      ? { ...d, website: "https://alkadrionline.com" }
-      : d;
+  const normalizeDetails = (d: Partial<Details>): Details => {
+    const normalized = { ...mkDefault(), ...d };
+    return normalized.website && normalized.website.includes("alkadri-plants.com")
+      ? { ...normalized, website: "https://alkadrionline.com" }
+      : normalized;
+  };
   const [details, setDetails] = useState<Details>(
     draft?.details ? normalizeDetails(draft.details) : mkDefault()
   );
@@ -968,7 +976,13 @@ export default function QadriOldQuotationPage() {
               {!hiddenParts.infoDate && (
                 <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
                   <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                    {hidePartBtn("infoDate", "خانة التاريخ")}التاريخ
+                    {hidePartBtn("infoDate", "خانة التاريخ")}
+                    <input
+                      aria-label="عنوان خانة التاريخ"
+                      value={details.dateLabel}
+                      onChange={e => setDetails(p => ({ ...p, dateLabel: e.target.value }))}
+                      style={{ ...F, width: "auto", fontSize: 11, color: "#6b7280", textAlign: "center" }}
+                    />
                   </div>
                   <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
                   <input
@@ -982,7 +996,13 @@ export default function QadriOldQuotationPage() {
               {!hiddenParts.infoQuotationNumber && (
                 <div style={{ flex: 1, borderLeft: "1px solid #d1d5db", padding: "0 20px", textAlign: "center" }}>
                   <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                    {hidePartBtn("infoQuotationNumber", "خانة رقم عرض السعر")}عرض سعر رقم
+                    {hidePartBtn("infoQuotationNumber", "خانة رقم عرض السعر")}
+                    <input
+                      aria-label="عنوان خانة رقم عرض السعر"
+                      value={details.quotationNumberLabel}
+                      onChange={e => setDetails(p => ({ ...p, quotationNumberLabel: e.target.value }))}
+                      style={{ ...F, width: "auto", fontSize: 11, color: "#6b7280", textAlign: "center" }}
+                    />
                   </div>
                   <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
                   <input
@@ -995,7 +1015,13 @@ export default function QadriOldQuotationPage() {
               {!hiddenParts.infoCustomer && (
                 <div style={{ flex: 1, padding: "0 20px", textAlign: "center" }}>
                   <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                    {hidePartBtn("infoCustomer", "خانة العميل")}العميل
+                    {hidePartBtn("infoCustomer", "خانة العميل")}
+                    <input
+                      aria-label="عنوان خانة العميل"
+                      value={details.customerLabel}
+                      onChange={e => setDetails(p => ({ ...p, customerLabel: e.target.value }))}
+                      style={{ ...F, width: "auto", fontSize: 11, color: "#6b7280", textAlign: "center" }}
+                    />
                   </div>
                   <div style={{ height: 1, background: "#d1d5db", margin: "0 0 6px" }} />
                   <input
