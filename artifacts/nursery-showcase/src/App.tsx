@@ -10,6 +10,7 @@ import NoHeaderQuotationPage from "@/pages/NoHeaderQuotationPage";
 import QadriOldQuotationPage from "@/pages/QadriOldQuotationPage";
 import AgriStorePage from "@/pages/AgriStorePage";
 import OfficialDocumentsPage from "@/pages/OfficialDocumentsPage";
+import ExportInvoicesPage from "@/pages/ExportInvoicesPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ function RouterView() {
   if (path === "/qadri-old-quotation") return <QadriOldQuotationPage />;
   if (path === "/agri-store" || path.startsWith("/agri-store/product/")) return <AgriStorePage />;
   if (path === "/official-documents") return <OfficialDocumentsPage />;
+  if (path === "/export-invoices") return <ExportInvoicesPage />;
   return <GalleryPage />;
 }
 

@@ -47,6 +47,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`ALTER TABLE official_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
       await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS export_invoices (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
     } catch (e) {
@@ -600,7 +601,7 @@ function serializeJsonRecord(row: JsonRecordRow): Record<string, unknown> {
   return record;
 }
 
-async function listJsonRecords(table: "official_documents" | "no_header_quotations", trash = false) {
+async function listJsonRecords(table: "official_documents" | "no_header_quotations" | "export_invoices", trash = false) {
   const officialDocument = table === "official_documents";
   const deletedColumn = officialDocument ? ", deleted_at" : "";
   const deletedFilter = officialDocument
@@ -613,7 +614,7 @@ async function listJsonRecords(table: "official_documents" | "no_header_quotatio
 }
 
 async function upsertJsonRecord(
-  table: "official_documents" | "no_header_quotations",
+  table: "official_documents" | "no_header_quotations" | "export_invoices",
   id: string,
   data: Record<string, unknown>,
 ) {
@@ -626,7 +627,7 @@ async function upsertJsonRecord(
   return serializeJsonRecord(result.rows[0] as JsonRecordRow);
 }
 
-async function deleteJsonRecord(table: "official_documents" | "no_header_quotations", id: string) {
+async function deleteJsonRecord(table: "official_documents" | "no_header_quotations" | "export_invoices", id: string) {
   await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
 }
 
@@ -733,6 +734,44 @@ router.delete("/no-header-quotations/:id", async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "Failed to delete no-header quotation", detail: (e as Error).message });
+  }
+});
+
+router.get("/export-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    res.json({ records: await listJsonRecords("export_invoices") });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load export invoices", detail: (e as Error).message });
+  }
+});
+
+router.post("/export-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: incomingId, ...data } = req.body as { id?: string; [key: string]: unknown };
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    res.status(400).json({ error: "Invalid export invoice" });
+    return;
+  }
+  if (rejectEmbeddedImageData(res, data)) return;
+  const id = incomingId || `export-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    res.json({ record: await upsertJsonRecord("export_invoices", id, data) });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save export invoice", detail: (e as Error).message });
+  }
+});
+
+router.delete("/export-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await deleteJsonRecord("export_invoices", req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to delete export invoice", detail: (e as Error).message });
   }
 });
 

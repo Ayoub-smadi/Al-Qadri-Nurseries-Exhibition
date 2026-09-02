@@ -74,6 +74,7 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`ALTER TABLE official_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
     await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+    await client.query(`CREATE TABLE IF NOT EXISTS export_invoices (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
   } catch (e) {
     console.error("DB init error:", e.message);
   } finally {
@@ -746,6 +747,44 @@ app.delete("/api/no-header-quotations/:id", async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "Failed to delete no-header quotation", detail: e.message });
+  }
+});
+
+app.get("/api/export-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    res.json({ records: await listJsonRecords("export_invoices") });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to load export invoices", detail: e.message });
+  }
+});
+
+app.post("/api/export-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  const { id: incomingId, ...data } = req.body ?? {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    res.status(400).json({ error: "Invalid export invoice" });
+    return;
+  }
+  if (rejectEmbeddedImageData(res, data)) return;
+  const id = incomingId || `export-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    res.json({ record: await upsertJsonRecord("export_invoices", id, data) });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to save export invoice", detail: e.message });
+  }
+});
+
+app.delete("/api/export-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  await dbReady;
+  try {
+    await deleteJsonRecord("export_invoices", req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to delete export invoice", detail: e.message });
   }
 });
 

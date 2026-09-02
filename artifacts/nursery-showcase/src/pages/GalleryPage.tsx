@@ -2104,6 +2104,7 @@ export default function GalleryPage() {
                        <SideBtnBadge icon={<ShoppingCart className="w-4 h-4" />} label={isAr ? 'طلبات المتجر' : 'Store Orders'} badge={pendingAgriCount} onClick={() => { setAdminAgriOrdersOpen(true); setPendingAgriCount(0); }} />
                        <SideBtn icon={<Package className="w-4 h-4" />} label={isAr ? 'المتجر' : 'Store'} onClick={() => setAdminAgriProductsOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
+                       <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'فواتير تصدير' : 'Export Invoices'} onClick={() => navigate('/export-invoices')} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
@@ -2157,6 +2158,7 @@ export default function GalleryPage() {
                   {[
                     { icon: <FolderPlus className="w-4 h-4" />, action: () => setAddSecOpen(true) },
                     { icon: <FileText className="w-4 h-4" />, action: () => setAdminInvoicesOpen(true) },
+                    { icon: <FilePlus className="w-4 h-4" />, action: () => navigate('/export-invoices') },
                     { icon: <FileDown className="w-4 h-4" />, action: () => setPdfModalTarget('all') },
                   ].map((item, i) => (
                     <button key={i} onClick={item.action}

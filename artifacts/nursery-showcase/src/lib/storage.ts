@@ -1092,6 +1092,18 @@ export function deleteNoHeaderQuotation(id: string): Promise<boolean> {
   return deleteSyncedJsonRecord("no-header-quotations", id);
 }
 
+export function fetchExportInvoices(): Promise<any[] | null> {
+  return fetchSyncedJsonRecords("export-invoices");
+}
+
+export function upsertExportInvoice(data: Record<string, unknown>, id?: string): Promise<any | null> {
+  return upsertSyncedJsonRecord("export-invoices", data, id);
+}
+
+export function deleteExportInvoice(id: string): Promise<boolean> {
+  return deleteSyncedJsonRecord("export-invoices", id);
+}
+
 export function resolveImageSrc(src: string): string {
   if (!src) return "";
   if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/storage") || src.startsWith("/")) {
