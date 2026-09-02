@@ -42,6 +42,9 @@ type ExportDetails = {
   destinationLabel: string;
   destination: string;
   totalLabel: string;
+  sumLabel: string;
+  totalInWordsLabel: string;
+  totalInWords: string;
   dinarLabel: string;
   filsLabel: string;
   productLabel: string;
@@ -99,6 +102,9 @@ function defaultDetails(): ExportDetails {
     destinationLabel: "المصدر إليه:",
     destination: "",
     totalLabel: "القيمة الإجمالية",
+    sumLabel: "المجموع",
+    totalInWordsLabel: "المجموع كتابةً",
+    totalInWords: "",
     dinarLabel: "دينار",
     filsLabel: "فلس",
     productLabel: "الصنف",
@@ -626,12 +632,17 @@ export default function ExportInvoicesPage() {
                       <td style={{ border: "1px solid #27382e", padding: "8px 4px", textAlign: "center" }}>{calculatedTotal.fils}</td>
                       <td style={{ border: "1px solid #27382e", padding: "8px 4px", textAlign: "center" }}>{calculatedTotal.dinar}</td>
                       <td colSpan={6} style={{ border: "1px solid #27382e", padding: "8px 10px", textAlign: "right" }}>
-                        <EditableField value={draft.details.totalLabel} onChange={(value) => updateDetails("totalLabel", value)} ariaLabel="تسمية المجموع" style={{ fontWeight: 800, fontSize: 12 }} />
+                        <EditableField value={draft.details.sumLabel} onChange={(value) => updateDetails("sumLabel", value)} ariaLabel="تسمية المجموع أسفل الجدول" style={{ fontWeight: 800, fontSize: 12 }} />
                       </td>
                       <td className="export-pdf-hide" style={{ border: "1px solid #27382e" }} />
                     </tr>
                   </tfoot>
                 </table>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #9aa89e", padding: "10px 4px", marginTop: 10 }}>
+                  <EditableField value={draft.details.totalInWordsLabel} onChange={(value) => updateDetails("totalInWordsLabel", value)} ariaLabel="عنوان المجموع كتابةً" style={{ width: 130, fontWeight: 700, fontSize: 12, color: "#203b2e" }} />
+                  <EditableField value={draft.details.totalInWords} onChange={(value) => updateDetails("totalInWords", value)} ariaLabel="المجموع كتابةً" placeholder="اكتب المجموع بالحروف" style={{ flex: 1, fontSize: 13 }} />
+                </div>
 
                 <button onClick={() => setDraft((current) => ({ ...current, rows: [...current.rows, newRow()] }))} className="export-pdf-hide mt-2 flex items-center gap-1 self-start text-xs font-bold text-[#1c6b46] hover:text-[#155437]">
                   <Plus className="h-3.5 w-3.5" /> إضافة بند
