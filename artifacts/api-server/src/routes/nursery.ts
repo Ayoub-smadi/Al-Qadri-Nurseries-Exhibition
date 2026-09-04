@@ -949,6 +949,20 @@ async function migrateLegacyImages(limit = 50): Promise<{ migrated: number; rema
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
 
+// Complete the one-time Blob -> Neon migration automatically when the legacy
+// Blob token is available. It is bounded in batches so a large gallery does
+// not monopolize the database connection or request lifecycle.
+void dbReady.then(async () => {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+  for (let batch = 0; batch < 20; batch += 1) {
+    const result = await migrateLegacyImages();
+    logger.info({ migrated: result.migrated, remaining: result.remaining }, "Image migration batch complete");
+    if (result.remaining === 0 || result.migrated === 0) break;
+  }
+}).catch((error) => {
+  logger.warn({ err: error }, "Automatic image migration skipped");
+});
+
 router.post("/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { url } = req.body as { url?: string };
@@ -1097,7 +1111,8 @@ router.get("/images/:id", async (req, res) => {
     res.setHeader("Content-Type", mime_type);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     res.end(buf);
-  } catch {
+  } catch (error) {
+    logger.error({ err: error, imageId: id }, "Image read failed");
     res.status(500).end();
   }
 });

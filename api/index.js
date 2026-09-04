@@ -938,6 +938,19 @@ async function migrateLegacyImages(limit = 50) {
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
 
+// Complete the one-time Blob -> Neon migration automatically when the legacy
+// Blob token is available. Work in bounded batches for large galleries.
+void dbReady.then(async () => {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+  for (let batch = 0; batch < 20; batch += 1) {
+    const result = await migrateLegacyImages();
+    console.log("[images] migration batch complete", result);
+    if (result.remaining === 0 || result.migrated === 0) break;
+  }
+}).catch((error) => {
+  console.warn("[images] automatic migration skipped", error);
+});
+
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { url } = req.body ?? {};
