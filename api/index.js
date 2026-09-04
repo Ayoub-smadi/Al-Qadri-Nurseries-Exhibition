@@ -72,8 +72,67 @@ const dbReady = pool.connect().then(async (client) => {
     await client.query(`CREATE TABLE IF NOT EXISTS qadri_old_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`CREATE TABLE IF NOT EXISTS official_documents (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     await client.query(`ALTER TABLE official_documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`);
-    await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
-    await client.query(`CREATE TABLE IF NOT EXISTS export_invoices (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS no_header_quotations (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS export_invoices (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS aq_quotations (
+        id SERIAL PRIMARY KEY,
+        quotation_number TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        date TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        notes TEXT,
+        grand_total NUMERIC NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        deleted_at TIMESTAMPTZ
+      )`);
+      await client.query(`CREATE TABLE IF NOT EXISTS aq_quotation_items (
+        id SERIAL PRIMARY KEY,
+        quotation_id INTEGER NOT NULL REFERENCES aq_quotations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        price NUMERIC NOT NULL DEFAULT 0,
+        total NUMERIC NOT NULL DEFAULT 0,
+        image_url TEXT
+      )`);
+      await client.query(`CREATE TABLE IF NOT EXISTS aq_products (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        unit TEXT DEFAULT 'وحدة',
+        price NUMERIC NOT NULL DEFAULT 0,
+        stock INTEGER DEFAULT 0,
+        image_url TEXT,
+        category TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )`);
+      await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (
+        id TEXT PRIMARY KEY,
+        quotation_number TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        notes TEXT NOT NULL DEFAULT '',
+        grand_total NUMERIC NOT NULL DEFAULT 0,
+        discount_value NUMERIC NOT NULL DEFAULT 0,
+        tax_rate NUMERIC NOT NULL DEFAULT 0,
+        details JSONB NOT NULL DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        deleted_at TIMESTAMPTZ
+      )`);
+      await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (
+        id TEXT PRIMARY KEY,
+        quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT '',
+        quantity NUMERIC NOT NULL DEFAULT 1,
+        unit TEXT NOT NULL DEFAULT 'وحدة',
+        price NUMERIC NOT NULL DEFAULT 0,
+        total NUMERIC NOT NULL DEFAULT 0,
+        image_url TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )`);
   } catch (e) {
     console.error("DB init error:", e.message);
   } finally {
@@ -382,6 +441,346 @@ app.delete("/api/quotes/:id/permanent", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to permanently delete quote" });
+  }
+});
+
+/* ── Saved Quotations (عروض الأسعار المحفوظة) ───────────── */
+
+const quotationDetailSql = `
+  SELECT q.*,
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', i.id,
+          'quotation_id', i.quotation_id,
+          'name', i.name,
+          'description', i.description,
+          'category', i.category,
+          'quantity', i.quantity,
+          'price', i.price,
+          'total', i.total,
+          'image_url', i.image_url
+        ) ORDER BY i.id
+      ) FILTER (WHERE i.id IS NOT NULL),
+      '[]'::json
+    ) AS items
+  FROM aq_quotations q
+  LEFT JOIN aq_quotation_items i ON i.quotation_id = q.id
+  WHERE q.id = $1
+  GROUP BY q.id
+`;
+
+async function getQuotationWithItems(db, id) {
+  const { rows } = await db.query(quotationDetailSql, [id]);
+  return rows[0] ?? null;
+}
+
+async function insertQuotationItems(client, quotationId, items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const values = [];
+  const placeholders = items.map((item, index) => {
+    const offset = index * 8;
+    values.push(
+      quotationId,
+      item?.name ?? "",
+      item?.description ?? null,
+      item?.category ?? null,
+      item?.quantity ?? 1,
+      item?.price ?? 0,
+      item?.total ?? 0,
+      item?.imageUrl ?? item?.image_url ?? null,
+    );
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
+  });
+  await client.query(
+    `INSERT INTO aq_quotation_items (quotation_id, name, description, category, quantity, price, total, image_url)
+     VALUES ${placeholders.join(", ")}`,
+    values,
+  );
+}
+
+app.get("/api/quotations", async (_req, res) => {
+  try {
+    await dbReady;
+    const { rows } = await pool.query(
+      `SELECT q.*, COUNT(i.id)::int AS item_count
+       FROM aq_quotations q
+       LEFT JOIN aq_quotation_items i ON i.quotation_id = q.id
+       WHERE q.deleted_at IS NULL
+       GROUP BY q.id
+       ORDER BY q.created_at DESC`,
+    );
+    res.setHeader("Cache-Control", "private, max-age=5, stale-while-revalidate=30");
+    return res.json(rows);
+  } catch (e) {
+    console.error("Failed to load quotations:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+app.get("/api/quotations/:id", async (req, res) => {
+  try {
+    await dbReady;
+    const quotation = await getQuotationWithItems(pool, Number(req.params.id));
+    if (!quotation) return res.status(404).json({ message: "Not found" });
+    return res.json(quotation);
+  } catch (e) {
+    console.error("Failed to load quotation:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+app.post("/api/quotations", async (req, res) => {
+  let client;
+  try {
+    await dbReady;
+    const { quotationNumber, customerName, date, notes, grandTotal, items = [] } = req.body ?? {};
+    if (!quotationNumber || !customerName || grandTotal === undefined || grandTotal === null || grandTotal === "") {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows: [newQuotation] } = await client.query(
+      `INSERT INTO aq_quotations (quotation_number, customer_name, date, notes, grand_total)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [quotationNumber, customerName, date ? new Date(date) : new Date(), notes ?? null, grandTotal],
+    );
+    await insertQuotationItems(client, newQuotation.id, items);
+    const result = await getQuotationWithItems(client, newQuotation.id);
+    await client.query("COMMIT");
+    return res.status(201).json(result);
+  } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Failed to save quotation:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  } finally {
+    client?.release();
+  }
+});
+
+app.put("/api/quotations/:id", async (req, res) => {
+  let client;
+  try {
+    await dbReady;
+    const id = Number(req.params.id);
+    const { quotationNumber, customerName, date, notes, grandTotal, items = [] } = req.body ?? {};
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const { rows: [updated] } = await client.query(
+      `UPDATE aq_quotations SET quotation_number=$1, customer_name=$2, date=$3, notes=$4, grand_total=$5
+       WHERE id=$6 RETURNING *`,
+      [quotationNumber, customerName, date ? new Date(date) : new Date(), notes ?? null, grandTotal, id],
+    );
+    if (!updated) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Not found" });
+    }
+    await client.query(`DELETE FROM aq_quotation_items WHERE quotation_id=$1`, [id]);
+    await insertQuotationItems(client, id, items);
+    const result = await getQuotationWithItems(client, id);
+    await client.query("COMMIT");
+    return res.json(result);
+  } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Failed to update quotation:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  } finally {
+    client?.release();
+  }
+});
+
+app.delete("/api/quotations/:id", async (req, res) => {
+  try {
+    await dbReady;
+    await pool.query(`UPDATE aq_quotations SET deleted_at=NOW() WHERE id=$1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to delete quotation:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+/* ── Products API (kept for the generated React query hooks) ── */
+
+app.get("/api/products", async (_req, res) => {
+  try {
+    await dbReady;
+    const { rows } = await pool.query(`SELECT * FROM aq_products ORDER BY sort_order, created_at`);
+    return res.json(rows);
+  } catch (e) {
+    console.error("Failed to load products:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+app.post("/api/products", async (req, res) => {
+  try {
+    await dbReady;
+    const { name, description, unit, price, stock, imageUrl, category, sortOrder } = req.body ?? {};
+    if (!name) return res.status(400).json({ message: "name is required" });
+    const { rows: [product] } = await pool.query(
+      `INSERT INTO aq_products (name, description, unit, price, stock, image_url, category, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, description ?? null, unit ?? "وحدة", price ?? 0, stock ?? 0, imageUrl ?? null, category ?? null, sortOrder ?? 0],
+    );
+    return res.status(201).json(product);
+  } catch (e) {
+    console.error("Failed to save product:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+app.put("/api/products/:id", async (req, res) => {
+  try {
+    await dbReady;
+    const { name, description, unit, price, imageUrl, category } = req.body ?? {};
+    const { rows: [product] } = await pool.query(
+      `UPDATE aq_products SET
+        name = COALESCE($1, name), description = COALESCE($2, description), unit = COALESCE($3, unit),
+        price = COALESCE($4, price), image_url = COALESCE($5, image_url), category = COALESCE($6, category)
+       WHERE id=$7 RETURNING *`,
+      [name ?? null, description ?? null, unit ?? null, price ?? null, imageUrl ?? null, category ?? null, Number(req.params.id)],
+    );
+    if (!product) return res.status(404).json({ message: "Not found" });
+    return res.json(product);
+  } catch (e) {
+    console.error("Failed to update product:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+app.delete("/api/products/:id", async (req, res) => {
+  try {
+    await dbReady;
+    await pool.query(`DELETE FROM aq_products WHERE id=$1`, [Number(req.params.id)]);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to delete product:", e.message);
+    return res.status(500).json({ message: "Internal Error" });
+  }
+});
+
+/* ── Admin-created Quotations ─────────────────────────────── */
+
+async function insertAdminQuotationItems(client, quotationId, items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index] ?? {};
+    const itemId = `aqi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${index}`;
+    await client.query(
+      `INSERT INTO admin_quotation_items (id, quotation_id, name, description, category, quantity, unit, price, total, image_url, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [itemId, quotationId, item.name ?? "", item.description ?? "", item.category ?? "", item.quantity ?? 1,
+       item.unit ?? "وحدة", item.price ?? 0, item.total ?? 0, item.imageUrl ?? item.image_url ?? null, index],
+    );
+  }
+}
+
+app.get("/api/admin-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const trash = req.query.trash === "true";
+    const { rows } = await pool.query(
+      `SELECT aq.*, json_agg(aqi.* ORDER BY aqi.sort_order) FILTER (WHERE aqi.id IS NOT NULL) AS items
+       FROM admin_quotations aq
+       LEFT JOIN admin_quotation_items aqi ON aqi.quotation_id = aq.id
+       WHERE ${trash ? "aq.deleted_at IS NOT NULL" : "aq.deleted_at IS NULL"}
+       GROUP BY aq.id
+       ORDER BY aq.created_at DESC`,
+    );
+    return res.json({ quotations: rows });
+  } catch (e) {
+    console.error("Failed to load admin quotations:", e.message);
+    return res.status(500).json({ error: "Failed to load quotations" });
+  }
+});
+
+app.post("/api/admin-quotations", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  let client;
+  try {
+    await dbReady;
+    const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body ?? {};
+    if (!customerName || !quotationNumber) return res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" });
+    const id = `aq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    client = await pool.connect();
+    await client.query("BEGIN");
+    await client.query(
+      `INSERT INTO admin_quotations (id, quotation_number, customer_name, date, notes, grand_total, discount_value, tax_rate, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, quotationNumber, customerName, date ?? new Date().toISOString().slice(0, 10), notes ?? "", grandTotal ?? 0,
+       discountValue ?? 0, taxRate ?? 0, JSON.stringify(details ?? {})],
+    );
+    await insertAdminQuotationItems(client, id, items);
+    await client.query("COMMIT");
+    return res.status(201).json({ id, ok: true });
+  } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Failed to create admin quotation:", e.message);
+    return res.status(500).json({ error: "Failed to save quotation" });
+  } finally {
+    client?.release();
+  }
+});
+
+app.put("/api/admin-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  let client;
+  try {
+    await dbReady;
+    const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body ?? {};
+    if (!customerName || !quotationNumber) return res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" });
+    client = await pool.connect();
+    await client.query("BEGIN");
+    const result = await client.query(
+      `UPDATE admin_quotations SET quotation_number=$1, customer_name=$2, date=$3, notes=$4, grand_total=$5,
+       discount_value=$6, tax_rate=$7, details=$8 WHERE id=$9`,
+      [quotationNumber, customerName, date ?? new Date().toISOString().slice(0, 10), notes ?? "", grandTotal ?? 0,
+       discountValue ?? 0, taxRate ?? 0, JSON.stringify(details ?? {}), req.params.id],
+    );
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Not found" });
+    }
+    await client.query(`DELETE FROM admin_quotation_items WHERE quotation_id=$1`, [req.params.id]);
+    await insertAdminQuotationItems(client, req.params.id, items);
+    await client.query("COMMIT");
+    return res.json({ ok: true });
+  } catch (e) {
+    if (client) await client.query("ROLLBACK").catch(() => {});
+    console.error("Failed to update admin quotation:", e.message);
+    return res.status(500).json({ error: "Failed to update quotation" });
+  } finally {
+    client?.release();
+  }
+});
+
+app.post("/api/admin-quotations/:id/restore", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    await pool.query(`UPDATE admin_quotations SET deleted_at = NULL WHERE id = $1`, [req.params.id]);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to restore admin quotation:", e.message);
+    return res.status(500).json({ error: "Failed to restore quotation" });
+  }
+});
+
+app.delete("/api/admin-quotations/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    if (req.query.permanent === "true") {
+      await pool.query(`DELETE FROM admin_quotations WHERE id = $1`, [req.params.id]);
+    } else {
+      await pool.query(`UPDATE admin_quotations SET deleted_at = NOW() WHERE id = $1`, [req.params.id]);
+    }
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to delete admin quotation:", e.message);
+    return res.status(500).json({ error: "Failed to delete quotation" });
   }
 });
 
