@@ -82,7 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const serverData = await fetchSiteData();
       if (serverData !== null) {
-        // Server has real saved data — use it, migrate old image references, and update cache
+        // Server has real saved data — use it and update cache
         await syncData(serverData);
       } else if (sessionRestored) {
         // Admin session valid but server has no data — sync localStorage cache to DB
@@ -94,6 +94,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     init();
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin || !dataLoaded) return;
+    let active = true;
+    void (async () => {
+      const migrated = await migrateSiteDataImages(siteData);
+      if (!active || !migrated.changed) return;
+      setSiteData(migrated.data);
+      saveCache(migrated.data);
+      const result = await persistSiteData(migrated.data);
+      if (result.ok) {
+        console.log('[sync] image references migrated to Blob storage');
+      } else {
+        console.warn('[sync] image migration could not be persisted');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, dataLoaded]); // siteData intentionally captured once per admin session
 
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
