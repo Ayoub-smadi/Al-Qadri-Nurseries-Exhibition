@@ -12,7 +12,7 @@ interface AppContextType {
   isAdmin: boolean;
   setIsAdmin: (v: boolean) => void;
   siteData: SiteData;
-  updateSiteData: (data: Partial<SiteData>) => void;
+  updateSiteData: (data: Partial<SiteData> | ((current: SiteData) => Partial<SiteData>)) => void;
   dataLoaded: boolean;
   sessionExpired: boolean;
   setSessionExpired: (v: boolean) => void;
@@ -141,10 +141,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const updateSiteData = (data: Partial<SiteData>) => {
+  const updateSiteData = (data: Partial<SiteData> | ((current: SiteData) => Partial<SiteData>)) => {
     // Image uploads resolve asynchronously, so compose from the latest ref
     // rather than a potentially stale render closure.
-    const next = { ...siteDataRef.current, ...data };
+    const patch = typeof data === 'function' ? data(siteDataRef.current) : data;
+    const next = { ...siteDataRef.current, ...patch };
     siteDataRef.current = next;
     setSiteData(next);
     saveCache(next);

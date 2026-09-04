@@ -1002,7 +1002,7 @@ export default function GalleryPage() {
 
       if (addedCount === 0) { setXlsxError(isAr ? 'لم يتم العثور على نباتات صالحة في الملف' : 'No valid plants found in file'); setXlsxLoading(false); return; }
 
-      await updateSiteData({ ...siteData, sections: newSections });
+      await updateSiteData({ sections: newSections });
       setXlsxResult({ added: addedCount, sections: Array.from(affectedSections) });
     } catch (err) {
       setXlsxError(isAr ? 'فشل في قراءة الملف — تأكد أنه ملف Excel صحيح' : 'Failed to read file — ensure it is a valid Excel file');
@@ -1410,7 +1410,7 @@ export default function GalleryPage() {
                       <div className="absolute bottom-2 end-2 w-5 h-5 rounded-full bg-green-400 ring-2 ring-black/30 shadow-md" />
                       {isAdmin && (
                         <FileUploadBtn
-                          onFile={url => updateSiteData({ owner: { ...siteData.owner, photo: url } })}
+                          onFile={url => updateSiteData(current => ({ owner: { ...current.owner, photo: url } }))}
                           className="no-print absolute inset-0 rounded-full flex flex-col items-center justify-center gap-1 bg-black/60 text-white opacity-0 group-hover/owner:opacity-100 transition-opacity cursor-pointer"
                         >
                           <ImagePlus className="w-7 h-7" />
@@ -1440,9 +1440,9 @@ export default function GalleryPage() {
                                 onClick={() => {
                                   if (idx === 0) {
                                     const next = allPhotos.slice(1);
-                                    updateSiteData({ owner: { ...siteData.owner, photo: next[0] ?? '', extraPhotos: next.slice(1) } });
+                                    updateSiteData(current => ({ owner: { ...current.owner, photo: next[0] ?? '', extraPhotos: next.slice(1) } }));
                                   } else {
-                                    updateSiteData({ owner: { ...siteData.owner, extraPhotos: (siteData.owner?.extraPhotos ?? []).filter((_, i) => i !== idx - 1) } });
+                                    updateSiteData(current => ({ owner: { ...current.owner, extraPhotos: (current.owner?.extraPhotos ?? []).filter((_, i) => i !== idx - 1) } }));
                                   }
                                   setOwnerPhotoIdx(0);
                                 }}
@@ -1456,8 +1456,7 @@ export default function GalleryPage() {
                         {isAdmin && (
                           <FileUploadBtn
                             onFile={url => {
-                              const extras = siteData.owner?.extraPhotos ?? [];
-                              updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...extras, url] } });
+                              updateSiteData(current => ({ owner: { ...current.owner, extraPhotos: [...(current.owner?.extraPhotos ?? []), url] } }));
                             }}
                           >
                             <div className="w-9 h-9 rounded-full border-2 border-dashed border-white/40 bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors">
@@ -1469,7 +1468,7 @@ export default function GalleryPage() {
                     )}
                     {isAdmin && allPhotos.length <= 1 && (
                       <FileUploadBtn
-                        onFile={url => updateSiteData({ owner: { ...siteData.owner, extraPhotos: [...(siteData.owner?.extraPhotos ?? []), url] } })}
+                        onFile={url => updateSiteData(current => ({ owner: { ...current.owner, extraPhotos: [...(current.owner?.extraPhotos ?? []), url] } }))}
                       >
                         <div className="no-print flex items-center gap-1 text-xs cursor-pointer arabic text-white/50 hover:text-white transition-colors">
                           <Plus className="w-3 h-3" />
@@ -1517,7 +1516,7 @@ export default function GalleryPage() {
               {/* Admin controls — top-left (visual) = top-start in RTL */}
               {isAdmin && (
                 <div className="no-print absolute top-3 start-3 flex gap-1.5 z-10">
-                  <FileUploadBtn onFile={url => updateSiteData({ owner: { ...siteData.owner, bgImage: url } })}>
+                  <FileUploadBtn onFile={url => updateSiteData(current => ({ owner: { ...current.owner, bgImage: url } }))}>
                     <div className="h-7 px-3 rounded-full bg-black/60 text-white text-xs flex items-center gap-1.5 cursor-pointer hover:bg-black/80 transition-colors backdrop-blur-sm arabic whitespace-nowrap">
                       <ImagePlus className="w-3 h-3" />
                       {isAr ? 'تغيير الخلفية' : 'Change BG'}
@@ -1525,7 +1524,7 @@ export default function GalleryPage() {
                   </FileUploadBtn>
                   {siteData.owner?.bgImage && (
                     <button
-                      onClick={() => updateSiteData({ owner: { ...siteData.owner, bgImage: '' } })}
+                      onClick={() => updateSiteData(current => ({ owner: { ...current.owner, bgImage: '' } }))}
                       className="h-7 px-2 rounded-full bg-red-500/80 text-white text-xs flex items-center gap-1 hover:bg-red-600 transition-colors backdrop-blur-sm arabic"
                       title={isAr ? 'استعادة الخلفية الافتراضية' : 'Reset to default BG'}
                     >

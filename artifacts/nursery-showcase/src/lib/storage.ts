@@ -134,15 +134,9 @@ export function normalizeImageReference(value: string | undefined): string {
   const source = value?.trim() ?? "";
   if (!source) return "";
   if (source.startsWith("/api/images/")) return source;
-  try {
-    const url = new URL(source);
-    if (url.hostname.includes(".private.blob.vercel-storage.com")) {
-      const match = url.pathname.match(/\/([a-f0-9]{64})\.[a-z0-9]+$/i);
-      if (match) return `/api/images/img-${match[1].slice(0, 24)}`;
-    }
-  } catch {
-    // Keep relative paths and legacy external URLs unchanged.
-  }
+  // Keep legacy Blob URLs intact until the API confirms that the matching
+  // hash exists in Neon. Rewriting an unknown Blob URL to /api/images would
+  // create a broken reference and make the UI fall back to another image.
   return source;
 }
 
@@ -768,9 +762,26 @@ export async function migrateSiteDataImages(data: SiteData): Promise<{ data: Sit
           return url;
         }
         if (/^https?:\/\//i.test(source)) {
-          const url = await uploadImageFromUrl(source);
-          changed = true;
-          return url;
+          try {
+            const url = await uploadImageFromUrl(source);
+            changed = true;
+            return url;
+          } catch {
+            // Some older private Blob URLs cannot be fetched by the API. If
+            // the current browser can still read one, upload that exact
+            // image to Neon instead of leaving a fragile external reference.
+            if (typeof window !== "undefined") {
+              const response = await fetch(source, { cache: "no-store" });
+              if (response.ok) {
+                const blob = await response.blob();
+                if (blob.type.startsWith("image/") && blob.size > 0) {
+                  const url = await uploadImage(new File([blob], "legacy-image", { type: blob.type }));
+                  changed = true;
+                  return url;
+                }
+              }
+            }
+          }
         }
         if (source.startsWith("/") && typeof window !== "undefined") {
           const response = await fetch(source, { cache: "no-store" });
