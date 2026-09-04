@@ -186,6 +186,13 @@ function containsEmbeddedImageData(value) {
   return false;
 }
 
+function containsBrowserBlobUrl(value) {
+  if (typeof value === "string") return /^blob:/i.test(value);
+  if (Array.isArray(value)) return value.some(containsBrowserBlobUrl);
+  if (value && typeof value === "object") return Object.values(value).some(containsBrowserBlobUrl);
+  return false;
+}
+
 function rejectEmbeddedImageData(res, value) {
   if (!containsEmbeddedImageData(value)) return false;
   res.status(422).json({ error: "Images must be uploaded to Neon before saving the record" });
@@ -233,6 +240,30 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// Central image guard: every JSON record endpoint stores embedded images in
+// Neon first, so no page can accidentally save base64 data or a browser-only
+// blob URL. The image upload endpoints themselves are excluded because they
+// receive the source payload that must be stored.
+app.use(async (req, res, next) => {
+  const isImageEndpoint = req.path === "/api/images" || req.path.startsWith("/api/images/");
+  const methodHasBody = req.method === "POST" || req.method === "PUT" || req.method === "PATCH";
+  if (methodHasBody && !isImageEndpoint && containsBrowserBlobUrl(req.body)) {
+    return res.status(422).json({ error: "روابط blob مؤقتة غير مسموحة — ارفع الصورة أولاً إلى Neon" });
+  }
+  if (!methodHasBody || isImageEndpoint || !containsEmbeddedImageData(req.body)) {
+    return next();
+  }
+  try {
+    await dbReady;
+    const migrated = await migrateEmbeddedJsonImages(req.body);
+    req.body = migrated.value;
+    return next();
+  } catch (error) {
+    console.error("[images] automatic Neon migration failed:", error?.message ?? error);
+    return res.status(422).json({ error: "تعذر تخزين الصورة في Neon" });
+  }
+});
 
 /* ── Health ─────────────────────────────────────────────── */
 
