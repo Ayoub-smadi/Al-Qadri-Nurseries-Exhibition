@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages, mergeSiteDataPreservingImages } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
@@ -66,8 +66,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const syncData = async (source: SiteData) => {
-        const migrated = sessionRestored ? await migrateSiteDataImages(source) : { data: source, changed: false };
+      const syncData = async (source: SiteData, cachedSource: SiteData | null = null) => {
+        const imageSafeSource = mergeSiteDataPreservingImages(source, cachedSource);
+        const migrated = sessionRestored ? await migrateSiteDataImages(imageSafeSource) : { data: imageSafeSource, changed: false };
         setSiteData(migrated.data);
         saveCache(migrated.data);
         if (sessionRestored && migrated.changed) {
@@ -83,7 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const serverData = await fetchSiteData();
       if (serverData !== null) {
         // Server has real saved data — use it and update cache
-        await syncData(serverData);
+        await syncData(serverData, cached);
       } else if (sessionRestored) {
         // Admin session valid but server has no data — sync localStorage cache to DB
         const localData = loadCache();

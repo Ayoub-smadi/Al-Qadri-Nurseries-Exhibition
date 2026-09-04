@@ -130,6 +130,22 @@ export interface SiteData {
   };
 }
 
+export function normalizeImageReference(value: string | undefined): string {
+  const source = value?.trim() ?? "";
+  if (!source) return "";
+  if (source.startsWith("/api/images/")) return source;
+  try {
+    const url = new URL(source);
+    if (url.hostname.includes(".private.blob.vercel-storage.com")) {
+      const match = url.pathname.match(/\/([a-f0-9]{64})\.[a-z0-9]+$/i);
+      if (match) return `/api/images/img-${match[1].slice(0, 24)}`;
+    }
+  } catch {
+    // Keep relative paths and legacy external URLs unchanged.
+  }
+  return source;
+}
+
 export const DEFAULT_DATA: SiteData = {
   titleAr: "مشاتل القادري الزراعية",
   titleEn: "Al-Qadri Agricultural Nurseries",
@@ -137,7 +153,7 @@ export const DEFAULT_DATA: SiteData = {
     ar: "معرض مشاتل القادري الزراعية",
     en: "Al-Qadri Nurseries Gallery",
   },
-  logo: { customUrl: "" },
+  logo: { customUrl: "/logo-alkadri.jpg" },
   announcement: { imageUrl: "", enabled: false },
   newsTicker: { enabled: false, logoUrl: "", text: "" },
   owner: { photo: "", bgImage: "", extraPhotos: [] },
@@ -212,6 +228,130 @@ export const DEFAULT_DATA: SiteData = {
     noteEn: "",
   },
 };
+
+function mergeImageValue(primary: string | undefined, cached: string | undefined): string {
+  return normalizeImageReference(primary) || normalizeImageReference(cached);
+}
+
+function mergeImageArray<T extends { id: string; image?: string }>(primary: T[] | undefined, cached: T[] | undefined): T[] {
+  const cachedById = new Map((cached ?? []).map(item => [item.id, item]));
+  const merged = (primary ?? []).map(item => {
+    const old = cachedById.get(item.id);
+    return old ? { ...old, ...item, image: mergeImageValue(item.image, old.image) } : item;
+  });
+  const present = new Set(merged.map(item => item.id));
+  return [...merged, ...(cached ?? []).filter(item => !present.has(item.id))];
+}
+
+/**
+ * Keep image-bearing data from the browser cache when a central record is
+ * partial. Older records can contain only text/settings, and replacing the
+ * complete cache with those partial arrays makes the gallery appear empty.
+ */
+export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteData | null): SiteData {
+  const normalizedPrimary = normalizeImageReferences(primary);
+  if (!cached) return normalizedPrimary;
+  const normalizedCached = normalizeImageReferences(cached);
+
+  const cachedSections = normalizedCached.sections ?? [];
+  const primarySections = normalizedPrimary.sections ?? [];
+  const cachedSectionsById = new Map(cachedSections.map(section => [section.id, section]));
+  const sections = primarySections.map(section => {
+    const oldSection = cachedSectionsById.get(section.id);
+    if (!oldSection) return section;
+    const oldPhotosById = new Map(oldSection.photos.map(photo => [photo.id, photo]));
+    const photos = section.photos.map(photo => {
+      const oldPhoto = oldPhotosById.get(photo.id);
+      if (!oldPhoto) return photo;
+      return {
+        ...oldPhoto,
+        ...photo,
+        image: mergeImageValue(photo.image, oldPhoto.image),
+        extraImages: (photo.extraImages?.length ? photo.extraImages : oldPhoto.extraImages) ?? [],
+      };
+    });
+    const present = new Set(photos.map(photo => photo.id));
+    return {
+      ...oldSection,
+      ...section,
+      photos: [...photos, ...oldSection.photos.filter(photo => !present.has(photo.id))],
+    };
+  });
+  const presentSections = new Set(sections.map(section => section.id));
+
+  const cachedProducts = normalizedCached.agriStoreProducts ?? [];
+  const primaryProducts = normalizedPrimary.agriStoreProducts ?? [];
+  const cachedProductsById = new Map(cachedProducts.map(product => [product.id, product]));
+  const products = primaryProducts.map(product => {
+    const old = cachedProductsById.get(product.id)
+      ?? cachedProducts.find(candidate => candidate.category === product.category);
+    return old
+      ? { ...old, ...product, image: mergeImageValue(product.image, old.image) }
+      : product;
+  });
+  const presentProducts = new Set(products.map(product => product.id));
+
+  const cachedShowcase = normalizedCached.storeShowcase ?? [];
+  const primaryShowcase = normalizedPrimary.storeShowcase ?? [];
+  const cachedShowcaseById = new Map(cachedShowcase.map(item => [item.id, item]));
+  const showcase = primaryShowcase.map(item => {
+    const old = cachedShowcaseById.get(item.id);
+    return old ? { ...old, ...item, imageUrl: mergeImageValue(item.imageUrl, old.imageUrl) } : item;
+  });
+  const presentShowcase = new Set(showcase.map(item => item.id));
+
+  return {
+    ...normalizedPrimary,
+    logo: {
+      ...normalizedPrimary.logo,
+      customUrl: mergeImageValue(normalizedPrimary.logo?.customUrl, normalizedCached.logo?.customUrl),
+    },
+    announcement: normalizedPrimary.announcement
+      ? {
+          ...normalizedPrimary.announcement,
+          imageUrl: mergeImageValue(normalizedPrimary.announcement.imageUrl, normalizedCached.announcement?.imageUrl),
+        }
+      : normalizedCached.announcement,
+    newsTicker: normalizedPrimary.newsTicker
+      ? {
+          ...normalizedPrimary.newsTicker,
+          logoUrl: mergeImageValue(normalizedPrimary.newsTicker.logoUrl, normalizedCached.newsTicker?.logoUrl),
+        }
+      : normalizedCached.newsTicker,
+    owner: {
+      ...normalizedPrimary.owner,
+      photo: mergeImageValue(normalizedPrimary.owner?.photo, normalizedCached.owner?.photo),
+      bgImage: mergeImageValue(normalizedPrimary.owner?.bgImage, normalizedCached.owner?.bgImage),
+      extraPhotos: normalizedPrimary.owner?.extraPhotos?.length ? normalizedPrimary.owner.extraPhotos : (normalizedCached.owner?.extraPhotos ?? []),
+    },
+    featuredImages: mergeImageArray(normalizedPrimary.featuredImages, normalizedCached.featuredImages),
+    sections: [
+      ...sections,
+      ...cachedSections.filter(section => !presentSections.has(section.id)),
+    ],
+    branches: mergeImageArray(normalizedPrimary.branches, normalizedCached.branches),
+    storeShowcase: [
+      ...showcase,
+      ...cachedShowcase.filter(item => !presentShowcase.has(item.id)),
+    ],
+    agriStoreProducts: [
+      ...products,
+      ...cachedProducts.filter(product => !presentProducts.has(product.id)),
+    ],
+  };
+}
+
+function normalizeImageReferences<T>(value: T): T {
+  const rewrite = (item: unknown): unknown => {
+    if (typeof item === "string") return normalizeImageReference(item);
+    if (Array.isArray(item)) return item.map(rewrite);
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, rewrite(child)]));
+    }
+    return item;
+  };
+  return rewrite(value) as T;
+}
 
 const ADMIN_TOKEN_KEY = 'gallery_admin_token';
 
@@ -317,7 +457,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
       const json = await res.json();
       if (json.data) {
         const p = json.data as SiteData;
-        return {
+        return mergeSiteDataPreservingImages({
           titleAr: p.titleAr ?? DEFAULT_DATA.titleAr,
           titleEn: p.titleEn ?? DEFAULT_DATA.titleEn,
           galleryTitle: { ...DEFAULT_DATA.galleryTitle, ...p.galleryTitle },
@@ -377,8 +517,8 @@ export async function fetchSiteData(): Promise<SiteData | null> {
              });
              return [...normalized, ...missingDefaults];
           })(),
-          footer: { ...DEFAULT_DATA.footer, ...p.footer },
-        };
+           footer: { ...DEFAULT_DATA.footer, ...p.footer },
+        }, null);
       }
       // API responded but no data in DB — return null to preserve cache
       return null;
@@ -580,7 +720,9 @@ export async function migrateSiteDataImages(data: SiteData): Promise<{ data: Sit
   const resolved = new Map<string, Promise<string>>();
 
   const resolveImage = (value: string | undefined): Promise<string> => {
-    const source = value ?? "";
+    const original = value ?? "";
+    const source = normalizeImageReference(original);
+    if (source !== original) changed = true;
     if (!source || source.startsWith("/api/images/") || /^https?:\/\//i.test(source) || /^blob:/i.test(source)) {
       return Promise.resolve(source);
     }

@@ -142,7 +142,20 @@ async function normalizeStoredBlobReferences(value) {
     result.rows.map((row) => [row.blob_url, `/api/images/${encodeURIComponent(row.id)}`]),
   );
   const rewrite = (item) => {
-    if (typeof item === "string") return byUrl.get(item) ?? item;
+    if (typeof item === "string") {
+      const knownReference = byUrl.get(item);
+      if (knownReference) return knownReference;
+      try {
+        const url = new URL(item);
+        if (url.hostname.includes(".private.blob.vercel-storage.com")) {
+          const match = url.pathname.match(/\/([a-f0-9]{64})\.[a-z0-9]+$/i);
+          if (match) return `/api/images/img-${match[1].slice(0, 24)}`;
+        }
+      } catch {
+        // Keep non-URL strings unchanged.
+      }
+      return item;
+    }
     if (Array.isArray(item)) return item.map(rewrite);
     if (item && typeof item === "object") {
       return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, rewrite(child)]));
