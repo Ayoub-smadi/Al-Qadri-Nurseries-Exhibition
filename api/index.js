@@ -703,6 +703,7 @@ app.post("/api/admin-quotations", async (req, res) => {
     await dbReady;
     const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body ?? {};
     if (!customerName || !quotationNumber) return res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" });
+    if (rejectEmbeddedImageData(res, items)) return;
     const id = `aq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     client = await pool.connect();
     await client.query("BEGIN");
@@ -731,6 +732,7 @@ app.put("/api/admin-quotations/:id", async (req, res) => {
     await dbReady;
     const { quotationNumber, customerName, date, notes, grandTotal, discountValue, taxRate, details, items } = req.body ?? {};
     if (!customerName || !quotationNumber) return res.status(400).json({ error: "اسم العميل ورقم العرض مطلوبان" });
+    if (rejectEmbeddedImageData(res, items)) return;
     client = await pool.connect();
     await client.query("BEGIN");
     const result = await client.query(
@@ -1289,6 +1291,30 @@ async function migrateLegacyImages(limit = 50) {
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
 
+async function migrateEmbeddedQuotationImages(limit = 100) {
+  const result = await pool.query(
+    `SELECT id, image_url FROM admin_quotation_items
+     WHERE image_url LIKE 'data:image/%' ORDER BY id LIMIT $1`,
+    [limit],
+  );
+  let migrated = 0;
+  for (const row of result.rows) {
+    try {
+      const match = String(row.image_url).match(/^data:([^;]+);base64,(.+)$/s);
+      if (!match) continue;
+      const stored = await saveImageRecord(Buffer.from(match[2], "base64"), match[1]);
+      await pool.query(`UPDATE admin_quotation_items SET image_url = $2 WHERE id = $1`, [row.id, stored.url]);
+      migrated += 1;
+    } catch (error) {
+      console.warn("[images] quotation migration skipped", row.id, error);
+    }
+  }
+  const remaining = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM admin_quotation_items WHERE image_url LIKE 'data:image/%'`,
+  );
+  return { migrated, remaining: Number(remaining.rows[0]?.count ?? 0) };
+}
+
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { url } = req.body ?? {};
@@ -1388,7 +1414,13 @@ app.post("/api/images/migrate-legacy", async (req, res) => {
   if (!requireSession(req, res)) return;
   try {
     await dbReady;
-    res.json(await migrateLegacyImages());
+    const legacy = await migrateLegacyImages();
+    const quotations = await migrateEmbeddedQuotationImages();
+    res.json({
+      migrated: legacy.migrated + quotations.migrated,
+      remaining: legacy.remaining + quotations.remaining,
+      quotationImagesMigrated: quotations.migrated,
+    });
   } catch (error) {
     res.status(500).json({ error: "Failed to migrate legacy images" });
   }

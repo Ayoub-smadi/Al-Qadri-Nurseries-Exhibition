@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { loadSavedToken } from '@/lib/storage';
+import { ensureImageStored, loadSavedToken } from '@/lib/storage';
 import { useApp } from '@/lib/context';
 import {
   Plus, FileText, Save, Wand2, Trash2, CheckCircle2,
@@ -387,6 +387,21 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
     if (validItems.length === 0) { toast.error('مطلوب إضافة عناصر'); return; }
     setSaving(true);
     try {
+      const storedItems = await Promise.all(validItems.map(async i => {
+        const imageUrl = i.imageUrl ? await ensureImageStored(i.imageUrl) : null;
+        if (imageUrl?.startsWith('data:image/')) {
+          throw new Error('تعذر حفظ صورة البند في Neon — أعد رفع الصورة ثم حاول مرة أخرى');
+        }
+        return {
+          name: i.name.trim(), description: i.description.trim(),
+          category: i.category?.trim() || '',
+          quantity: Math.max(1, i.quantity),
+          unit: i.unit || 'وحدة',
+          price: Math.max(0, i.price),
+          total: Math.max(0, i.total),
+          imageUrl,
+        };
+      }));
       await apiSaveQuotation({
         quotationNumber: details.quotationNumber,
         customerName: details.customerName,
@@ -396,15 +411,7 @@ export function QuotationForm({ onClose, editQuotation, onSaved }: QuotationForm
         discountValue,
         taxRate,
         details,
-        items: validItems.map(i => ({
-          name: i.name.trim(), description: i.description.trim(),
-          category: i.category?.trim() || '',
-          quantity: Math.max(1, i.quantity),
-          unit: i.unit || 'وحدة',
-          price: Math.max(0, i.price),
-          total: Math.max(0, i.total),
-          imageUrl: i.imageUrl || null,
-        })),
+        items: storedItems,
       }, isEdit ? editQuotation!.id : undefined);
       toast.success(isEdit ? '✅ تم تحديث عرض السعر بنجاح' : '✅ تم حفظ عرض السعر بنجاح');
       setSavedSuccess(true);

@@ -6,6 +6,7 @@ import plant5 from "@/assets/images/plant-5.png";
 import plant6 from "@/assets/images/plant-6.png";
 import plant7 from "@/assets/images/plant-7.png";
 import plant8 from "@/assets/images/plant-8.png";
+import backupPayload from "../../../../attached_assets/alqadri-backup-2026-08-19_1788530356460.json";
 
 export interface Photo {
   id: string;
@@ -241,13 +242,79 @@ function mergeImageArray<T extends { id: string; image?: string }>(primary: T[] 
   return [...merged, ...(cached ?? []).filter(item => !present.has(item.id))];
 }
 
+const BACKUP_DATA = (backupPayload as { siteData?: SiteData }).siteData;
+
+function isStoredImage(value: string | undefined): boolean {
+  return !!value && (value.startsWith("/api/images/") || /^data:image\//i.test(value) || /^https?:\/\//i.test(value));
+}
+
+function restoreBackupImage(current: string | undefined, backup: string | undefined): string {
+  const currentImage = normalizeImageReference(current);
+  const backupImage = normalizeImageReference(backup);
+  if (isStoredImage(currentImage)) return currentImage;
+  if (isStoredImage(backupImage)) return backupImage;
+  return currentImage || backupImage;
+}
+
+/** Restore the original image references shipped in the project backup without
+ * overwriting images that are already stored in Neon or supplied by a user. */
+function restoreBackupImages(data: SiteData): SiteData {
+  if (!BACKUP_DATA) return data;
+  const backup = BACKUP_DATA;
+  const backupSections = new Map((backup.sections ?? []).map(section => [section.id, section]));
+  const backupProducts = new Map((backup.agriStoreProducts ?? []).map(product => [product.id, product]));
+  const backupShowcase = new Map((backup.storeShowcase ?? []).map(item => [item.id, item]));
+  return {
+    ...data,
+    logo: { ...data.logo, customUrl: restoreBackupImage(data.logo?.customUrl, backup.logo?.customUrl) },
+    owner: {
+      ...data.owner,
+      photo: restoreBackupImage(data.owner?.photo, backup.owner?.photo),
+      bgImage: restoreBackupImage(data.owner?.bgImage, backup.owner?.bgImage),
+      extraPhotos: (data.owner?.extraPhotos?.length ? data.owner.extraPhotos : (backup.owner?.extraPhotos ?? []))
+        .map((image, index) => restoreBackupImage(image, backup.owner?.extraPhotos?.[index])),
+    },
+    featuredImages: (data.featuredImages ?? []).map(image => {
+      const old = backup.featuredImages?.find(item => item.id === image.id);
+      return { ...image, image: restoreBackupImage(image.image, old?.image) };
+    }),
+    sections: (data.sections ?? []).map(section => {
+      const oldSection = backupSections.get(section.id);
+      return {
+        ...section,
+        photos: (section.photos ?? []).map(photo => {
+          const old = oldSection?.photos?.find(item => item.id === photo.id);
+          return {
+            ...photo,
+            image: restoreBackupImage(photo.image, old?.image),
+            extraImages: (photo.extraImages?.length ? photo.extraImages : (old?.extraImages ?? []))
+              .map((image, index) => restoreBackupImage(image, old?.extraImages?.[index])),
+          };
+        }),
+      };
+    }),
+    branches: (data.branches ?? []).map(branch => {
+      const old = backup.branches?.find(item => item.id === branch.id);
+      return { ...branch, image: restoreBackupImage(branch.image, old?.image) };
+    }),
+    storeShowcase: (data.storeShowcase ?? []).map(item => ({
+      ...item,
+      imageUrl: restoreBackupImage(item.imageUrl, backupShowcase.get(item.id)?.imageUrl),
+    })),
+    agriStoreProducts: (data.agriStoreProducts ?? []).map(product => ({
+      ...product,
+      image: restoreBackupImage(product.image, backupProducts.get(product.id)?.image),
+    })),
+  };
+}
+
 /**
  * Keep image-bearing data from the browser cache when a central record is
  * partial. Older records can contain only text/settings, and replacing the
  * complete cache with those partial arrays makes the gallery appear empty.
  */
 export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteData | null): SiteData {
-  const normalizedPrimary = normalizeImageReferences(primary);
+  const normalizedPrimary = restoreBackupImages(normalizeImageReferences(primary));
   if (!cached) return normalizedPrimary;
   const normalizedCached = normalizeImageReferences(cached);
 
@@ -733,6 +800,28 @@ export async function uploadImage(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read image file")); };
     img.src = url;
   });
+}
+
+/** Ensure a quotation/site image is stored in Neon and return its stable API URL. */
+export async function ensureImageStored(value: string | undefined | null): Promise<string> {
+  const source = normalizeImageReference(value ?? "");
+  if (!source || source.startsWith("/api/images/") || /^blob:/i.test(source)) return source;
+  if (/^data:image\//i.test(source)) return uploadImageBase64(source);
+
+  if (/^https?:\/\//i.test(source)) {
+    try { return await uploadImageFromUrl(source); } catch { /* try from browser below */ }
+  }
+
+  if (typeof window !== "undefined") {
+    const response = await fetch(source, { cache: "no-store" });
+    if (response.ok) {
+      const blob = await response.blob();
+      if (blob.type.startsWith("image/") && blob.size > 0) {
+        return uploadImage(new File([blob], "quotation-image", { type: blob.type }));
+      }
+    }
+  }
+  return source;
 }
 
 /**

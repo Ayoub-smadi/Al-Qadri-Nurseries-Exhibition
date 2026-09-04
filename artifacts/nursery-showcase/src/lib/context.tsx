@@ -75,11 +75,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const syncData = async (source: SiteData, cachedSource: SiteData | null = null) => {
         const imageSafeSource = mergeSiteDataPreservingImages(source, cachedSource);
+        const restoredDataChanged = JSON.stringify(imageSafeSource) !== JSON.stringify(source);
         const migrated = sessionRestored ? await migrateSiteDataImages(imageSafeSource) : { data: imageSafeSource, changed: false };
         siteDataRef.current = migrated.data;
         setSiteData(migrated.data);
         saveCache(migrated.data);
-        if (sessionRestored && migrated.changed) {
+        if (sessionRestored && (migrated.changed || restoredDataChanged)) {
           const result = await persistSiteData(migrated.data);
           if (result.ok) {
             console.log('[sync] image references migrated to Neon storage');
