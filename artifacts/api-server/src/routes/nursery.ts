@@ -106,7 +106,7 @@ function containsEmbeddedImageData(value: unknown): boolean {
 
 function rejectEmbeddedImageData(res: Response, value: unknown): boolean {
   if (!containsEmbeddedImageData(value)) return false;
-  res.status(422).json({ error: "Images must be uploaded to Blob storage before saving the record" });
+  res.status(422).json({ error: "Images must be uploaded to persistent storage before saving the record" });
   return true;
 }
 
@@ -853,12 +853,15 @@ async function uploadImageBytes(buffer: Buffer, mimeType: string): Promise<Omit<
       size_bytes: number | null;
     };
     return {
-      url: row.blob_url ?? "",
-      pathname: row.blob_pathname ?? "",
+      // The bytes are already available from this upload. Always return them
+      // so a re-upload of a legacy Blob image creates a healthy Neon record
+      // instead of reusing the inaccessible Blob URL.
+      url: "",
+      pathname: "",
       sha256,
       sizeBytes: row.size_bytes ?? buffer.length,
       mimeType: row.mime_type || mimeType,
-      data: row.data || "",
+      data: row.data || buffer.toString("base64"),
     };
   }
 
@@ -881,8 +884,8 @@ async function saveImageRecord(image: Omit<StoredImage, "id">): Promise<StoredIm
      ON CONFLICT (id) DO UPDATE SET
         data = CASE WHEN EXCLUDED.data <> '' THEN EXCLUDED.data ELSE images.data END,
        mime_type = EXCLUDED.mime_type,
-        blob_url = COALESCE(EXCLUDED.blob_url, images.blob_url),
-        blob_pathname = COALESCE(EXCLUDED.blob_pathname, images.blob_pathname),
+         blob_url = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_url, images.blob_url) END,
+         blob_pathname = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_pathname, images.blob_pathname) END,
        sha256 = EXCLUDED.sha256,
        size_bytes = EXCLUDED.size_bytes`,
     [id, image.data, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
@@ -948,20 +951,6 @@ async function migrateLegacyImages(limit = 50): Promise<{ migrated: number; rema
   );
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
-
-// Complete the one-time Blob -> Neon migration automatically when the legacy
-// Blob token is available. It is bounded in batches so a large gallery does
-// not monopolize the database connection or request lifecycle.
-void dbReady.then(async () => {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
-  for (let batch = 0; batch < 20; batch += 1) {
-    const result = await migrateLegacyImages();
-    logger.info({ migrated: result.migrated, remaining: result.remaining }, "Image migration batch complete");
-    if (result.remaining === 0 || result.migrated === 0) break;
-  }
-}).catch((error) => {
-  logger.warn({ err: error }, "Automatic image migration skipped");
-});
 
 router.post("/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;

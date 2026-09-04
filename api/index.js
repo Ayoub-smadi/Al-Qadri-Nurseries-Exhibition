@@ -130,7 +130,7 @@ function containsEmbeddedImageData(value) {
 
 function rejectEmbeddedImageData(res, value) {
   if (!containsEmbeddedImageData(value)) return false;
-  res.status(422).json({ error: "Images must be uploaded to Blob storage before saving the record" });
+  res.status(422).json({ error: "Images must be uploaded to persistent storage before saving the record" });
   return true;
 }
 
@@ -847,12 +847,14 @@ async function uploadImageBytes(buffer, mimeType) {
   if (existing.rows.length > 0) {
     const row = existing.rows[0];
     return {
-      url: row.blob_url || "",
-      pathname: row.blob_pathname || "",
+      // The bytes are already available from this upload. Never reuse an
+      // inaccessible legacy Blob URL for a newly uploaded matching image.
+      url: "",
+      pathname: "",
       sha256,
       sizeBytes: row.size_bytes ?? buffer.length,
       mimeType: row.mime_type || mimeType,
-      data: row.data || "",
+      data: row.data || buffer.toString("base64"),
     };
   }
 
@@ -874,8 +876,8 @@ async function saveImageRecord(image) {
      ON CONFLICT (id) DO UPDATE SET
        data = CASE WHEN EXCLUDED.data <> '' THEN EXCLUDED.data ELSE images.data END,
        mime_type = EXCLUDED.mime_type,
-       blob_url = COALESCE(EXCLUDED.blob_url, images.blob_url),
-       blob_pathname = COALESCE(EXCLUDED.blob_pathname, images.blob_pathname),
+       blob_url = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_url, images.blob_url) END,
+       blob_pathname = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_pathname, images.blob_pathname) END,
        sha256 = EXCLUDED.sha256,
        size_bytes = EXCLUDED.size_bytes`,
     [id, image.data, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
@@ -937,19 +939,6 @@ async function migrateLegacyImages(limit = 50) {
   );
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
-
-// Complete the one-time Blob -> Neon migration automatically when the legacy
-// Blob token is available. Work in bounded batches for large galleries.
-void dbReady.then(async () => {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return;
-  for (let batch = 0; batch < 20; batch += 1) {
-    const result = await migrateLegacyImages();
-    console.log("[images] migration batch complete", result);
-    if (result.remaining === 0 || result.migrated === 0) break;
-  }
-}).catch((error) => {
-  console.warn("[images] automatic migration skipped", error);
-});
 
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;

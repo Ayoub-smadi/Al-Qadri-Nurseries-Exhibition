@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages, migrateAllLegacyImages, mergeSiteDataPreservingImages } from '@/lib/storage';
 import { toast } from 'sonner';
 
@@ -45,6 +45,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const cached = loadCache();
   const [siteData, setSiteData] = useState<SiteData>(cached ?? DEFAULT_DATA);
   const [dataLoaded, setDataLoaded] = useState(cached !== null);
+  const siteDataRef = useRef<SiteData>(cached ?? DEFAULT_DATA);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     const l = localStorage.getItem('gallery_lang') as Language;
@@ -66,20 +68,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (sessionRestored) {
-        // Move any previously Blob-backed rows into the configured Neon
-        // database before refreshing site data.
-        await migrateAllLegacyImages();
+        // Migrate legacy rows in the background. A legacy Blob store may be
+        // unavailable, and that must never block the site from loading.
+        void migrateAllLegacyImages();
       }
 
       const syncData = async (source: SiteData, cachedSource: SiteData | null = null) => {
         const imageSafeSource = mergeSiteDataPreservingImages(source, cachedSource);
         const migrated = sessionRestored ? await migrateSiteDataImages(imageSafeSource) : { data: imageSafeSource, changed: false };
+        siteDataRef.current = migrated.data;
         setSiteData(migrated.data);
         saveCache(migrated.data);
         if (sessionRestored && migrated.changed) {
           const result = await persistSiteData(migrated.data);
           if (result.ok) {
-            console.log('[sync] image references migrated to Blob storage');
+            console.log('[sync] image references migrated to persistent storage');
           } else {
             console.warn('[sync] image migration could not be persisted');
           }
@@ -107,11 +110,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void (async () => {
       const migrated = await migrateSiteDataImages(siteData);
       if (!active || !migrated.changed) return;
+      siteDataRef.current = migrated.data;
       setSiteData(migrated.data);
       saveCache(migrated.data);
       const result = await persistSiteData(migrated.data);
       if (result.ok) {
-        console.log('[sync] image references migrated to Blob storage');
+        console.log('[sync] image references migrated to persistent storage');
       } else {
         console.warn('[sync] image migration could not be persisted');
       }
@@ -138,32 +142,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSiteData = (data: Partial<SiteData>) => {
-    const next = { ...siteData, ...data };
+    // Build from a ref rather than the render closure. Image uploads resolve
+    // asynchronously, so consecutive edits can otherwise start from stale
+    // siteData and overwrite each other in the database.
+    const next = { ...siteDataRef.current, ...data };
+    siteDataRef.current = next;
     setSiteData(next);
     saveCache(next);
-    persistSiteData(next).then(result => {
-      if (result.ok) {
-        toast.success(lang === 'ar' ? '✓ تم الحفظ' : '✓ Saved', { duration: 2000 });
-      } else if (result.unauthorized) {
-        setSessionToken(null);
-        setIsAdmin(false);
-        setSessionExpired(true);
-      } else if (result.tooBig) {
-        toast.error(
-          lang === 'ar'
-            ? 'حجم البيانات كبير جداً — حاول تقليل عدد الصور أو حجمها'
-            : 'Data too large — try reducing the number or size of images',
-          { duration: 8000 }
-        );
-      } else {
-        toast.error(
-          lang === 'ar'
-            ? 'فشل حفظ البيانات — تحقق من الاتصال بالإنترنت'
-            : 'Failed to save — check your internet connection',
-          { duration: 5000 }
-        );
-      }
-    });
+    // Serialize writes so a slower request from an earlier edit cannot land
+    // after a newer request and restore old logo/icon references.
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const result = await persistSiteData(next);
+        if (result.ok) {
+          toast.success(lang === 'ar' ? '✓ تم الحفظ' : '✓ Saved', { duration: 2000 });
+        } else if (result.unauthorized) {
+          setSessionToken(null);
+          setIsAdmin(false);
+          setSessionExpired(true);
+        } else if (result.tooBig) {
+          toast.error(
+            lang === 'ar'
+              ? 'حجم البيانات كبير جداً — حاول تقليل عدد الصور أو حجمها'
+              : 'Data too large — try reducing the number or size of images',
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(
+            lang === 'ar'
+              ? 'فشل حفظ البيانات — تحقق من الاتصال بالإنترنت'
+              : 'Failed to save — check your internet connection',
+            { duration: 5000 }
+          );
+        }
+      });
   };
 
   return (

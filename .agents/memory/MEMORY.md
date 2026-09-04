@@ -5,3 +5,4 @@
 - [Private Blob image references](private-blob-image-references.md) — browser-facing data must rewrite legacy private Blob URLs to API image endpoints, even without URL metadata rows.
 - [Admin record sync](admin-record-sync.md) — admin-only record routes must exist in both the local API and the Vercel serverless entrypoint.
 - [Site data cache](site-data-cache.md) — site-data reads must bypass browser revalidation so stale 304 responses cannot hide updated images.
+- [Async image save ordering](async-image-save-queue.md) — serialize full site-data writes because asynchronous image uploads can otherwise overwrite newer logo or icon edits.
