@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import pg from "pg";
 import crypto from "crypto";
-import { get } from "@vercel/blob";
 
 const { Pool } = pg;
 
@@ -44,7 +43,8 @@ const dbReady = pool.connect().then(async (client) => {
       );
       CREATE TABLE IF NOT EXISTS images (
         id TEXT PRIMARY KEY,
-        data TEXT NOT NULL,
+        data TEXT NOT NULL DEFAULT '',
+        data_bytes BYTEA,
         mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
@@ -58,8 +58,7 @@ const dbReady = pool.connect().then(async (client) => {
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
     `);
-    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_url TEXT`);
-    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS blob_pathname TEXT`);
+    await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS data_bytes BYTEA`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS sha256 TEXT`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS size_bytes INTEGER`);
     await client.query(`CREATE INDEX IF NOT EXISTS images_sha256_idx ON images (sha256)`);
@@ -130,26 +129,27 @@ function containsEmbeddedImageData(value) {
 
 function rejectEmbeddedImageData(res, value) {
   if (!containsEmbeddedImageData(value)) return false;
-  res.status(422).json({ error: "Images must be uploaded to persistent storage before saving the record" });
+  res.status(422).json({ error: "Images must be uploaded to Neon before saving the record" });
   return true;
 }
 
-async function normalizeStoredBlobReferences(value) {
+async function normalizeStoredImageReferences(value) {
   const result = await pool.query(
-    `SELECT id, blob_url FROM images WHERE blob_url IS NOT NULL AND blob_url <> ''`,
+    `SELECT id, sha256 FROM images WHERE data_bytes IS NOT NULL`,
   );
-  const byUrl = new Map(
-    result.rows.map((row) => [row.blob_url, `/api/images/${encodeURIComponent(row.id)}`]),
+  const byHash = new Map(
+    result.rows
+      .filter((row) => row.sha256)
+      .map((row) => [row.sha256.toLowerCase(), `/api/images/${encodeURIComponent(row.id)}`]),
   );
   const rewrite = (item) => {
     if (typeof item === "string") {
-      const knownReference = byUrl.get(item);
-      if (knownReference) return knownReference;
       try {
         const url = new URL(item);
         if (url.hostname.includes(".private.blob.vercel-storage.com")) {
           const match = url.pathname.match(/\/([a-f0-9]{64})\.[a-z0-9]+$/i);
-          if (match) return `/api/images/img-${match[1].slice(0, 24)}`;
+          const knownReference = match && byHash.get(match[1].toLowerCase());
+          if (knownReference) return knownReference;
         }
       } catch {
         // Keep non-URL strings unchanged.
@@ -168,7 +168,7 @@ async function normalizeStoredBlobReferences(value) {
 const app = express();
 app.use(cors({
   origin: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "Pragma"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
   credentials: false,
 }));
@@ -254,11 +254,9 @@ app.get("/api/site-data", async (_req, res) => {
   await dbReady;
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+    res.setHeader("Cache-Control", "no-store");
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    res.json({ data: await normalizeStoredBlobReferences(rows.rows[0].data) });
+     res.json({ data: await normalizeStoredImageReferences(rows.rows[0].data) });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
@@ -272,15 +270,14 @@ app.put("/api/site-data", async (req, res) => {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
+  if (rejectEmbeddedImageData(res, data)) return;
   try {
-    const normalizedData = await normalizeStoredBlobReferences(data);
-    if (rejectEmbeddedImageData(res, normalizedData)) return;
     await pool.query(
       `INSERT INTO site_config (id, data) VALUES ('main', $1)
        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()`,
-      [JSON.stringify(normalizedData)]
+      [JSON.stringify(data)]
     );
-    res.json({ data: normalizedData });
+    res.json({ data });
   } catch {
     res.status(500).json({ error: "Failed to save site data" });
   }
@@ -826,12 +823,7 @@ app.delete("/api/export-invoices/:id", async (req, res) => {
 
 /* ── Images ─────────────────────────────────────────────── */
 
-function imageExtension(mimeType) {
-  const subtype = mimeType.split("/")[1]?.split(";")[0]?.toLowerCase();
-  return subtype === "jpeg" ? "jpg" : (subtype && /^[a-z0-9]+$/.test(subtype) ? subtype : "bin");
-}
-
-async function uploadImageBytes(buffer, mimeType) {
+async function saveImageRecord(buffer, mimeType) {
   if (!mimeType.startsWith("image/")) throw new Error("Only image files are allowed");
   if (buffer.length === 0 || buffer.length > 3 * 1024 * 1024) {
     throw new Error("Image must be between 1 byte and 3MB");
@@ -839,93 +831,51 @@ async function uploadImageBytes(buffer, mimeType) {
 
   const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
   const existing = await pool.query(
-    `SELECT id, data, blob_url, blob_pathname, mime_type, size_bytes FROM images
-     WHERE sha256 = $1 AND (data <> '' OR (blob_url IS NOT NULL AND blob_url <> ''))
+    `SELECT id, mime_type, size_bytes FROM images
+     WHERE sha256 = $1 AND data_bytes IS NOT NULL
      ORDER BY created_at ASC LIMIT 1`,
     [sha256],
   );
   if (existing.rows.length > 0) {
     const row = existing.rows[0];
     return {
-      // The bytes are already available from this upload. Never reuse an
-      // inaccessible legacy Blob URL for a newly uploaded matching image.
-      url: "",
-      pathname: "",
+      id: row.id,
+      url: `/api/images/${encodeURIComponent(row.id)}`,
       sha256,
       sizeBytes: row.size_bytes ?? buffer.length,
       mimeType: row.mime_type || mimeType,
-      data: row.data || buffer.toString("base64"),
     };
   }
 
-  return {
-    url: "",
-    pathname: "",
-    sha256,
-    sizeBytes: buffer.length,
-    mimeType,
-    data: buffer.toString("base64"),
-  };
-}
-
-async function saveImageRecord(image) {
-  const id = `img-${image.sha256.slice(0, 24)}`;
+  const id = `img-${sha256.slice(0, 24)}`;
   await pool.query(
-    `INSERT INTO images (id, data, mime_type, blob_url, blob_pathname, sha256, size_bytes)
-     VALUES ($1, $2, $3, NULLIF($4, ''), NULLIF($5, ''), $6, $7)
+    `INSERT INTO images (id, data, data_bytes, mime_type, sha256, size_bytes)
+     VALUES ($1, '', $2, $3, $4, $5)
      ON CONFLICT (id) DO UPDATE SET
-       data = CASE WHEN EXCLUDED.data <> '' THEN EXCLUDED.data ELSE images.data END,
+       data_bytes = EXCLUDED.data_bytes,
        mime_type = EXCLUDED.mime_type,
-       blob_url = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_url, images.blob_url) END,
-       blob_pathname = CASE WHEN EXCLUDED.data <> '' THEN NULL ELSE COALESCE(EXCLUDED.blob_pathname, images.blob_pathname) END,
        sha256 = EXCLUDED.sha256,
        size_bytes = EXCLUDED.size_bytes`,
-    [id, image.data, image.mimeType, image.url, image.pathname, image.sha256, image.sizeBytes],
+    [id, buffer, mimeType, sha256, buffer.length],
   );
-  return { id, ...image };
+  return { id, url: `/api/images/${encodeURIComponent(id)}`, sha256, sizeBytes: buffer.length, mimeType };
 }
 
 async function migrateLegacyImages(limit = 50) {
   const legacy = await pool.query(
-    `SELECT id, mime_type, blob_url FROM images
-     WHERE blob_url IS NOT NULL AND blob_url <> '' AND data = ''
+    `SELECT id, data, mime_type FROM images
+     WHERE data_bytes IS NULL AND data <> ''
      ORDER BY created_at ASC LIMIT $1`,
     [limit],
   );
   const migratedRows = await Promise.all(legacy.rows.map(async (row) => {
     try {
-      const isPrivateBlob = (() => {
-        try { return new URL(row.blob_url).hostname.includes(".private.blob.vercel-storage.com"); }
-        catch { return false; }
-      })();
-      let buffer;
-      if (isPrivateBlob) {
-        const token = process.env.BLOB_READ_WRITE_TOKEN;
-        if (!token) return 0;
-        const blob = await get(row.blob_url, { access: "private", token });
-        if (!blob) return 0;
-        const chunks = [];
-        const reader = blob.stream.getReader();
-        try {
-          while (true) {
-            const chunk = await reader.read();
-            if (chunk.done) break;
-            chunks.push(Buffer.from(chunk.value));
-          }
-        } finally {
-          reader.releaseLock();
-        }
-        buffer = Buffer.concat(chunks);
-      } else {
-        const response = await fetch(row.blob_url);
-        if (!response.ok) return 0;
-        buffer = Buffer.from(await response.arrayBuffer());
-      }
-      if (buffer.length === 0 || buffer.length > 3 * 1024 * 1024) return 0;
+      const buffer = Buffer.from(row.data, "base64");
+      if (buffer.length === 0) throw new Error("Empty legacy image");
       const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
       await pool.query(
-        `UPDATE images SET data = $2, mime_type = $3, blob_url = NULL, blob_pathname = NULL, sha256 = $4, size_bytes = $5 WHERE id = $1`,
-        [row.id, buffer.toString("base64"), row.mime_type || "image/jpeg", sha256, buffer.length],
+        `UPDATE images SET data = '', data_bytes = $2, mime_type = $3, sha256 = $4, size_bytes = $5 WHERE id = $1`,
+        [row.id, buffer, row.mime_type || "image/jpeg", sha256, buffer.length],
       );
       return 1;
     } catch (error) {
@@ -935,7 +885,7 @@ async function migrateLegacyImages(limit = 50) {
   }));
   const migrated = migratedRows.reduce((total, value) => total + value, 0);
   const remainingResult = await pool.query(
-    `SELECT COUNT(*)::int AS count FROM images WHERE blob_url IS NOT NULL AND blob_url <> ''`,
+    `SELECT COUNT(*)::int AS count FROM images WHERE data_bytes IS NULL AND data <> ''`,
   );
   return { migrated, remaining: Number(remainingResult.rows[0]?.count ?? 0) };
 }
@@ -988,7 +938,7 @@ app.post("/api/images/from-url", async (req, res) => {
       return;
     }
     const mime = contentType.split(";")[0].trim();
-    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(buffer), mime));
+    const stored = await saveImageRecord(Buffer.from(buffer), mime);
     res.json({ id: stored.id, url: `/api/images/${encodeURIComponent(stored.id)}` });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1007,7 +957,7 @@ app.post("/api/images", async (req, res) => {
   const mime = mimeType ?? "image/jpeg";
   try {
     const raw = data.startsWith("data:") ? data.split(",")[1] : data;
-    const stored = await saveImageRecord(await uploadImageBytes(Buffer.from(raw, "base64"), mime));
+    const stored = await saveImageRecord(Buffer.from(raw, "base64"), mime);
     res.json({ id: stored.id, url: `/api/images/${encodeURIComponent(stored.id)}` });
   } catch (error) {
     res.status(500).json({ error: "Failed to save image" });
@@ -1019,70 +969,16 @@ app.get("/api/images/:id", async (req, res) => {
   try {
     await dbReady;
     const result = await pool.query(
-      `SELECT data, mime_type, blob_url FROM images WHERE id = $1`,
+      `SELECT data, data_bytes, mime_type FROM images WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) { res.status(404).end(); return; }
-    const { data, mime_type, blob_url } = result.rows[0];
-    if (blob_url) {
-      let isPrivateBlob = false;
-      try {
-        isPrivateBlob = new URL(blob_url).hostname.includes(".private.blob.vercel-storage.com");
-      } catch {
-        // Keep the legacy redirect behavior for non-URL values.
-      }
-
-      if (!isPrivateBlob) {
-        res.redirect(302, blob_url);
-        return;
-      }
-
-      const token = process.env.BLOB_READ_WRITE_TOKEN;
-      if (!token) {
-        res.status(503).json({ error: "تخزين الصور غير مهيأ على الخادم" });
-        return;
-      }
-
-      const blob = await get(blob_url, {
-        access: "private",
-        token,
-        ifNoneMatch: typeof req.headers["if-none-match"] === "string"
-          ? req.headers["if-none-match"]
-          : undefined,
-      });
-      if (!blob) { res.status(404).end(); return; }
-      if (blob.statusCode === 304) {
-        res.status(304);
-        res.setHeader("ETag", blob.blob.etag);
-        res.setHeader("Cache-Control", "private, no-cache");
-        res.end();
-        return;
-      }
-
-      res.status(200);
-      res.setHeader("Content-Type", blob.blob.contentType || mime_type);
-      res.setHeader("Content-Length", String(blob.blob.size));
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("ETag", blob.blob.etag);
-      res.setHeader("Cache-Control", "private, no-cache");
-
-      const reader = blob.stream.getReader();
-      try {
-        while (true) {
-          const chunk = await reader.read();
-          if (chunk.done) break;
-          res.write(Buffer.from(chunk.value));
-        }
-        res.end();
-      } finally {
-        reader.releaseLock();
-      }
-      return;
-    }
-    if (!data) { res.status(404).end(); return; }
-    const buf = Buffer.from(data, "base64");
+    const { data, data_bytes, mime_type } = result.rows[0];
+    const buf = data_bytes?.length ? data_bytes : (data ? Buffer.from(data, "base64") : null);
+    if (!buf?.length) { res.status(404).end(); return; }
     res.setHeader("Content-Type", mime_type);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.end(buf);
   } catch {
     res.status(500).end();
