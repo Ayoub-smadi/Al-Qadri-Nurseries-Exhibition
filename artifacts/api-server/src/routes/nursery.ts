@@ -110,6 +110,27 @@ function rejectEmbeddedImageData(res: Response, value: unknown): boolean {
   return true;
 }
 
+async function normalizeStoredBlobReferences(value: unknown): Promise<unknown> {
+  const result = await pool.query(
+    `SELECT id, blob_url FROM images WHERE blob_url IS NOT NULL AND blob_url <> ''`,
+  );
+  const byUrl = new Map<string, string>(
+    (result.rows as { id: string; blob_url: string }[]).map(row => [
+      row.blob_url,
+      `/api/images/${encodeURIComponent(row.id)}`,
+    ]),
+  );
+  const rewrite = (item: unknown): unknown => {
+    if (typeof item === "string") return byUrl.get(item) ?? item;
+    if (Array.isArray(item)) return item.map(rewrite);
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, rewrite(child)]));
+    }
+    return item;
+  };
+  return rewrite(value);
+}
+
 /* ── SSE: broadcast new quotes to connected admin clients ───── */
 const sseClients = new Set<Response>();
 
@@ -192,7 +213,8 @@ router.get("/site-data", async (_req, res) => {
   try {
     const rows = await pool.query(`SELECT data, updated_at FROM site_config WHERE id = 'main'`);
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    const { data, updated_at } = rows.rows[0] as { data: unknown; updated_at: string };
+    const { data: rawData, updated_at } = rows.rows[0] as { data: unknown; updated_at: string };
+    const data = await normalizeStoredBlobReferences(rawData);
     const etag = `"${Buffer.from(updated_at ?? '').toString('base64').slice(0, 16)}"`;
     res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=300');
     res.setHeader('ETag', etag);
@@ -211,6 +233,7 @@ router.put("/site-data", async (req, res) => {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
+  if (rejectEmbeddedImageData(res, data)) return;
   try {
     await pool.query(
       `INSERT INTO site_config (id, data) VALUES ('main', $1)

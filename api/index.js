@@ -134,6 +134,24 @@ function rejectEmbeddedImageData(res, value) {
   return true;
 }
 
+async function normalizeStoredBlobReferences(value) {
+  const result = await pool.query(
+    `SELECT id, blob_url FROM images WHERE blob_url IS NOT NULL AND blob_url <> ''`,
+  );
+  const byUrl = new Map(
+    result.rows.map((row) => [row.blob_url, `/api/images/${encodeURIComponent(row.id)}`]),
+  );
+  const rewrite = (item) => {
+    if (typeof item === "string") return byUrl.get(item) ?? item;
+    if (Array.isArray(item)) return item.map(rewrite);
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, rewrite(child)]));
+    }
+    return item;
+  };
+  return rewrite(value);
+}
+
 const app = express();
 app.use(cors({
   origin: true,
@@ -224,7 +242,7 @@ app.get("/api/site-data", async (_req, res) => {
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    res.json({ data: rows.rows[0].data });
+    res.json({ data: await normalizeStoredBlobReferences(rows.rows[0].data) });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
   }
@@ -238,6 +256,7 @@ app.put("/api/site-data", async (req, res) => {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
+  if (rejectEmbeddedImageData(res, data)) return;
   try {
     await pool.query(
       `INSERT INTO site_config (id, data) VALUES ('main', $1)

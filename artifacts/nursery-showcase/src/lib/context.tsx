@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
@@ -66,21 +66,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      const syncData = async (source: SiteData) => {
+        const migrated = sessionRestored ? await migrateSiteDataImages(source) : { data: source, changed: false };
+        setSiteData(migrated.data);
+        saveCache(migrated.data);
+        if (sessionRestored && migrated.changed) {
+          const result = await persistSiteData(migrated.data);
+          if (result.ok) {
+            console.log('[sync] image references migrated to Blob storage');
+          } else {
+            console.warn('[sync] image migration could not be persisted');
+          }
+        }
+      };
+
       const serverData = await fetchSiteData();
       if (serverData !== null) {
-        // Server has real saved data — use it and update cache
-        setSiteData(serverData);
-        saveCache(serverData);
+        // Server has real saved data — use it, migrate old image references, and update cache
+        await syncData(serverData);
       } else if (sessionRestored) {
         // Admin session valid but server has no data — sync localStorage cache to DB
         const localData = loadCache();
-        if (localData) {
-          persistSiteData(localData).then(result => {
-            if (result.ok) {
-              console.log('[sync] localStorage data synced to server');
-            }
-          });
-        }
+        if (localData) await syncData(localData);
       }
       setDataLoaded(true);
     }

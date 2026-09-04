@@ -549,6 +549,95 @@ export async function uploadImage(file: File): Promise<string> {
   });
 }
 
+/**
+ * Move image references that were saved before Blob storage was enabled
+ * (data URLs and bundled/public paths) into the persistent image endpoint.
+ * Existing /api/images references and external URLs are left untouched.
+ */
+export async function migrateSiteDataImages(data: SiteData): Promise<{ data: SiteData; changed: boolean }> {
+  let changed = false;
+  const resolved = new Map<string, Promise<string>>();
+
+  const resolveImage = (value: string | undefined): Promise<string> => {
+    const source = value ?? "";
+    if (!source || source.startsWith("/api/images/") || /^https?:\/\//i.test(source) || /^blob:/i.test(source)) {
+      return Promise.resolve(source);
+    }
+    const cached = resolved.get(source);
+    if (cached) return cached;
+
+    const promise = (async () => {
+      try {
+        if (/^data:image\//i.test(source)) {
+          const url = await uploadImageBase64(source);
+          changed = true;
+          return url;
+        }
+        if (source.startsWith("/") && typeof window !== "undefined") {
+          const response = await fetch(source, { cache: "no-store" });
+          if (response.ok) {
+            const blob = await response.blob();
+            if (blob.type.startsWith("image/") && blob.size > 0) {
+              const file = new File([blob], "migrated-image", { type: blob.type });
+              const url = await uploadImage(file);
+              changed = true;
+              return url;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("[images] migration skipped", source, error);
+      }
+      return source;
+    })();
+    resolved.set(source, promise);
+    return promise;
+  };
+
+  const next: SiteData = {
+    ...data,
+    logo: { ...data.logo, customUrl: await resolveImage(data.logo?.customUrl || "/logo-alkadri.jpg") },
+    announcement: data.announcement
+      ? { ...data.announcement, imageUrl: await resolveImage(data.announcement.imageUrl) }
+      : data.announcement,
+    newsTicker: data.newsTicker
+      ? { ...data.newsTicker, logoUrl: await resolveImage(data.newsTicker.logoUrl) }
+      : data.newsTicker,
+    owner: {
+      ...data.owner,
+      photo: await resolveImage(data.owner?.photo),
+      bgImage: await resolveImage(data.owner?.bgImage),
+      extraPhotos: await Promise.all((data.owner?.extraPhotos ?? []).map(resolveImage)),
+    },
+    featuredImages: await Promise.all(
+      (data.featuredImages ?? []).map(async image => ({ ...image, image: await resolveImage(image.image) })),
+    ),
+    sections: await Promise.all(
+      (data.sections ?? []).map(async section => ({
+        ...section,
+        photos: await Promise.all(
+          section.photos.map(async photo => ({
+            ...photo,
+            image: await resolveImage(photo.image),
+            extraImages: await Promise.all((photo.extraImages ?? []).map(resolveImage)),
+          })),
+        ),
+      })),
+    ),
+    branches: await Promise.all(
+      (data.branches ?? []).map(async branch => ({ ...branch, image: await resolveImage(branch.image) })),
+    ),
+    storeShowcase: await Promise.all(
+      (data.storeShowcase ?? []).map(async item => ({ ...item, imageUrl: await resolveImage(item.imageUrl) })),
+    ),
+    agriStoreProducts: await Promise.all(
+      (data.agriStoreProducts ?? []).map(async product => ({ ...product, image: await resolveImage(product.image) })),
+    ),
+  };
+
+  return { data: next, changed };
+}
+
 export interface QuoteItem {
   plantId: string;
   plantNameAr: string;
