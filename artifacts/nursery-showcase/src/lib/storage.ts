@@ -310,7 +310,9 @@ export async function adminSetup(username: string, password: string): Promise<bo
  */
 export async function fetchSiteData(): Promise<SiteData | null> {
   try {
-    const res = await fetch(`${getApiBase()}/site-data`);
+    const res = await fetch(`${getApiBase()}/site-data`, {
+      cache: "no-store",
+    });
     if (res.ok) {
       const json = await res.json();
       if (json.data) {
@@ -336,7 +338,18 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
-          storeShowcase: p.storeShowcase ?? DEFAULT_DATA.storeShowcase,
+           storeShowcase: (() => {
+             const saved = Array.isArray(p.storeShowcase) ? p.storeShowcase : [];
+             if (saved.length === 0) return DEFAULT_DATA.storeShowcase;
+             return saved.map((item, index) => {
+               const fallback = (DEFAULT_DATA.storeShowcase ?? []).find(defaultItem => defaultItem.id === item.id)
+                 ?? DEFAULT_DATA.storeShowcase?.[index];
+               return {
+                 ...item,
+                 imageUrl: item.imageUrl?.trim() || fallback?.imageUrl || "",
+               };
+             });
+           })(),
           agriStoreContent: {
             storeTitleAr: p.agriStoreContent?.storeTitleAr ?? DEFAULT_DATA.agriStoreContent!.storeTitleAr,
             storeTitleEn: p.agriStoreContent?.storeTitleEn ?? DEFAULT_DATA.agriStoreContent!.storeTitleEn,
@@ -354,7 +367,15 @@ export async function fetchSiteData(): Promise<SiteData | null> {
             const missingDefaults = (DEFAULT_DATA.agriStoreProducts ?? []).filter(
               fallback => !saved.some(product => product.category === fallback.category),
             );
-            return [...saved, ...missingDefaults];
+             const normalized = saved.map(product => {
+               const fallback = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.id === product.id)
+                 ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.category === product.category);
+               return {
+                 ...product,
+                 image: product.image?.trim() || fallback?.image || "",
+               };
+             });
+             return [...normalized, ...missingDefaults];
           })(),
           footer: { ...DEFAULT_DATA.footer, ...p.footer },
         };
@@ -628,10 +649,18 @@ export async function migrateSiteDataImages(data: SiteData): Promise<{ data: Sit
       (data.branches ?? []).map(async branch => ({ ...branch, image: await resolveImage(branch.image) })),
     ),
     storeShowcase: await Promise.all(
-      (data.storeShowcase ?? []).map(async item => ({ ...item, imageUrl: await resolveImage(item.imageUrl) })),
+      (data.storeShowcase ?? []).map(async (item, index) => {
+        const fallback = (DEFAULT_DATA.storeShowcase ?? []).find(defaultItem => defaultItem.id === item.id)
+          ?? DEFAULT_DATA.storeShowcase?.[index];
+        return { ...item, imageUrl: await resolveImage(item.imageUrl || fallback?.imageUrl) };
+      }),
     ),
     agriStoreProducts: await Promise.all(
-      (data.agriStoreProducts ?? []).map(async product => ({ ...product, image: await resolveImage(product.image) })),
+      (data.agriStoreProducts ?? []).map(async product => {
+        const fallback = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.id === product.id)
+          ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.category === product.category);
+        return { ...product, image: await resolveImage(product.image || fallback?.image) };
+      }),
     ),
   };
 

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { SyntheticEvent, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, Leaf, MapPin, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { AgriStoreCategory, AgriStoreProduct, QuoteItem, submitQuote } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, DEFAULT_DATA, QuoteItem, submitQuote } from '@/lib/storage';
 import { toast } from 'sonner';
 import gardeningToolIcon from '@/assets/store-icons/gardening-tool.png';
 import seedIcon from '@/assets/store-icons/seed.png';
@@ -23,6 +23,17 @@ const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string 
   { id: 'seedling-supplies', ar: 'مستلزمات تشتيل', en: 'Seedling Supplies', icon: seedlingSuppliesIcon },
   { id: 'pots', ar: 'قوار', en: 'Pots', icon: potIcon },
 ];
+
+function fallbackProductImage(product: AgriStoreProduct): string {
+  return DEFAULT_DATA.agriStoreProducts?.find(item => item.id === product.id)?.image
+    ?? DEFAULT_DATA.agriStoreProducts?.find(item => item.category === product.category)?.image
+    ?? '/store-1.jpg';
+}
+
+function useFallbackImage(event: SyntheticEvent<HTMLImageElement>, fallback: string) {
+  event.currentTarget.onerror = null;
+  event.currentTarget.src = fallback;
+}
 
 export default function AgriStorePage() {
   const { lang, siteData } = useApp();
@@ -125,7 +136,12 @@ export default function AgriStorePage() {
           <article className="overflow-hidden rounded-[2rem] border border-[#d7e7de] bg-white shadow-xl">
             <div className="grid md:grid-cols-2">
               <div className="aspect-square md:aspect-auto md:min-h-[460px] bg-[#edf6f0]">
-                <img src={detailProduct.image} alt={isAr ? detailProduct.nameAr : detailProduct.nameEn} className="w-full h-full object-cover" />
+                <img
+                  src={detailProduct.image || fallbackProductImage(detailProduct)}
+                  onError={event => useFallbackImage(event, fallbackProductImage(detailProduct))}
+                  alt={isAr ? detailProduct.nameAr : detailProduct.nameEn}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="flex flex-col justify-center p-6 sm:p-10">
                 <p className="text-sm font-bold text-[#5c7b6b] arabic">{categories.find(item => item.id === detailProduct.category)?.[isAr ? 'ar' : 'en']}</p>
@@ -193,7 +209,12 @@ export default function AgriStorePage() {
                <article key={product.id} className="group flex h-full flex-col rounded-2xl overflow-hidden border border-[#d7e7de] bg-white shadow-sm hover:-translate-y-1 hover:shadow-xl transition-all">
                  <button onClick={() => navigate(`/agri-store/product/${encodeURIComponent(product.id)}`)} className="block w-full flex-1 text-start">
                    <div className="aspect-square overflow-hidden bg-[#edf6f0]">
-                     <img src={product.image} alt={isAr ? product.nameAr : product.nameEn} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img
+                        src={product.image || fallbackProductImage(product)}
+                        onError={event => useFallbackImage(event, fallbackProductImage(product))}
+                        alt={isAr ? product.nameAr : product.nameEn}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
                   </div>
                    <div className="p-5">
                     <h3 className="font-bold arabic text-base">{isAr ? product.nameAr : product.nameEn}</h3>
@@ -221,7 +242,12 @@ export default function AgriStorePage() {
                 <>
                   <div className="space-y-2">
                     {cart.map(line => <div key={line.product.id} className="flex items-center gap-3 border-b border-border pb-2">
-                       <img src={line.product.image} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                       <img
+                         src={line.product.image || fallbackProductImage(line.product)}
+                         onError={event => useFallbackImage(event, fallbackProductImage(line.product))}
+                         alt=""
+                         className="w-14 h-14 rounded-xl object-cover shrink-0"
+                       />
                        <div className="flex-1 min-w-0"><p className="font-bold arabic truncate">{isAr ? line.product.nameAr : line.product.nameEn}</p><p className="text-xs text-muted-foreground arabic">{line.product.price > 0 ? `${(line.product.price * line.quantity).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p></div>
                       <div className="flex items-center gap-1"><button onClick={() => updateQuantity(line.product.id, -1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Minus className="w-3 h-3" /></button><span className="w-6 text-center">{line.quantity}</span><button onClick={() => updateQuantity(line.product.id, 1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Plus className="w-3 h-3" /></button></div>
                       <button onClick={() => updateQuantity(line.product.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>

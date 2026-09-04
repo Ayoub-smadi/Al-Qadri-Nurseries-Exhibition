@@ -241,6 +241,7 @@ app.get("/api/site-data", async (_req, res) => {
   await dbReady;
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
+    res.setHeader("Cache-Control", "no-store");
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
     res.json({ data: await normalizeStoredBlobReferences(rows.rows[0].data) });
   } catch {
