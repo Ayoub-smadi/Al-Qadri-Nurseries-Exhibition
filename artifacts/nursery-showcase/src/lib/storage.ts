@@ -742,9 +742,9 @@ export async function uploadImage(file: File): Promise<string> {
 }
 
 /**
- * Move image references that were saved before Blob storage was enabled
+ * Move image references that were saved before Neon image storage was enabled
  * (data URLs and bundled/public paths) into the persistent image endpoint.
- * Existing /api/images references and external URLs are left untouched.
+ * Existing /api/images references and browser-local blob URLs are left untouched.
  */
 export async function migrateSiteDataImages(data: SiteData): Promise<{ data: SiteData; changed: boolean }> {
   let changed = false;
