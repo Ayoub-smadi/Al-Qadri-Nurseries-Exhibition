@@ -249,7 +249,8 @@ function isStoredImage(value: string | undefined): boolean {
 }
 
 function restoreBackupImage(current: string | undefined, backup: string | undefined): string {
-  const currentImage = normalizeImageReference(current);
+  const currentHasMultipleImages = (current?.match(/\/api\/images\/[^/]+/g) ?? []).length > 1;
+  const currentImage = currentHasMultipleImages ? "" : normalizeImageReference(current);
   const backupImage = normalizeImageReference(backup);
   if (isStoredImage(currentImage)) return currentImage;
   if (isStoredImage(backupImage)) return backupImage;
