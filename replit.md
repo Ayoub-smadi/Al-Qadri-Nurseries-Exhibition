@@ -14,7 +14,7 @@ A pnpm monorepo for the Al-Qadri Agricultural Establishment (مؤسسة ومشا
 | Nursery website | `pnpm --filter @workspace/nursery-showcase run dev` | 5000 |
 | API server | `pnpm --filter @workspace/api-server run dev` | 8080 |
 
-The API server requires `DATABASE_URL` (PostgreSQL), `ADMIN_SETUP_SECRET`, and `SESSION_SECRET` (already set as a secret).
+The API server uses `NEON_DATABASE_URL` when provided, otherwise `DATABASE_URL`, plus `ADMIN_SETUP_SECRET` and `SESSION_SECRET`. Image bytes are stored in the Neon `images` table; site records store only `/api/images/:id` references.
 
 ## Key pages (nursery-showcase)
 - `/` — Gallery / home

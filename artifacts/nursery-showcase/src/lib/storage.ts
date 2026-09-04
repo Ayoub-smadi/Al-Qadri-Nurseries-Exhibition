@@ -754,7 +754,7 @@ export async function migrateSiteDataImages(data: SiteData): Promise<{ data: Sit
     const original = value ?? "";
     const source = normalizeImageReference(original);
     if (source !== original) changed = true;
-    if (!source || source.startsWith("/api/images/") || /^https?:\/\//i.test(source) || /^blob:/i.test(source)) {
+    if (!source || source.startsWith("/api/images/") || /^blob:/i.test(source)) {
       return Promise.resolve(source);
     }
     const cached = resolved.get(source);
@@ -764,6 +764,11 @@ export async function migrateSiteDataImages(data: SiteData): Promise<{ data: Sit
       try {
         if (/^data:image\//i.test(source)) {
           const url = await uploadImageBase64(source);
+          changed = true;
+          return url;
+        }
+        if (/^https?:\/\//i.test(source)) {
+          const url = await uploadImageFromUrl(source);
           changed = true;
           return url;
         }

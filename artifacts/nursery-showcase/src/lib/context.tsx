@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages, mergeSiteDataPreservingImages } from '@/lib/storage';
+import { fetchSiteData, persistSiteData, setSessionToken, loadSavedToken, validateToken, SiteData, DEFAULT_DATA, migrateSiteDataImages, migrateAllLegacyImages, mergeSiteDataPreservingImages } from '@/lib/storage';
 import { toast } from 'sonner';
 
 export type Language = 'ar' | 'en';
@@ -64,6 +64,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         } else {
           setSessionToken(null);
         }
+      }
+      if (sessionRestored) {
+        // Move any previously Blob-backed rows into the configured Neon
+        // database before refreshing site data.
+        await migrateAllLegacyImages();
       }
 
       const syncData = async (source: SiteData, cachedSource: SiteData | null = null) => {
