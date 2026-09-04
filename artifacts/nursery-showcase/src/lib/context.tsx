@@ -68,8 +68,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (sessionRestored) {
-        // Migrate legacy rows in the background. A legacy Blob store may be
-        // unavailable, and that must never block the site from loading.
+        // Backfill any legacy image rows in the background without delaying
+        // the first render.
         void migrateAllLegacyImages();
       }
 
@@ -82,7 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (sessionRestored && migrated.changed) {
           const result = await persistSiteData(migrated.data);
           if (result.ok) {
-            console.log('[sync] image references migrated to persistent storage');
+            console.log('[sync] image references migrated to Neon storage');
           } else {
             console.warn('[sync] image migration could not be persisted');
           }
@@ -115,7 +115,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveCache(migrated.data);
       const result = await persistSiteData(migrated.data);
       if (result.ok) {
-        console.log('[sync] image references migrated to persistent storage');
+        console.log('[sync] image references migrated to Neon storage');
       } else {
         console.warn('[sync] image migration could not be persisted');
       }
@@ -142,15 +142,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSiteData = (data: Partial<SiteData>) => {
-    // Build from a ref rather than the render closure. Image uploads resolve
-    // asynchronously, so consecutive edits can otherwise start from stale
-    // siteData and overwrite each other in the database.
+    // Image uploads resolve asynchronously, so compose from the latest ref
+    // rather than a potentially stale render closure.
     const next = { ...siteDataRef.current, ...data };
     siteDataRef.current = next;
     setSiteData(next);
     saveCache(next);
-    // Serialize writes so a slower request from an earlier edit cannot land
-    // after a newer request and restore old logo/icon references.
+    // Serialize full-document writes so a slower earlier upload cannot land
+    // after a newer edit and restore old image references.
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
       .then(async () => {
