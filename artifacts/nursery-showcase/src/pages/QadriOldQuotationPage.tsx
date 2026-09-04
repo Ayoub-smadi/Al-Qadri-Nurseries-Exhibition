@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
-import { createInvoice, InvoiceItem, loadSavedToken, upsertQadriOldQuotation, uploadImageBase64 } from "@/lib/storage";
+import { createInvoice, InvoiceItem, loadSavedToken, upsertQadriOldQuotation, ensureImageStored } from "@/lib/storage";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Item = {
@@ -276,8 +276,7 @@ export default function QadriOldQuotationPage() {
   /** Upload a base64 data-URL to the server and return the /api/images/… URL.
    *  If the value is already a server URL (or empty) it is returned as-is. */
   const ensureServerUrl = async (src: string): Promise<string> => {
-    if (!src || !src.startsWith("data:")) return src;
-    return uploadImageBase64(src);
+    return ensureImageStored(src);
   };
 
   const handleSave = async () => {

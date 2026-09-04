@@ -1315,6 +1315,41 @@ async function migrateEmbeddedQuotationImages(limit = 100) {
   return { migrated, remaining: Number(remaining.rows[0]?.count ?? 0) };
 }
 
+async function migrateEmbeddedJsonImages(value) {
+  if (typeof value === "string") {
+    if (!/^data:image\//i.test(value)) return { value, migrated: 0 };
+    const match = value.match(/^data:([^;]+);base64,(.+)$/s);
+    if (!match) return { value, migrated: 0 };
+    const stored = await saveImageRecord(Buffer.from(match[2], "base64"), match[1]);
+    return { value: stored.url, migrated: 1 };
+  }
+  if (Array.isArray(value)) {
+    const result = await Promise.all(value.map(migrateEmbeddedJsonImages));
+    return { value: result.map(item => item.value), migrated: result.reduce((sum, item) => sum + item.migrated, 0) };
+  }
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(Object.entries(value).map(async ([key, child]) => [key, await migrateEmbeddedJsonImages(child)]));
+    return {
+      value: Object.fromEntries(entries.map(([key, item]) => [key, item.value])),
+      migrated: entries.reduce((sum, [, item]) => sum + item.migrated, 0),
+    };
+  }
+  return { value, migrated: 0 };
+}
+
+async function migrateEmbeddedJsonTable(table, limit = 100) {
+  const rows = await pool.query(`SELECT id, data FROM ${table} LIMIT $1`, [limit]);
+  let migrated = 0;
+  for (const row of rows.rows) {
+    const result = await migrateEmbeddedJsonImages(row.data);
+    if (result.migrated > 0) {
+      await pool.query(`UPDATE ${table} SET data = $2, updated_at = NOW() WHERE id = $1`, [row.id, JSON.stringify(result.value)]);
+      migrated += result.migrated;
+    }
+  }
+  return migrated;
+}
+
 app.post("/api/images/from-url", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { url } = req.body ?? {};
@@ -1416,10 +1451,12 @@ app.post("/api/images/migrate-legacy", async (req, res) => {
     await dbReady;
     const legacy = await migrateLegacyImages();
     const quotations = await migrateEmbeddedQuotationImages();
+    const jsonRecords = await migrateEmbeddedJsonTable("qadri_old_quotations");
     res.json({
-      migrated: legacy.migrated + quotations.migrated,
+      migrated: legacy.migrated + quotations.migrated + jsonRecords,
       remaining: legacy.remaining + quotations.remaining,
       quotationImagesMigrated: quotations.migrated,
+      quotationRecordsMigrated: jsonRecords,
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to migrate legacy images" });
