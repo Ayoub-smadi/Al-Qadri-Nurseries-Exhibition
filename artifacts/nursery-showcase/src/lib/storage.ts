@@ -229,8 +229,12 @@ export const DEFAULT_DATA: SiteData = {
   },
 };
 
-function mergeImageValue(primary: string | undefined, cached: string | undefined): string {
-  return normalizeImageReference(primary) || normalizeImageReference(cached);
+function mergeImageValue(primary: string | undefined, cached: string | undefined, fallback?: string): string {
+  const primaryImage = normalizeImageReference(primary);
+  const cachedImage = normalizeImageReference(cached);
+  const fallbackImage = normalizeImageReference(fallback);
+  if (cachedImage && primaryImage === fallbackImage && cachedImage !== fallbackImage) return cachedImage;
+  return primaryImage || cachedImage || fallbackImage;
 }
 
 function mergeImageArray<T extends { id: string; image?: string }>(primary: T[] | undefined, cached: T[] | undefined): T[] {
@@ -259,14 +263,16 @@ export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteDat
   const sections = primarySections.map(section => {
     const oldSection = cachedSectionsById.get(section.id);
     if (!oldSection) return section;
+    const defaultSection = (DEFAULT_DATA.sections ?? []).find(item => item.id === section.id);
     const oldPhotosById = new Map(oldSection.photos.map(photo => [photo.id, photo]));
     const photos = section.photos.map(photo => {
       const oldPhoto = oldPhotosById.get(photo.id);
       if (!oldPhoto) return photo;
+      const defaultPhoto = defaultSection?.photos.find(item => item.id === photo.id);
       return {
         ...oldPhoto,
         ...photo,
-        image: mergeImageValue(photo.image, oldPhoto.image),
+        image: mergeImageValue(photo.image, oldPhoto.image, defaultPhoto?.image),
         extraImages: (photo.extraImages?.length ? photo.extraImages : oldPhoto.extraImages) ?? [],
       };
     });
@@ -285,8 +291,10 @@ export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteDat
   const products = primaryProducts.map(product => {
     const old = cachedProductsById.get(product.id)
       ?? cachedProducts.find(candidate => candidate.category === product.category);
+    const defaultProduct = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultItem => defaultItem.id === product.id)
+      ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultItem => defaultItem.category === product.category);
     return old
-      ? { ...old, ...product, image: mergeImageValue(product.image, old.image) }
+      ? { ...old, ...product, image: mergeImageValue(product.image, old.image, defaultProduct?.image) }
       : product;
   });
   const presentProducts = new Set(products.map(product => product.id));
@@ -296,7 +304,10 @@ export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteDat
   const cachedShowcaseById = new Map(cachedShowcase.map(item => [item.id, item]));
   const showcase = primaryShowcase.map(item => {
     const old = cachedShowcaseById.get(item.id);
-    return old ? { ...old, ...item, imageUrl: mergeImageValue(item.imageUrl, old.imageUrl) } : item;
+    const defaultItem = (DEFAULT_DATA.storeShowcase ?? []).find(defaultValue => defaultValue.id === item.id);
+    return old
+      ? { ...old, ...item, imageUrl: mergeImageValue(item.imageUrl, old.imageUrl, defaultItem?.imageUrl) }
+      : item;
   });
   const presentShowcase = new Set(showcase.map(item => item.id));
 
@@ -304,7 +315,7 @@ export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteDat
     ...normalizedPrimary,
     logo: {
       ...normalizedPrimary.logo,
-      customUrl: mergeImageValue(normalizedPrimary.logo?.customUrl, normalizedCached.logo?.customUrl),
+      customUrl: mergeImageValue(normalizedPrimary.logo?.customUrl, normalizedCached.logo?.customUrl, DEFAULT_DATA.logo.customUrl),
     },
     announcement: normalizedPrimary.announcement
       ? {
@@ -474,7 +485,23 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           featuredVideo: p.featuredVideo ?? DEFAULT_DATA.featuredVideo,
           featuredMode: p.featuredMode ?? DEFAULT_DATA.featuredMode,
           searchNote: p.searchNote ?? DEFAULT_DATA.searchNote,
-          sections: p.sections?.length ? p.sections : DEFAULT_DATA.sections,
+           sections: (p.sections?.length ? p.sections : DEFAULT_DATA.sections).map(section => {
+             const fallbackSection = (DEFAULT_DATA.sections ?? []).find(defaultSection => defaultSection.id === section.id);
+             const photos = section.photos?.length ? section.photos : (fallbackSection?.photos ?? []);
+             return {
+               ...fallbackSection,
+               ...section,
+               photos: photos.map(photo => {
+                 const fallbackPhoto = fallbackSection?.photos.find(defaultPhoto => defaultPhoto.id === photo.id);
+                 return {
+                   ...fallbackPhoto,
+                   ...photo,
+                   image: photo.image?.trim() || fallbackPhoto?.image || "",
+                   extraImages: photo.extraImages?.length ? photo.extraImages : (fallbackPhoto?.extraImages ?? []),
+                 };
+               }),
+             };
+           }),
           branches: p.branches ?? DEFAULT_DATA.branches,
           socialLinks: p.socialLinks ?? DEFAULT_DATA.socialLinks,
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,

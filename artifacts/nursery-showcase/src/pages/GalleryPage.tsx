@@ -26,6 +26,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 /* ── utils ─────────────────────────────────────────────── */
 function uid() { return `id-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
+function defaultPhotoImage(photo: Photo): string {
+  return DEFAULT_DATA.sections
+    .flatMap(section => section.photos)
+    .find(item => item.id === photo.id)?.image
+    ?? '/nursery-bg.jpg';
+}
+
+function handleImageError(event: React.SyntheticEvent<HTMLImageElement>, fallback: string) {
+  event.currentTarget.onerror = null;
+  event.currentTarget.src = fallback;
+}
+
 function playNotificationSound() {
   try {
     const ctx = new AudioContext();
@@ -1304,7 +1316,12 @@ export default function GalleryPage() {
           <div className="flex justify-center mb-4">
             {siteData.logo.customUrl ? (
               <div className="relative group/logo inline-block">
-                <img src={siteData.logo.customUrl} alt="logo" className="w-28 h-auto object-contain drop-shadow-md" />
+                <img
+                  src={siteData.logo.customUrl || DEFAULT_DATA.logo.customUrl}
+                  onError={event => handleImageError(event, DEFAULT_DATA.logo.customUrl)}
+                  alt="logo"
+                  className="w-28 h-auto object-contain drop-shadow-md"
+                />
                 {isAdmin && (
                   <FileUploadBtn onFile={url => updateSiteData({ logo: { customUrl: url } })}>
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/logo:opacity-100 transition-opacity flex items-center justify-center cursor-pointer rounded-lg">
@@ -1383,7 +1400,8 @@ export default function GalleryPage() {
                       {/* Circle — ring-offset-transparent so no white gap */}
                       <div className="w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden ring-[3px] ring-white/70 ring-offset-4 ring-offset-transparent shadow-[0_0_40px_rgba(0,0,0,0.55)]">
                         <img
-                          src={allPhotos[safeIdx] || '/owner.png'}
+                           src={allPhotos[safeIdx] || '/nursery-owner-bg.jpg'}
+                           onError={event => handleImageError(event, '/nursery-owner-bg.jpg')}
                           alt="مهندس ثامر القادري"
                           className="w-full h-full object-cover object-top scale-105 transition-all duration-500"
                         />
@@ -1410,7 +1428,12 @@ export default function GalleryPage() {
                               onClick={() => setOwnerPhotoIdx(idx)}
                               className={`w-9 h-9 rounded-full overflow-hidden ring-2 transition-all ${safeIdx === idx ? 'ring-white scale-110 shadow-md' : 'ring-white/30 opacity-60 hover:opacity-100'}`}
                             >
-                              <img src={ph} alt="" className="w-full h-full object-cover object-top" />
+                               <img
+                                 src={ph}
+                                 onError={event => handleImageError(event, '/nursery-owner-bg.jpg')}
+                                 alt=""
+                                 className="w-full h-full object-cover object-top"
+                               />
                             </button>
                             {isAdmin && (
                               <button
@@ -2947,7 +2970,8 @@ function PlantCard({ photo, lang, isAdmin, onEdit, onDelete, onOpenLightbox, onI
       )}
 
       {/* image */}
-      <img src={allImages[safeIdx] || photo.image}
+       <img src={allImages[safeIdx] || photo.image || defaultPhotoImage(photo)}
+         onError={event => handleImageError(event, defaultPhotoImage(photo))}
         alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 
@@ -3065,7 +3089,8 @@ function PlantLightbox({ photo, lang, onClose }: { photo: Photo; lang: string; o
 
         {/* image side */}
         <div className="md:w-[65%] aspect-[4/5] md:aspect-auto md:max-h-[92vh] bg-muted shrink-0 relative">
-          <img src={allImages[safeIdx] || photo.image}
+           <img src={allImages[safeIdx] || photo.image || defaultPhotoImage(photo)}
+             onError={event => handleImageError(event, defaultPhotoImage(photo))}
             alt={isAr ? photo.nameAr : (photo.nameEn || photo.nameAr)}
             className="w-full h-full object-contain transition-opacity duration-300" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
@@ -3393,7 +3418,8 @@ function StoreShowcaseSection({ items, isAr, isAdmin, onUpdate, onOpenStore }: {
                   }}
                 >
                   <img
-                    src={item.imageUrl}
+                    src={item.imageUrl || (DEFAULT_DATA.storeShowcase ?? []).find(defaultItem => defaultItem.id === item.id)?.imageUrl || '/store-1.jpg'}
+                    onError={event => handleImageError(event, (DEFAULT_DATA.storeShowcase ?? []).find(defaultItem => defaultItem.id === item.id)?.imageUrl || '/store-1.jpg')}
                     alt={isAr ? item.captionAr : item.captionEn}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
@@ -3630,7 +3656,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                 {displayed.length === 3 ? (
                   <>
                     <div className="md:col-span-3 relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                      <img src={displayed[0].image} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
+                       <img src={displayed[0].image || '/nursery-bg.jpg'} onError={event => handleImageError(event, '/nursery-bg.jpg')} alt={isAr ? displayed[0].titleAr : displayed[0].titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                       {(displayed[0].titleAr || displayed[0].titleEn) && (
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-5 pt-10 pb-4">
                           <p className="text-white font-bold arabic text-lg drop-shadow">{isAr ? displayed[0].titleAr : (displayed[0].titleEn || displayed[0].titleAr)}</p>
@@ -3646,7 +3672,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                     <div className="md:col-span-2 flex flex-col gap-4">
                       {[displayed[1], displayed[2]].map(img => (
                         <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg flex-1 aspect-[4/3] md:aspect-auto">
-                          <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
+                           <img src={img.image || '/nursery-bg.jpg'} onError={event => handleImageError(event, '/nursery-bg.jpg')} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                           {(img.titleAr || img.titleEn) && (
                             <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
                               <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>
@@ -3665,7 +3691,7 @@ function FeaturedImagesSection({ images, video, mode, isAr, isAdmin, onUpdate, o
                 ) : (
                   displayed.map(img => (
                     <div key={img.id} className="relative group rounded-2xl overflow-hidden shadow-lg aspect-[4/3]">
-                      <img src={img.image} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
+                      <img src={img.image || '/nursery-bg.jpg'} onError={event => handleImageError(event, '/nursery-bg.jpg')} alt={isAr ? img.titleAr : img.titleEn} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                       {(img.titleAr || img.titleEn) && (
                         <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-4 pt-8 pb-3">
                           <p className="text-white font-bold arabic text-base drop-shadow">{isAr ? img.titleAr : (img.titleEn || img.titleAr)}</p>

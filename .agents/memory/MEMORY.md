@@ -2,5 +2,6 @@
 - [Imported pnpm workspaces](imported-workspace-setup.md) — imported workspaces may need a lockfile install before their configured workflows can start.
 - [Git synchronization](git-synchronization.md) — automatic sync can leave an in-progress rebase; inspect status and remote alignment before creating or pushing a commit.
 - [External image storage](external-image-storage.md) — keep image bytes in Vercel Blob and only hashes/URLs in Neon; never restore Base64 fallback.
+- [Private Blob image references](private-blob-image-references.md) — browser-facing data must rewrite legacy private Blob URLs to API image endpoints, even without URL metadata rows.
 - [Admin record sync](admin-record-sync.md) — admin-only record routes must exist in both the local API and the Vercel serverless entrypoint.
 - [Site data cache](site-data-cache.md) — site-data reads must bypass browser revalidation so stale 304 responses cannot hide updated images.
