@@ -16,7 +16,6 @@
     "node": ">=22.x"
   },
   "dependencies": {
-    "@vercel/blob": "2.3.1",
     "cors": "^2",
     "express": "^5",
     "pg": "^8.20.0"
