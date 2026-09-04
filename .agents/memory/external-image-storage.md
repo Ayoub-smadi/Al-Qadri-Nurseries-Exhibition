@@ -1,10 +1,10 @@
 ---
-name: Neon image storage
-description: Current project decision for persistent site and quotation images.
+name: External image storage
+description: Durable storage decision for quotation and document images.
 ---
 
-Image bytes are stored in the Neon `images` table; site and quotation JSON stores only short `/api/images/:id` references.
+Image bytes belong in Neon PostgreSQL (`BYTEA`); the API stores the content hash, MIME type, and size alongside each image and serves it through `/api/images/:id`.
 
-**Why:** the owner explicitly chose the paid Neon PostgreSQL database as the source of truth and wants image records to survive across devices without browser/localStorage dependence.
+**Why:** the product owner explicitly requires one storage system and does not want Blob; Neon is the source of truth for image persistence.
 
-**How to apply:** deduplicate uploads by SHA-256, keep Base64 payloads out of `site_config`, serve image bytes through the API, and use the matching legacy Blob token only for the one-time migration of old private Blob rows.
+**How to apply:** deduplicate by SHA-256, write the binary buffer to `images.data_bytes`, keep bounded legacy Base64 backfill support, and return the application image endpoint to browsers. Do not add a Blob dependency or require a Blob token.
