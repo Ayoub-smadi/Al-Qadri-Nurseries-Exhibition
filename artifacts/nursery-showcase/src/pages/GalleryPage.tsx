@@ -1028,52 +1028,53 @@ export default function GalleryPage() {
       setPhotoUrlLoading(false);
     }
     const photo: Photo = { id: uid(), image: finalUrl, nameAr: photoNameAr, nameEn: photoNameEn, descriptionAr: photoDescAr, descriptionEn: photoDescEn };
-    updateSiteData({ sections: siteData.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) });
+    updateSiteData(current => ({ sections: current.sections.map(s => s.id === addPhotoSectionId ? { ...s, photos: [...s.photos, photo] } : s) }));
     setPhotoUrl(''); setPhotoNameAr(''); setPhotoNameEn(''); setPhotoDescAr(''); setPhotoDescEn(''); setAddPhotoSectionId(null);
   };
 
   const handleDeletePhoto = (sectionId: string, photoId: string) => {
     if (!confirm(isAr ? 'حذف الصورة؟' : 'Delete this photo?')) return;
-    updateSiteData({ sections: siteData.sections.map(s => s.id === sectionId ? { ...s, photos: s.photos.filter(p => p.id !== photoId) } : s) });
+    updateSiteData(current => ({ sections: current.sections.map(s => s.id === sectionId ? { ...s, photos: s.photos.filter(p => p.id !== photoId) } : s) }));
   };
 
   const handleDeleteSection = (id: string) => {
     if (!confirm(isAr ? 'حذف القسم وجميع صوره؟' : 'Delete this section and all photos?')) return;
-    updateSiteData({ sections: siteData.sections.filter(s => s.id !== id) });
+    updateSiteData(current => ({ sections: current.sections.filter(s => s.id !== id) }));
   };
 
   const handleMoveSection = (id: string, dir: 'up' | 'down') => {
-    const idx = siteData.sections.findIndex(s => s.id === id);
-    if (dir === 'up' && idx === 0) return;
-    if (dir === 'down' && idx === siteData.sections.length - 1) return;
-    const next = [...siteData.sections];
-    const swap = dir === 'up' ? idx - 1 : idx + 1;
-    [next[idx], next[swap]] = [next[swap], next[idx]];
-    updateSiteData({ sections: next });
+    updateSiteData(current => {
+      const idx = current.sections.findIndex(s => s.id === id);
+      if (idx < 0 || (dir === 'up' && idx === 0) || (dir === 'down' && idx === current.sections.length - 1)) return {};
+      const next = [...current.sections];
+      const swap = dir === 'up' ? idx - 1 : idx + 1;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return { sections: next };
+    });
   };
 
   const handleReorderPhotos = (sectionId: string, fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
-    updateSiteData({
-      sections: siteData.sections.map(s => {
+    updateSiteData(current => ({
+      sections: current.sections.map(s => {
         if (s.id !== sectionId) return s;
         const photos = [...s.photos];
         const [moved] = photos.splice(fromIdx, 1);
         photos.splice(toIdx, 0, moved);
         return { ...s, photos };
       }),
-    });
+    }));
   };
 
   const handleQuickImageUpload = (sectionId: string, photo: Photo, url: string) => {
-    updateSiteData({
-      sections: siteData.sections.map(s =>
+    updateSiteData(current => ({
+      sections: current.sections.map(s =>
         s.id !== sectionId ? s : {
           ...s,
           photos: s.photos.map(p => p.id !== photo.id ? p : { ...p, image: url }),
         }
       ),
-    });
+    }));
     toast.success('تم تحديث الصورة');
   };
 
@@ -1111,13 +1112,13 @@ export default function GalleryPage() {
       descriptionEn: editPhotoDescEn,
       extraImages: editPhotoExtraImages,
     };
-    updateSiteData({
-      sections: siteData.sections.map(s =>
+    updateSiteData(current => ({
+      sections: current.sections.map(s =>
         s.id === editPhotoTarget.sectionId
           ? { ...s, photos: s.photos.map(p => p.id === updated.id ? updated : p) }
           : s
       ),
-    });
+    }));
     setEditPhotoTarget(null);
     toast.success(isAr ? 'تم حفظ التعديلات' : 'Changes saved');
   };

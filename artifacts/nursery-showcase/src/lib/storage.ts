@@ -6,7 +6,6 @@ import plant5 from "@/assets/images/plant-5.png";
 import plant6 from "@/assets/images/plant-6.png";
 import plant7 from "@/assets/images/plant-7.png";
 import plant8 from "@/assets/images/plant-8.png";
-import backupPayload from "../../../../attached_assets/alqadri-backup-2026-08-19_1788530356460.json";
 
 export interface Photo {
   id: string;
@@ -242,176 +241,15 @@ function mergeImageArray<T extends { id: string; image?: string }>(primary: T[] 
   return [...merged, ...(cached ?? []).filter(item => !present.has(item.id))];
 }
 
-const BACKUP_DATA = (backupPayload as { siteData?: SiteData }).siteData;
-
-function isStoredImage(value: string | undefined): boolean {
-  return !!value && (value.startsWith("/api/images/") || /^data:image\//i.test(value) || /^https?:\/\//i.test(value));
-}
-
-function restoreBackupImage(current: string | undefined, backup: string | undefined): string {
-  const currentHasMultipleImages = (current?.match(/\/api\/images\/[^/]+/g) ?? []).length > 1;
-  const currentImage = currentHasMultipleImages ? "" : normalizeImageReference(current);
-  const backupImage = normalizeImageReference(backup);
-  if (isStoredImage(currentImage)) return currentImage;
-  if (isStoredImage(backupImage)) return backupImage;
-  return currentImage || backupImage;
-}
-
-/** Restore the original image references shipped in the project backup without
- * overwriting images that are already stored in Neon or supplied by a user. */
-function restoreBackupImages(data: SiteData): SiteData {
-  if (!BACKUP_DATA) return data;
-  const backup = BACKUP_DATA;
-  const backupSections = new Map((backup.sections ?? []).map(section => [section.id, section]));
-  const backupProducts = new Map((backup.agriStoreProducts ?? []).map(product => [product.id, product]));
-  const backupShowcase = new Map((backup.storeShowcase ?? []).map(item => [item.id, item]));
-  return {
-    ...data,
-    logo: { ...data.logo, customUrl: restoreBackupImage(data.logo?.customUrl, backup.logo?.customUrl) },
-    owner: {
-      ...data.owner,
-      photo: restoreBackupImage(data.owner?.photo, backup.owner?.photo),
-      bgImage: restoreBackupImage(data.owner?.bgImage, backup.owner?.bgImage),
-      extraPhotos: (data.owner?.extraPhotos?.length ? data.owner.extraPhotos : (backup.owner?.extraPhotos ?? []))
-        .map((image, index) => restoreBackupImage(image, backup.owner?.extraPhotos?.[index])),
-    },
-    featuredImages: (data.featuredImages ?? []).map(image => {
-      const old = backup.featuredImages?.find(item => item.id === image.id);
-      return { ...image, image: restoreBackupImage(image.image, old?.image) };
-    }),
-    sections: (data.sections ?? []).map(section => {
-      const oldSection = backupSections.get(section.id);
-      return {
-        ...section,
-        photos: (section.photos ?? []).map(photo => {
-          const old = oldSection?.photos?.find(item => item.id === photo.id);
-          return {
-            ...photo,
-            image: restoreBackupImage(photo.image, old?.image),
-            extraImages: (photo.extraImages?.length ? photo.extraImages : (old?.extraImages ?? []))
-              .map((image, index) => restoreBackupImage(image, old?.extraImages?.[index])),
-          };
-        }),
-      };
-    }),
-    branches: (data.branches ?? []).map(branch => {
-      const old = backup.branches?.find(item => item.id === branch.id);
-      return { ...branch, image: restoreBackupImage(branch.image, old?.image) };
-    }),
-    storeShowcase: (data.storeShowcase ?? []).map(item => ({
-      ...item,
-      imageUrl: restoreBackupImage(item.imageUrl, backupShowcase.get(item.id)?.imageUrl),
-    })),
-    agriStoreProducts: (data.agriStoreProducts ?? []).map(product => ({
-      ...product,
-      image: restoreBackupImage(product.image, backupProducts.get(product.id)?.image),
-    })),
-  };
-}
-
 /**
  * Keep image-bearing data from the browser cache when a central record is
  * partial. Older records can contain only text/settings, and replacing the
  * complete cache with those partial arrays makes the gallery appear empty.
  */
-export function mergeSiteDataPreservingImages(primary: SiteData, cached: SiteData | null): SiteData {
-  const normalizedPrimary = restoreBackupImages(normalizeImageReferences(primary));
-  if (!cached) return normalizedPrimary;
-  const normalizedCached = normalizeImageReferences(cached);
-
-  const cachedSections = normalizedCached.sections ?? [];
-  const primarySections = normalizedPrimary.sections ?? [];
-  const cachedSectionsById = new Map(cachedSections.map(section => [section.id, section]));
-  const sections = primarySections.map(section => {
-    const oldSection = cachedSectionsById.get(section.id);
-    if (!oldSection) return section;
-    const defaultSection = (DEFAULT_DATA.sections ?? []).find(item => item.id === section.id);
-    const oldPhotosById = new Map(oldSection.photos.map(photo => [photo.id, photo]));
-    const photos = section.photos.map(photo => {
-      const oldPhoto = oldPhotosById.get(photo.id);
-      if (!oldPhoto) return photo;
-      const defaultPhoto = defaultSection?.photos.find(item => item.id === photo.id);
-      return {
-        ...oldPhoto,
-        ...photo,
-        image: mergeImageValue(photo.image, oldPhoto.image, defaultPhoto?.image),
-        extraImages: (photo.extraImages?.length ? photo.extraImages : oldPhoto.extraImages) ?? [],
-      };
-    });
-    const present = new Set(photos.map(photo => photo.id));
-    return {
-      ...oldSection,
-      ...section,
-      photos: [...photos, ...oldSection.photos.filter(photo => !present.has(photo.id))],
-    };
-  });
-  const presentSections = new Set(sections.map(section => section.id));
-
-  const cachedProducts = normalizedCached.agriStoreProducts ?? [];
-  const primaryProducts = normalizedPrimary.agriStoreProducts ?? [];
-  const cachedProductsById = new Map(cachedProducts.map(product => [product.id, product]));
-  const products = primaryProducts.map(product => {
-    const old = cachedProductsById.get(product.id)
-      ?? cachedProducts.find(candidate => candidate.category === product.category);
-    const defaultProduct = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultItem => defaultItem.id === product.id)
-      ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultItem => defaultItem.category === product.category);
-    return old
-      ? { ...old, ...product, image: mergeImageValue(product.image, old.image, defaultProduct?.image) }
-      : product;
-  });
-  const presentProducts = new Set(products.map(product => product.id));
-
-  const cachedShowcase = normalizedCached.storeShowcase ?? [];
-  const primaryShowcase = normalizedPrimary.storeShowcase ?? [];
-  const cachedShowcaseById = new Map(cachedShowcase.map(item => [item.id, item]));
-  const showcase = primaryShowcase.map(item => {
-    const old = cachedShowcaseById.get(item.id);
-    const defaultItem = (DEFAULT_DATA.storeShowcase ?? []).find(defaultValue => defaultValue.id === item.id);
-    return old
-      ? { ...old, ...item, imageUrl: mergeImageValue(item.imageUrl, old.imageUrl, defaultItem?.imageUrl) }
-      : item;
-  });
-  const presentShowcase = new Set(showcase.map(item => item.id));
-
-  return {
-    ...normalizedPrimary,
-    logo: {
-      ...normalizedPrimary.logo,
-      customUrl: mergeImageValue(normalizedPrimary.logo?.customUrl, normalizedCached.logo?.customUrl, DEFAULT_DATA.logo.customUrl),
-    },
-    announcement: normalizedPrimary.announcement
-      ? {
-          ...normalizedPrimary.announcement,
-          imageUrl: mergeImageValue(normalizedPrimary.announcement.imageUrl, normalizedCached.announcement?.imageUrl),
-        }
-      : normalizedCached.announcement,
-    newsTicker: normalizedPrimary.newsTicker
-      ? {
-          ...normalizedPrimary.newsTicker,
-          logoUrl: mergeImageValue(normalizedPrimary.newsTicker.logoUrl, normalizedCached.newsTicker?.logoUrl),
-        }
-      : normalizedCached.newsTicker,
-    owner: {
-      ...normalizedPrimary.owner,
-      photo: mergeImageValue(normalizedPrimary.owner?.photo, normalizedCached.owner?.photo),
-      bgImage: mergeImageValue(normalizedPrimary.owner?.bgImage, normalizedCached.owner?.bgImage),
-      extraPhotos: normalizedPrimary.owner?.extraPhotos?.length ? normalizedPrimary.owner.extraPhotos : (normalizedCached.owner?.extraPhotos ?? []),
-    },
-    featuredImages: mergeImageArray(normalizedPrimary.featuredImages, normalizedCached.featuredImages),
-    sections: [
-      ...sections,
-      ...cachedSections.filter(section => !presentSections.has(section.id)),
-    ],
-    branches: mergeImageArray(normalizedPrimary.branches, normalizedCached.branches),
-    storeShowcase: [
-      ...showcase,
-      ...cachedShowcase.filter(item => !presentShowcase.has(item.id)),
-    ],
-    agriStoreProducts: [
-      ...products,
-      ...cachedProducts.filter(product => !presentProducts.has(product.id)),
-    ],
-  };
+export function mergeSiteDataPreservingImages(primary: SiteData, _cached: SiteData | null): SiteData {
+  // Neon is authoritative. Neither browser cache nor a bundled backup is
+  // merged back into arrays: doing so resurrects photos that an admin deleted.
+  return normalizeImageReferences(primary);
 }
 
 function normalizeImageReferences<T>(value: T): T {
@@ -551,9 +389,9 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           featuredVideo: p.featuredVideo ?? DEFAULT_DATA.featuredVideo,
           featuredMode: p.featuredMode ?? DEFAULT_DATA.featuredMode,
           searchNote: p.searchNote ?? DEFAULT_DATA.searchNote,
-           sections: (p.sections?.length ? p.sections : DEFAULT_DATA.sections).map(section => {
+           sections: (p.sections ?? DEFAULT_DATA.sections).map(section => {
              const fallbackSection = (DEFAULT_DATA.sections ?? []).find(defaultSection => defaultSection.id === section.id);
-             const photos = section.photos?.length ? section.photos : (fallbackSection?.photos ?? []);
+             const photos = section.photos ?? (fallbackSection?.photos ?? []);
              return {
                ...fallbackSection,
                ...section,
@@ -563,7 +401,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
                    ...fallbackPhoto,
                    ...photo,
                    image: photo.image?.trim() || fallbackPhoto?.image || "",
-                   extraImages: photo.extraImages?.length ? photo.extraImages : (fallbackPhoto?.extraImages ?? []),
+                   extraImages: photo.extraImages ?? (fallbackPhoto?.extraImages ?? []),
                  };
                }),
              };
@@ -573,7 +411,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           shippingZones: p.shippingZones?.length ? p.shippingZones : DEFAULT_DATA.shippingZones,
            storeShowcase: (() => {
              const saved = Array.isArray(p.storeShowcase) ? p.storeShowcase : [];
-             if (saved.length === 0) return DEFAULT_DATA.storeShowcase;
+             if (p.storeShowcase === undefined) return DEFAULT_DATA.storeShowcase;
              return saved.map((item, index) => {
                const fallback = (DEFAULT_DATA.storeShowcase ?? []).find(defaultItem => defaultItem.id === item.id)
                  ?? DEFAULT_DATA.storeShowcase?.[index];
@@ -597,9 +435,9 @@ export async function fetchSiteData(): Promise<SiteData | null> {
           },
           agriStoreProducts: (() => {
             const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
-            const missingDefaults = (DEFAULT_DATA.agriStoreProducts ?? []).filter(
-              fallback => !saved.some(product => product.category === fallback.category),
-            );
+             const missingDefaults = p.agriStoreProducts === undefined
+               ? (DEFAULT_DATA.agriStoreProducts ?? [])
+               : [];
              const normalized = saved.map(product => {
                const fallback = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.id === product.id)
                  ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.category === product.category);
