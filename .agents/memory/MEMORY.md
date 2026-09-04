@@ -6,3 +6,4 @@
 - [Admin record sync](admin-record-sync.md) — admin-only record routes must exist in both the local API and the Vercel serverless entrypoint.
 - [Site data cache](site-data-cache.md) — site-data reads must bypass browser revalidation so stale 304 responses cannot hide updated images.
 - [Async image save ordering](async-image-save-queue.md) — serialize full site-data writes because asynchronous image uploads can otherwise overwrite newer logo or icon edits.
+- [Vercel workspace install](vercel-workspace-install.md) — deploy only the app and API workspace dependency graphs when unrelated workspace packages are unavailable.
