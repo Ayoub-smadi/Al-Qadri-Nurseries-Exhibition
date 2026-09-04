@@ -6908,7 +6908,9 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
 
       // Migrate local-only records to server silently
       const serverIds = new Set(serverRecs.map((r: QadriOldRec) => r.id));
-      const toMigrate = localRecs.filter(r => !serverIds.has(r.id));
+      const toMigrate = serverRecs.length === 0
+        ? localRecs.filter(r => !serverIds.has(r.id))
+        : [];
       if (toMigrate.length > 0) {
         for (const rec of toMigrate) {
           try {
@@ -7063,7 +7065,9 @@ function NoHeaderRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
       if (serverRecs === null || !active) return;
 
       const serverIds = new Set(serverRecs.map((record: NoHeaderRec) => record.id));
-      const localOnly = localRecs.filter(record => !serverIds.has(record.id));
+      const localOnly = serverRecs.length === 0
+        ? localRecs.filter(record => !serverIds.has(record.id))
+        : [];
       for (const localRecord of localOnly) {
         try {
           const resolveImage = async (value: string) => (

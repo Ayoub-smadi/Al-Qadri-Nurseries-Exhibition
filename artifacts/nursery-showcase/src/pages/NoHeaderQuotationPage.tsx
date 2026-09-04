@@ -166,7 +166,12 @@ export default function NoHeaderQuotationPage() {
 
       const localRecords = loadNoHeaderRecords();
       const serverIds = new Set(serverRecords.map((record: { id: string }) => record.id));
-      const localOnly = localRecords.filter((record) => !serverIds.has(record.id));
+      // Migrate the browser archive only when the Neon table is still empty.
+      // Once Neon has records, it is the source of truth and deleted records
+      // must never be recreated from localStorage.
+      const localOnly = serverRecords.length === 0
+        ? localRecords.filter((record) => !serverIds.has(record.id))
+        : [];
 
       for (const localRecord of localOnly) {
         try {

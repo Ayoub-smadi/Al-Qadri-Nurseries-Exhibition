@@ -289,7 +289,12 @@ export default function OfficialDocumentsPage() {
 
       const localRecords = loadDocuments();
       const serverIds = new Set(serverRecords.map((record: OfficialDocumentRecord) => record.id));
-      const localOnly = localRecords.filter((record) => !serverIds.has(record.id));
+      // Only migrate an old browser archive when Neon has never had records.
+      // If Neon already has data, it is authoritative; otherwise a deleted
+      // record lingering in localStorage would be recreated after refresh.
+      const localOnly = serverRecords.length === 0
+        ? localRecords.filter((record) => !serverIds.has(record.id))
+        : [];
 
       // Import records created before central storage was enabled. Uploaded images
       // become permanent /api/images URLs before the JSON record is written.

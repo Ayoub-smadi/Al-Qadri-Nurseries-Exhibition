@@ -292,7 +292,11 @@ export default function ExportInvoicesPage() {
       if (!active || !serverRecords) return;
       const localRecords = loadRecords();
       const serverIds = new Set(serverRecords.map((record) => record.id));
-      const localOnly = localRecords.filter((record) => !serverIds.has(record.id));
+      // Neon is authoritative once it contains any records. Import the old
+      // browser archive only for a brand-new empty Neon table.
+      const localOnly = serverRecords.length === 0
+        ? localRecords.filter((record) => !serverIds.has(record.id))
+        : [];
       for (const localRecord of localOnly) {
         try {
           const prepared = await prepareForServer(localRecord);
