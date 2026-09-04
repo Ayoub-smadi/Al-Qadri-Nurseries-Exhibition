@@ -168,7 +168,7 @@ async function normalizeStoredBlobReferences(value) {
 const app = express();
 app.use(cors({
   origin: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "Pragma"],
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
   credentials: false,
 }));
@@ -254,7 +254,9 @@ app.get("/api/site-data", async (_req, res) => {
   await dbReady;
   try {
     const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
     res.json({ data: await normalizeStoredBlobReferences(rows.rows[0].data) });
   } catch {
@@ -270,14 +272,15 @@ app.put("/api/site-data", async (req, res) => {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
-  if (rejectEmbeddedImageData(res, data)) return;
   try {
+    const normalizedData = await normalizeStoredBlobReferences(data);
+    if (rejectEmbeddedImageData(res, normalizedData)) return;
     await pool.query(
       `INSERT INTO site_config (id, data) VALUES ('main', $1)
        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()`,
-      [JSON.stringify(data)]
+      [JSON.stringify(normalizedData)]
     );
-    res.json({ data });
+    res.json({ data: normalizedData });
   } catch {
     res.status(500).json({ error: "Failed to save site data" });
   }

@@ -224,14 +224,15 @@ router.get("/admin/verify", (req, res) => {
 router.get("/site-data", async (_req, res) => {
   await dbReady;
   try {
-    const rows = await pool.query(`SELECT data, updated_at FROM site_config WHERE id = 'main'`);
-    res.setHeader("Cache-Control", "no-store");
+    const rows = await pool.query(`SELECT data FROM site_config WHERE id = 'main'`);
+    // The client needs the JSON body on every refresh. Do not use ETags or
+    // browser revalidation here: a 304 has no body and can leave an older
+    // cached site record with blank image references.
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     if (rows.rows.length === 0) { res.json({ data: null }); return; }
-    const { data: rawData, updated_at } = rows.rows[0] as { data: unknown; updated_at: string };
-    const data = await normalizeStoredBlobReferences(rawData);
-    const etag = `"${Buffer.from(updated_at ?? '').toString('base64').slice(0, 16)}"`;
-    res.setHeader('ETag', etag);
-    if (_req.headers['if-none-match'] === etag) { res.status(304).end(); return; }
+    const data = await normalizeStoredBlobReferences(rows.rows[0].data);
     res.json({ data });
   } catch {
     res.status(500).json({ error: "Failed to load site data" });
@@ -246,14 +247,17 @@ router.put("/site-data", async (req, res) => {
     res.status(400).json({ error: "Invalid data" });
     return;
   }
-  if (rejectEmbeddedImageData(res, data)) return;
   try {
+    // Convert any stored private Blob URL to the browser-safe image endpoint
+    // before writing, so older clients cannot reintroduce broken references.
+    const normalizedData = await normalizeStoredBlobReferences(data);
+    if (rejectEmbeddedImageData(res, normalizedData)) return;
     await pool.query(
       `INSERT INTO site_config (id, data) VALUES ('main', $1)
        ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()`,
-      [JSON.stringify(data)]
+      [JSON.stringify(normalizedData)]
     );
-    res.json({ data });
+    res.json({ data: normalizedData });
   } catch {
     res.status(500).json({ error: "Failed to save site data" });
   }

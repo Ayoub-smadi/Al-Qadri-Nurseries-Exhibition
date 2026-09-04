@@ -34,7 +34,7 @@ app.use(
 // cross-origin requests from the Replit canvas iframe work correctly.
 app.use(cors({
   origin: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma'],
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   credentials: false,
 }));

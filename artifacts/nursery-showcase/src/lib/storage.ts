@@ -463,6 +463,10 @@ export async function fetchSiteData(): Promise<SiteData | null> {
   try {
     const res = await fetch(`${getApiBase()}/site-data`, {
       cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+      },
     });
     if (res.ok) {
       const json = await res.json();
