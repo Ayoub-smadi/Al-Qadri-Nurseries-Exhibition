@@ -1,8 +1,8 @@
 - [Agricultural store orders](agri-store-orders.md) — preserve product image URLs in order items and calculate shipping only after a configured area is selected.
 - [Imported pnpm workspaces](imported-workspace-setup.md) — imported workspaces may need a lockfile install before their configured workflows can start.
 - [Git synchronization](git-synchronization.md) — automatic sync can leave an in-progress rebase; inspect status and remote alignment before creating or pushing a commit.
-- [External image storage](external-image-storage.md) — keep image bytes in Vercel Blob and only hashes/URLs in Neon; never restore Base64 fallback.
-- [Private Blob image references](private-blob-image-references.md) — browser-facing data must rewrite legacy private Blob URLs to API image endpoints, even without URL metadata rows.
+- [Neon image storage](external-image-storage.md) — image bytes belong in Neon BYTEA with API endpoints and hash-based deduplication; do not restore Blob storage.
+- [Legacy image references](private-blob-image-references.md) — rewrite old external/private image URLs only when matching bytes exist in Neon; never serve Blob directly.
 - [Admin record sync](admin-record-sync.md) — admin-only record routes must exist in both the local API and the Vercel serverless entrypoint.
 - [Site data cache](site-data-cache.md) — site-data reads must bypass browser revalidation so stale 304 responses cannot hide updated images.
 - [Async image save ordering](async-image-save-queue.md) — serialize full site-data writes because asynchronous image uploads can otherwise overwrite newer logo or icon edits.
