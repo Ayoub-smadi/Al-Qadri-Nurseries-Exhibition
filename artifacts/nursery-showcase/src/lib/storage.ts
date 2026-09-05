@@ -434,10 +434,9 @@ export async function fetchSiteData(): Promise<SiteData | null> {
             descriptionEn: p.agriStoreContent?.descriptionEn ?? DEFAULT_DATA.agriStoreContent!.descriptionEn,
           },
           agriStoreProducts: (() => {
+            // The public store must show only products explicitly saved in
+            // Neon. Never repopulate deleted or missing products from defaults.
             const saved = Array.isArray(p.agriStoreProducts) ? p.agriStoreProducts : [];
-             const missingDefaults = p.agriStoreProducts === undefined
-               ? (DEFAULT_DATA.agriStoreProducts ?? [])
-               : [];
              const normalized = saved.map(product => {
                const fallback = (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.id === product.id)
                  ?? (DEFAULT_DATA.agriStoreProducts ?? []).find(defaultProduct => defaultProduct.category === product.category);
@@ -446,7 +445,7 @@ export async function fetchSiteData(): Promise<SiteData | null> {
                  image: product.image?.trim() || fallback?.image || "",
                };
              });
-             return [...normalized, ...missingDefaults];
+             return normalized;
           })(),
            footer: { ...DEFAULT_DATA.footer, ...p.footer },
         }, null);
