@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 const categories: { id: AgriStoreCategory; ar: string }[] = [
   { id: 'tools', ar: 'عدد زراعية' }, { id: 'seeds', ar: 'بذور' }, { id: 'fertilizers', ar: 'أسمدة' },
-  { id: 'pesticides', ar: 'مبيدات' }, { id: 'irrigation', ar: 'شبكات ري' }, { id: 'seedling-supplies', ar: 'مستلزمات تشتيل' }, { id: 'pots', ar: 'قوار' },
+  { id: 'pesticides', ar: 'مبيدات' }, { id: 'irrigation', ar: 'شبكات ري' }, { id: 'seedling-supplies', ar: 'مستلزمات تشتيل' }, { id: 'pots', ar: 'قوار' }, { id: 'garden-decor', ar: 'زينة حدائق' },
 ];
 const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0 });
 

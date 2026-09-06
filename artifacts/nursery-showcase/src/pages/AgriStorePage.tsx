@@ -11,6 +11,7 @@ import pesticideIcon from '@/assets/store-icons/pesticide.png';
 import plantIcon from '@/assets/store-icons/plant.png';
 import seedlingSuppliesIcon from '@/assets/store-icons/seedling-tray.png';
 import potIcon from '@/assets/store-icons/pot.png';
+import gardenDecorIcon from '@/assets/store-icons/garden-decor.png';
 
 type CartLine = { product: AgriStoreProduct; quantity: number };
 
@@ -22,6 +23,7 @@ const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string 
   { id: 'irrigation', ar: 'شبكات ري', en: 'Irrigation', icon: plantIcon },
   { id: 'seedling-supplies', ar: 'مستلزمات تشتيل', en: 'Seedling Supplies', icon: seedlingSuppliesIcon },
   { id: 'pots', ar: 'قوار', en: 'Pots', icon: potIcon },
+  { id: 'garden-decor', ar: 'زينة حدائق', en: 'Garden Decor', icon: gardenDecorIcon },
 ];
 
 function fallbackProductImage(product: AgriStoreProduct): string {
@@ -189,7 +191,7 @@ export default function AgriStorePage() {
            <div className="absolute -top-20 -start-10 h-48 w-48 rounded-full border border-white/10" />
         </section>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-3 mb-8">
           {categories.map(item => (
              <button key={item.id} onClick={() => setCategory(item.id)}
                className={`group relative min-h-[116px] overflow-hidden rounded-2xl border p-3 text-start transition-all ${category === item.id ? 'border-[#004f31] bg-[#004f31] text-white shadow-lg shadow-[#004f31]/15' : 'border-[#d7e7de] bg-white text-[#37634f] hover:-translate-y-1 hover:border-[#004f31] hover:shadow-md'}`}>
