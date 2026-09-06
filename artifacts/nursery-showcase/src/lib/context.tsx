@@ -94,10 +94,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (serverData !== null) {
         // Server has real saved data — use it and update cache
         await syncData(serverData, cached);
-      } else if (sessionRestored) {
-        // Admin session valid but server has no data — sync localStorage cache to DB
-        const localData = loadCache();
-        if (localData) await syncData(localData);
+      } else {
+        // Neon is the only source of truth. Never write the browser cache back
+        // to Neon when the API is empty or temporarily unavailable: doing so
+        // can resurrect products that an admin deleted on another device.
+        // Keep the rest of the cached UI available, but fail closed for the
+        // public store instead of showing products that are not confirmed by Neon.
+        const safeOfflineData = { ...(siteDataRef.current ?? DEFAULT_DATA), agriStoreProducts: [] };
+        siteDataRef.current = safeOfflineData;
+        setSiteData(safeOfflineData);
       }
       setDataLoaded(true);
     }
