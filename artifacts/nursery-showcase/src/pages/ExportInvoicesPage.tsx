@@ -418,10 +418,13 @@ export default function ExportInvoicesPage() {
         const div = document.createElement("div");
         div.textContent = input.value;
         div.style.cssText = [
+          "display:block", "box-sizing:border-box", "height:auto", "overflow:visible",
           "background:transparent", "border:none", "font-family:Cairo,Arial,sans-serif",
           `font-size:${style.fontSize}`, `font-weight:${style.fontWeight}`, `color:${style.color}`,
           `text-align:${style.textAlign}`, "width:100%", "white-space:pre-wrap", "word-break:break-word",
-          `min-height:${style.height}`, `padding:${style.padding}`,
+          "overflow-wrap:anywhere", `line-height:${style.lineHeight}`,
+          `min-height:${input instanceof HTMLTextAreaElement ? "0" : style.height}`,
+          `padding:${style.padding}`,
         ].join(";");
         input.parentNode?.insertBefore(div, input);
         input.style.display = "none";
@@ -631,11 +634,11 @@ export default function ExportInvoicesPage() {
                       <tr key={row.id}>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.totalFils} onChange={(value) => updateRow(row.id, "totalFils", value)} ariaLabel="فلس البند" inputMode="numeric" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.totalDinar} onChange={(value) => updateRow(row.id, "totalDinar", value)} ariaLabel="دينار البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
-                        <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.product} onChange={(value) => updateRow(row.id, "product", value)} ariaLabel="صنف البند" placeholder="الصنف" style={{ textAlign: "right", fontSize: 11 }} /></td>
+                         <td style={{ border: "1px solid #27382e", padding: 4, verticalAlign: "top" }}><EditableText value={row.product} onChange={(value) => updateRow(row.id, "product", value)} ariaLabel="صنف البند" rows={2} style={{ textAlign: "right", fontSize: 11, lineHeight: 1.5, overflowWrap: "anywhere" }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.weight} onChange={(value) => updateRow(row.id, "weight", value)} ariaLabel="وزن البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.quantity} onChange={(value) => updateRow(row.id, "quantity", value)} ariaLabel="كمية البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.origin} onChange={(value) => updateRow(row.id, "origin", value)} ariaLabel="منشأ البند" style={{ textAlign: "center", fontSize: 11 }} /></td>
-                        <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.notes} onChange={(value) => updateRow(row.id, "notes", value)} ariaLabel="ملاحظات البند" style={{ textAlign: "right", fontSize: 11 }} /></td>
+                         <td style={{ border: "1px solid #27382e", padding: 4, verticalAlign: "top" }}><EditableText value={row.notes} onChange={(value) => updateRow(row.id, "notes", value)} ariaLabel="ملاحظات البند" rows={2} style={{ textAlign: "right", fontSize: 11, lineHeight: 1.5, overflowWrap: "anywhere" }} /></td>
                         <td className="export-pdf-hide" style={{ border: "1px solid #27382e", textAlign: "center" }}>
                           <button onClick={() => setDraft((current) => ({ ...current, rows: current.rows.length > 1 ? current.rows.filter((item) => item.id !== row.id) : current.rows }))} className="text-slate-400 hover:text-red-600" title="حذف البند" aria-label="حذف البند"><X className="mx-auto h-3.5 w-3.5" /></button>
                         </td>
