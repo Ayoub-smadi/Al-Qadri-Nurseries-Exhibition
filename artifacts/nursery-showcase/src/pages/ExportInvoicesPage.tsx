@@ -583,6 +583,16 @@ export default function ExportInvoicesPage() {
                 </div>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: 11 }}>
+                   <colgroup>
+                     <col style={{ width: "10%" }} />
+                     <col style={{ width: "10%" }} />
+                     <col style={{ width: "22%" }} />
+                     <col style={{ width: "13%" }} />
+                     <col style={{ width: "10%" }} />
+                     <col style={{ width: "12%" }} />
+                     <col style={{ width: "20%" }} />
+                     <col style={{ width: "3%" }} />
+                   </colgroup>
                   <thead>
                     <tr style={{ background: "#203b2e", color: "#fff" }}>
                       <th colSpan={2} style={{ border: "1px solid #14251c", padding: "7px 4px" }}>
