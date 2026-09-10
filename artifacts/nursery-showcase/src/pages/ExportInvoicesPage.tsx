@@ -455,13 +455,9 @@ export default function ExportInvoicesPage() {
       const imageRatio = canvas.height / canvas.width;
 
       if (fitToSinglePage) {
-        // Keep the entire invoice on one A4 sheet, shrinking by height when
-        // the table grows beyond the normal printable area.
-        const imageWidth = Math.min(pageWidth, pageHeight / imageRatio);
-        const imageHeight = imageWidth * imageRatio;
-        const positionX = (210 - imageWidth) / 2;
-        const positionY = (297 - imageHeight) / 2;
-        pdf.addImage(image, "PNG", positionX, positionY, imageWidth, imageHeight);
+        // Fill the complete A4 sheet so a tall table does not become a narrow
+        // centered image with large empty areas on either side.
+        pdf.addImage(image, "PNG", 0, 0, 210, 297);
       } else {
         const imageHeight = pageWidth * imageRatio;
         let heightLeft = imageHeight;
