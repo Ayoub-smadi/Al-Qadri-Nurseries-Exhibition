@@ -398,7 +398,7 @@ export default function ExportInvoicesPage() {
     reader.readAsDataURL(file);
   };
 
-  const handlePdf = async () => {
+  const handlePdf = async (fitToSinglePage = false) => {
     if (!paperRef.current || pdfing) return;
     setPdfing(true);
     const paper = paperRef.current;
@@ -448,24 +448,36 @@ export default function ExportInvoicesPage() {
         scrollX: 0,
         scrollY: 0,
       });
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const image = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = 190;
       const pageHeight = 277;
-      const imageHeight = (canvas.height * pageWidth) / canvas.width;
-      let heightLeft = imageHeight;
-      let position = 10;
-      pdf.addImage(image, "PNG", 10, position, pageWidth, imageHeight);
-      heightLeft -= pageHeight;
-      while (heightLeft > 0) {
-        position = heightLeft - imageHeight + 10;
-        pdf.addPage();
+      const imageRatio = canvas.height / canvas.width;
+
+      if (fitToSinglePage) {
+        // Keep the entire invoice on one A4 sheet, shrinking by height when
+        // the table grows beyond the normal printable area.
+        const imageWidth = Math.min(pageWidth, pageHeight / imageRatio);
+        const imageHeight = imageWidth * imageRatio;
+        const positionX = (210 - imageWidth) / 2;
+        const positionY = (297 - imageHeight) / 2;
+        pdf.addImage(image, "PNG", positionX, positionY, imageWidth, imageHeight);
+      } else {
+        const imageHeight = pageWidth * imageRatio;
+        let heightLeft = imageHeight;
+        let position = 10;
         pdf.addImage(image, "PNG", 10, position, pageWidth, imageHeight);
         heightLeft -= pageHeight;
+        while (heightLeft > 0) {
+          position = heightLeft - imageHeight + 10;
+          pdf.addPage();
+          pdf.addImage(image, "PNG", 10, position, pageWidth, imageHeight);
+          heightLeft -= pageHeight;
+        }
       }
       const safeNumber = (draft.details.invoiceNumber || "جديد").replace(/[^\u0600-\u06FFa-zA-Z0-9_-]/g, "_");
-      pdf.save(`فاتورة_تصدير_${safeNumber}.pdf`);
-      toast.success("تم تنزيل فاتورة التصدير PDF");
+      pdf.save(`فاتورة_تصدير_${fitToSinglePage ? "صفحة_واحدة_" : ""}${safeNumber}.pdf`);
+      toast.success(fitToSinglePage ? "تم تنزيل الفاتورة في ورقة واحدة" : "تم تنزيل فاتورة التصدير PDF");
     } catch (error) {
       toast.error(`فشل إنشاء PDF: ${(error as Error).message || "خطأ غير معروف"}`);
     } finally {
@@ -502,6 +514,9 @@ export default function ExportInvoicesPage() {
           </Button>
           <Button variant="outline" onClick={() => void handlePdf()} disabled={pdfing} className="gap-2 rounded-xl border-[#d6e0d8] bg-white arabic">
             {pdfing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} PDF
+          </Button>
+          <Button variant="outline" onClick={() => void handlePdf(true)} disabled={pdfing} className="gap-2 rounded-xl border-[#b9d1bf] bg-[#f4faf5] text-[#1c6b46] hover:bg-[#e8f4eb] arabic" title="ضغط كامل الجدول داخل ورقة A4 واحدة">
+            {pdfing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />} PDF صفحة واحدة
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving} className="gap-2 rounded-xl bg-[#1c6b46] text-white hover:bg-[#155437] arabic">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
