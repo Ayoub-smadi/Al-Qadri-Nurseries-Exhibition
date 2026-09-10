@@ -18,8 +18,7 @@ import { toast } from "sonner";
 type ExportRow = {
   id: string;
   product: string;
-  grossWeight: string;
-  netWeight: string;
+  weight: string;
   quantity: string;
   origin: string;
   notes: string;
@@ -49,8 +48,6 @@ type ExportDetails = {
   filsLabel: string;
   productLabel: string;
   weightLabel: string;
-  grossWeightLabel: string;
-  netWeightLabel: string;
   quantityLabel: string;
   originLabel: string;
   notesLabel: string;
@@ -109,8 +106,6 @@ function defaultDetails(): ExportDetails {
     filsLabel: "فلس",
     productLabel: "الصنف",
     weightLabel: "الوزن",
-    grossWeightLabel: "قائم",
-    netWeightLabel: "صافي",
     quantityLabel: "الكمية",
     originLabel: "المنشأ",
     notesLabel: "ملاحظات",
@@ -124,8 +119,7 @@ function newRow(): ExportRow {
   return {
     id: makeId(),
     product: "",
-    grossWeight: "",
-    netWeight: "",
+    weight: "",
     quantity: "",
     origin: "أردني",
     notes: "",
@@ -154,7 +148,16 @@ function saveRecords(records: ExportInvoiceRecord[]) {
 function normalizeRecord(raw: Partial<ExportInvoiceRecord>): ExportInvoiceRecord {
   const details = { ...defaultDetails(), ...(raw.details || {}) };
   const rows = Array.isArray(raw.rows) && raw.rows.length
-    ? raw.rows.map((row) => ({ ...newRow(), ...row, id: row.id || makeId() }))
+    ? raw.rows.map((row) => ({
+        ...newRow(),
+        ...row,
+        // Convert records created before the single-weight layout.
+        weight: row.weight
+          ?? (row as ExportRow & { netWeight?: string; grossWeight?: string }).netWeight
+          ?? (row as ExportRow & { netWeight?: string; grossWeight?: string }).grossWeight
+          ?? "",
+        id: row.id || makeId(),
+      }))
     : [newRow()];
   return {
     id: raw.id || makeId(),
@@ -588,7 +591,7 @@ export default function ExportInvoicesPage() {
                       <th style={{ border: "1px solid #14251c", padding: "7px 4px" }}>
                         <EditableField value={draft.details.productLabel} onChange={(value) => updateDetails("productLabel", value)} ariaLabel="عنوان الصنف" style={{ color: "#fff", textAlign: "center", fontWeight: 800, fontSize: 11 }} />
                       </th>
-                      <th colSpan={2} style={{ border: "1px solid #14251c", padding: "7px 4px" }}>
+                      <th style={{ border: "1px solid #14251c", padding: "7px 4px" }}>
                         <EditableField value={draft.details.weightLabel} onChange={(value) => updateDetails("weightLabel", value)} ariaLabel="عنوان الوزن" style={{ color: "#fff", textAlign: "center", fontWeight: 800, fontSize: 11 }} />
                       </th>
                       <th style={{ border: "1px solid #14251c", padding: "7px 4px" }}>
@@ -606,8 +609,7 @@ export default function ExportInvoicesPage() {
                       <th style={{ border: "1px solid #27382e", padding: 5 }}><EditableField value={draft.details.filsLabel} onChange={(value) => updateDetails("filsLabel", value)} ariaLabel="عنوان الفلس" style={{ textAlign: "center", fontWeight: 700, fontSize: 10 }} /></th>
                       <th style={{ border: "1px solid #27382e", padding: 5 }}><EditableField value={draft.details.dinarLabel} onChange={(value) => updateDetails("dinarLabel", value)} ariaLabel="عنوان الدينار" style={{ textAlign: "center", fontWeight: 700, fontSize: 10 }} /></th>
                       <th style={{ border: "1px solid #27382e", padding: 5 }} />
-                      <th style={{ border: "1px solid #27382e", padding: 5 }}><EditableField value={draft.details.grossWeightLabel} onChange={(value) => updateDetails("grossWeightLabel", value)} ariaLabel="عنوان الوزن القائم" style={{ textAlign: "center", fontWeight: 700, fontSize: 10 }} /></th>
-                      <th style={{ border: "1px solid #27382e", padding: 5 }}><EditableField value={draft.details.netWeightLabel} onChange={(value) => updateDetails("netWeightLabel", value)} ariaLabel="عنوان الوزن الصافي" style={{ textAlign: "center", fontWeight: 700, fontSize: 10 }} /></th>
+                      <th style={{ border: "1px solid #27382e", padding: 5 }} />
                       <th style={{ border: "1px solid #27382e", padding: 5 }} />
                       <th style={{ border: "1px solid #27382e", padding: 5 }} />
                       <th style={{ border: "1px solid #27382e", padding: 5 }} />
@@ -620,8 +622,7 @@ export default function ExportInvoicesPage() {
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.totalFils} onChange={(value) => updateRow(row.id, "totalFils", value)} ariaLabel="فلس البند" inputMode="numeric" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.totalDinar} onChange={(value) => updateRow(row.id, "totalDinar", value)} ariaLabel="دينار البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.product} onChange={(value) => updateRow(row.id, "product", value)} ariaLabel="صنف البند" placeholder="الصنف" style={{ textAlign: "right", fontSize: 11 }} /></td>
-                        <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.grossWeight} onChange={(value) => updateRow(row.id, "grossWeight", value)} ariaLabel="الوزن القائم للبند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
-                        <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.netWeight} onChange={(value) => updateRow(row.id, "netWeight", value)} ariaLabel="الوزن الصافي للبند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
+                        <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.weight} onChange={(value) => updateRow(row.id, "weight", value)} ariaLabel="وزن البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.quantity} onChange={(value) => updateRow(row.id, "quantity", value)} ariaLabel="كمية البند" inputMode="decimal" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.origin} onChange={(value) => updateRow(row.id, "origin", value)} ariaLabel="منشأ البند" style={{ textAlign: "center", fontSize: 11 }} /></td>
                         <td style={{ border: "1px solid #27382e", padding: 4 }}><EditableField value={row.notes} onChange={(value) => updateRow(row.id, "notes", value)} ariaLabel="ملاحظات البند" style={{ textAlign: "right", fontSize: 11 }} /></td>
@@ -635,7 +636,7 @@ export default function ExportInvoicesPage() {
                     <tr style={{ background: "#eef4ef", fontWeight: 800 }}>
                       <td style={{ border: "1px solid #27382e", padding: "8px 4px", textAlign: "center" }}>{calculatedTotal.fils}</td>
                       <td style={{ border: "1px solid #27382e", padding: "8px 4px", textAlign: "center" }}>{calculatedTotal.dinar}</td>
-                      <td colSpan={6} style={{ border: "1px solid #27382e", padding: "8px 10px", textAlign: "right" }}>
+                      <td colSpan={5} style={{ border: "1px solid #27382e", padding: "8px 10px", textAlign: "right" }}>
                         <EditableField value={draft.details.sumLabel} onChange={(value) => updateDetails("sumLabel", value)} ariaLabel="تسمية المجموع أسفل الجدول" style={{ fontWeight: 800, fontSize: 12 }} />
                       </td>
                       <td className="export-pdf-hide" style={{ border: "1px solid #27382e" }} />
