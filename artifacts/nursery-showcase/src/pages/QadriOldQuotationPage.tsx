@@ -156,6 +156,9 @@ export default function QadriOldQuotationPage() {
   const [isPdf, setIsPdf] = useState(false);
   const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
   const [taxPct, setTaxPct] = useState<number>(draft?.taxPct ?? 0);
+  const safeTaxPct = Number.isFinite(Number(taxPct)) && Number(taxPct) > 0
+    ? Number(taxPct)
+    : 0;
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
 
@@ -214,10 +217,10 @@ export default function QadriOldQuotationPage() {
   const saveDraft = useCallback(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts,
+        details, items, logoUrl, stampUrl, discountPct, taxPct: safeTaxPct, hiddenParts,
       }));
     } catch {}
-  }, [details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts]);
+  }, [details, items, logoUrl, stampUrl, discountPct, safeTaxPct, hiddenParts]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
@@ -244,11 +247,11 @@ export default function QadriOldQuotationPage() {
         unitPrice: Number(it.price),
       }));
       let notes = details.notes || '';
-      if (taxPct > 0) {
+      if (safeTaxPct > 0) {
         const afterDiscount = subtotal - discountAmt;
-        const taxAmt = afterDiscount * (taxPct / 100);
+        const taxAmt = afterDiscount * (safeTaxPct / 100);
         const fmt = (n: number) => n.toLocaleString('ar', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        notes = `${notes ? notes + '\n' : ''}ضريبة ${taxPct.toFixed(0)}%: ${fmt(taxAmt)} د.أ`;
+        notes = `${notes ? notes + '\n' : ''}ضريبة ${safeTaxPct.toFixed(0)}%: ${fmt(taxAmt)} د.أ`;
       }
       const result = await createInvoice({
         customerName: details.customerName || 'عميل',
@@ -307,7 +310,7 @@ export default function QadriOldQuotationPage() {
           logoUrl: resolvedLogo,
           stampUrl: resolvedStamp,
           discountPct,
-          taxPct,
+          taxPct: safeTaxPct,
           hiddenParts,
         };
 
@@ -336,7 +339,7 @@ export default function QadriOldQuotationPage() {
 
     // Fallback for unauthenticated use: localStorage
     try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct, hiddenParts }, currentRecordId ?? undefined);
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: safeTaxPct, hiddenParts }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
       toast.success("✅ تم الحفظ في السجل");
     } catch (e: any) {
@@ -351,7 +354,7 @@ export default function QadriOldQuotationPage() {
   /* ─── Totals ─────────────────────────────────────────── */
   const subtotal = items.reduce((s, i) => s + (i.total || 0), 0);
   const discountAmt = subtotal * (discountPct / 100);
-  const taxAmt = (subtotal - discountAmt) * (taxPct / 100);
+  const taxAmt = (subtotal - discountAmt) * (safeTaxPct / 100);
   const grandTotal = subtotal - discountAmt + taxAmt;
 
   /* ─── Item helpers ───────────────────────────────────── */
@@ -1204,7 +1207,7 @@ export default function QadriOldQuotationPage() {
           {/* ── Totals ─────────────────────────────────── */}
           {!hiddenParts.grandTotal && (
             <div style={{ margin: "8px 20px 0" }}>
-              {!hiddenParts.subtotalRows && (discountPct > 0 || taxPct > 0) && (
+              {!hiddenParts.subtotalRows && (discountPct > 0 || safeTaxPct > 0) && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 16px", fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif" }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     {hidePartBtn("subtotalRows", "صفوف الفرعي/الخصم/الضريبة")}
@@ -1225,7 +1228,7 @@ export default function QadriOldQuotationPage() {
                 <span style={{ fontSize: 12, color: "#6b7280", fontFamily: "Cairo, Arial, sans-serif", marginRight: 8 }}>ضريبة %</span>
                 <input
                   type="number" min={0} max={100} step={0.5}
-                  value={taxPct || ""}
+                  value={safeTaxPct || ""}
                   onChange={e => setTaxPct(parseFloat(e.target.value) || 0)}
                   placeholder="0"
                   style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
@@ -1237,9 +1240,9 @@ export default function QadriOldQuotationPage() {
                   <span style={{ fontWeight: 700 }}>− {fmt(discountAmt)} د.أ</span>
                 </div>
               )}
-              {!hiddenParts.subtotalRows && taxPct > 0 && (
+              {!hiddenParts.subtotalRows && safeTaxPct > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 16px", fontSize: 12, color: "#ea580c", fontFamily: "Cairo, Arial, sans-serif" }}>
-                  <span>ضريبة {taxPct}%</span>
+                  <span>ضريبة {safeTaxPct}%</span>
                   <span style={{ fontWeight: 700 }}>+ {fmt(taxAmt)} د.أ</span>
                 </div>
               )}
