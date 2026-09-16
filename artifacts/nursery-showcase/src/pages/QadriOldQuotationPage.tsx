@@ -155,9 +155,12 @@ export default function QadriOldQuotationPage() {
   const [stampUrl, setStampUrl] = useState<string>(draft?.stampUrl ?? "/stamp-qadri.png");
   const [isPdf, setIsPdf] = useState(false);
   const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
-  const [taxPct, setTaxPct] = useState<number | null>(draft?.taxPct ?? null);
+  const initialTaxPct = Number(draft?.taxPct);
+  const [taxPct, setTaxPct] = useState<number | null>(
+    Number.isFinite(initialTaxPct) && initialTaxPct > 0 ? initialTaxPct : null
+  );
   const parsedTaxPct = taxPct === null ? null : Number(taxPct);
-  const hasTax = parsedTaxPct !== null && Number.isFinite(parsedTaxPct) && parsedTaxPct >= 0;
+  const hasTax = parsedTaxPct !== null && Number.isFinite(parsedTaxPct) && parsedTaxPct > 0;
   const safeTaxPct = hasTax ? parsedTaxPct : 0;
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
@@ -1231,7 +1234,8 @@ export default function QadriOldQuotationPage() {
                   value={taxPct === null ? "" : taxPct}
                   onChange={e => {
                     const value = e.target.value.trim();
-                    setTaxPct(value === "" ? null : Math.max(0, Number(value) || 0));
+                    const parsed = Number(value);
+                    setTaxPct(value === "" || !Number.isFinite(parsed) || parsed <= 0 ? null : parsed);
                   }}
                   placeholder="0"
                   style={{ width: 65, border: "1px solid #d1d5db", borderRadius: 6, padding: "3px 8px", fontSize: 12, textAlign: "center", fontFamily: "Cairo, Arial, sans-serif" }}
