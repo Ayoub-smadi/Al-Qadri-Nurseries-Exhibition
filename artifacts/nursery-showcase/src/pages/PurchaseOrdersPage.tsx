@@ -103,18 +103,28 @@ export default function PurchaseOrdersPage() {
   function loadSaved(saved: PurchaseOrder) { setOrder(saved); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
   async function downloadPdf() {
     if (!paperRef.current) return;
-    const element = paperRef.current;
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
-    const pageWidth = 297;
-    const pageHeight = 210;
-    const margin = 7;
-    const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
-    const width = canvas.width * ratio;
-    const height = canvas.height * ratio;
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
-    pdf.save(`طلب_شراء_${order.number.replace(" ", "_")}.pdf`);
-    toast.success("تم تنزيل ملف PDF بنجاح");
+    try {
+      const element = paperRef.current;
+      const images = Array.from(element.querySelectorAll("img"));
+      await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener("error", () => resolve(), { once: true });
+      })));
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false });
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const margin = 7;
+      const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
+      const width = canvas.width * ratio;
+      const height = canvas.height * ratio;
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+      pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
+      toast.success("تم تنزيل ملف PDF بنجاح");
+    } catch (error) {
+      console.error("Purchase order PDF error", error);
+      toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
+    }
   }
 
   return <div dir="rtl" className="min-h-screen bg-[#f4f7f5] text-slate-800 print:bg-white">
@@ -125,7 +135,7 @@ export default function PurchaseOrdersPage() {
     </div></header>
 
     <main ref={paperRef} className="po-page mx-auto max-w-6xl space-y-5 bg-white px-4 py-7">
-      <div className="rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="flex flex-wrap items-center justify-between gap-5"><div className="flex items-center gap-4"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">مؤسسة القادري الزراعية</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="text-left"><p className="text-xs text-emerald-100 print:text-slate-500">رقم طلب الشراء</p><p className="mt-1 text-2xl font-black tracking-wider">{order.number}</p></div></div></div>
+      <div className="rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="flex flex-wrap items-center justify-between gap-5"><div className="flex items-center gap-4"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">مؤسسة القادري الزراعية</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="text-left"><p className="text-xs text-emerald-100 print:text-slate-500">رقم طلب الشراء</p><input aria-label="رقم طلب الشراء" value={order.number} onChange={e => set("number", e.target.value)} className="mt-1 w-40 bg-transparent text-left text-2xl font-black tracking-wider text-white outline-none print:text-slate-900" /></div></div></div>
 
       <Section title="بيانات الطلب"><div className="grid gap-4 md:grid-cols-3"><TextField label="تاريخ الطلب" type="date" value={order.orderDate} onChange={v => set("orderDate", v)} /><TextField label="تاريخ التوريد المطلوب" type="date" value={order.deliveryDate} onChange={v => set("deliveryDate", v)} /><TextField label="العملة" value={order.currency} onChange={v => set("currency", v)} placeholder="مثال: دينار أردني" /></div></Section>
 
