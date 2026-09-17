@@ -119,7 +119,7 @@ export default function PurchaseOrdersPage() {
   }
   function removeSaved(orderId: string) { const next = orders.filter(item => item.id !== orderId); setOrders(next); localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); if (orderId === order.id) createNew(); toast.success("تم حذف الطلب"); }
   function loadSaved(saved: PurchaseOrder) { setOrder({ ...saved, buyer: { ...defaultBuyer(), ...(saved.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(saved.supplier || {}) }, supplierApproval: { ...blankSupplierApproval(), ...(saved.supplierApproval || {}) } }); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  async function downloadPdf(orientation: "landscape" | "portrait") {
+  async function downloadPdf() {
     if (!paperRef.current) return;
     let exportElement: HTMLElement | null = null;
     try {
@@ -163,33 +163,41 @@ export default function PurchaseOrdersPage() {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const exportWidth = Math.max(exportElement.scrollWidth, exportElement.offsetWidth, 1);
       const exportHeight = Math.max(exportElement.scrollHeight, exportElement.offsetHeight, 1);
-      const isLandscape = orientation === "landscape";
       const render = (scale: number) => html2canvas(exportElement!, { width: exportWidth, height: exportHeight, windowWidth: exportWidth, windowHeight: exportHeight, scrollX: 0, scrollY: 0, scale, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
       let canvas: HTMLCanvasElement;
       try {
         canvas = await render(0.7);
       } catch {
-        // Fallback: images cannot block the document export; the PDF still contains the complete editable data.
+        // If an image prevents the first capture, retry without images while
+        // keeping the complete editable page and its layout.
         images.forEach(image => { image.style.display = "none"; });
         await new Promise(resolve => requestAnimationFrame(resolve));
         canvas = await render(0.5);
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
-      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: "a4", compress: true });
+
+      // The content itself determines the page direction. A short order uses
+      // portrait A4; a taller order uses landscape A4 as requested. The
+      // rendered page is still one complete image, so the PDF cannot split or
+      // omit fields from the form.
+      const portraitContentRatio = (297 - 12) / (210 - 12);
+      const isLandscape = canvas.height / canvas.width > portraitContentRatio;
+      const orientation = isLandscape ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit: "mm", format: "a4", compress: true });
       const pageWidth = isLandscape ? 297 : 210;
       const pageHeight = isLandscape ? 210 : 297;
       const margin = 6;
       const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;
-      const image = canvas.toDataURL("image/jpeg", 0.82);
-      pdf.addImage(image, "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+      const image = canvas.toDataURL("image/png");
+      pdf.addImage(image, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_${isLandscape ? "عرضي" : "طولي"}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
       console.error("Purchase order PDF error", error);
       try {
-        const fallback = new jsPDF({ orientation, unit: "mm", format: "a4" });
+        const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
         fallback.setFontSize(16);
         fallback.text("Purchase Order", 14, 18);
         fallback.setFontSize(11);
@@ -200,7 +208,7 @@ export default function PurchaseOrdersPage() {
         order.items.slice(0, 18).forEach((item, index) => {
           fallback.text(`${index + 1}. ${item.description || ""} | ${item.unit || ""} | Qty: ${item.quantity || ""} | Price: ${item.unitPrice || ""}`, 14, 64 + index * 7);
         });
-        fallback.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_${orientation === "landscape" ? "عرضي" : "طولي"}.pdf`);
+        fallback.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_طولي.pdf`);
         toast.success("تم تنزيل PDF بالنسخة الاحتياطية");
       } catch {
         toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
@@ -214,7 +222,7 @@ export default function PurchaseOrdersPage() {
     <style>{`.pdf-brand-image { object-fit: contain; } .pdf-export .no-print { display:none !important; } @media print { @page { size: A4; margin: 7mm; } .no-print { display:none!important } .po-page { padding:0!important; max-width:none!important } input,textarea { border:0!important; box-shadow:none!important; } }`}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
       <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="العودة"><ArrowRight className="h-5 w-5" /></Button><div><p className="text-xs font-semibold text-[#0d5c43]">مؤسسة القادري الزراعية</p><h1 className="text-xl font-black text-slate-900">طلبات الشراء</h1></div></div>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={() => downloadPdf("landscape")} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> PDF عرضي</Button><Button onClick={() => downloadPdf("portrait")} className="rounded-xl bg-slate-700 hover:bg-slate-600"><Download className="ms-2 h-4 w-4" /> PDF طولي</Button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={downloadPdf} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> تنزيل PDF</Button></div>
     </div></header>
 
     <main ref={paperRef} className="po-page mx-auto max-w-6xl space-y-5 bg-white px-4 py-7">
@@ -232,6 +240,6 @@ export default function PurchaseOrdersPage() {
       <Section title="اعتماد المورد"><div className="grid gap-4 md:grid-cols-3"><TextField label="الاسم" value={order.supplierApproval.name} onChange={v => setSupplierApproval("name", v)} /><TextField label="الوظيفة" value={order.supplierApproval.position} onChange={v => setSupplierApproval("position", v)} /><TextField label="التاريخ" type="date" value={order.supplierApproval.date} onChange={v => setSupplierApproval("date", v)} /></div><div className="mt-4 grid grid-cols-2 gap-4"><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع</div><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم</div></div></Section>
     </main>
 
-    {showList && <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b p-5"><h2 className="text-xl font-black text-[#0d5c43]">طلبات الشراء المحفوظة</h2><button onClick={() => setShowList(false)}><X /></button></div><div className="max-h-[65vh] overflow-auto p-5">{orders.length === 0 ? <p className="py-12 text-center text-slate-400">لا توجد طلبات محفوظة بعد.</p> : <div className="space-y-3">{[...orders].reverse().map(saved => <div key={saved.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><b className="text-[#0d5c43]">{saved.number}</b><span className="mx-3 text-slate-400">|</span><span>{saved.orderDate || "بدون تاريخ"}</span><p className="mt-1 text-sm text-slate-500">{saved.supplier.name || "مورد غير محدد"} · الإجمالي {fmt(orderTotal(saved))}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => loadSaved(saved)}><Pencil className="ms-1 h-4 w-4" /> تعديل</Button><Button size="sm" variant="outline" onClick={() => { loadSaved(saved); setTimeout(() => downloadPdf("landscape"), 150); }}><Download className="ms-1 h-4 w-4" /> PDF عرضي</Button><Button size="sm" variant="ghost" onClick={() => removeSaved(saved.id)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>}</div></div></div>}
+    {showList && <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b p-5"><h2 className="text-xl font-black text-[#0d5c43]">طلبات الشراء المحفوظة</h2><button onClick={() => setShowList(false)}><X /></button></div><div className="max-h-[65vh] overflow-auto p-5">{orders.length === 0 ? <p className="py-12 text-center text-slate-400">لا توجد طلبات محفوظة بعد.</p> : <div className="space-y-3">{[...orders].reverse().map(saved => <div key={saved.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><b className="text-[#0d5c43]">{saved.number}</b><span className="mx-3 text-slate-400">|</span><span>{saved.orderDate || "بدون تاريخ"}</span><p className="mt-1 text-sm text-slate-500">{saved.supplier.name || "مورد غير محدد"} · الإجمالي {fmt(orderTotal(saved))}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => loadSaved(saved)}><Pencil className="ms-1 h-4 w-4" /> تعديل</Button><Button size="sm" variant="outline" onClick={() => { loadSaved(saved); setTimeout(downloadPdf, 150); }}><Download className="ms-1 h-4 w-4" /> تنزيل PDF</Button><Button size="sm" variant="ghost" onClick={() => removeSaved(saved.id)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>}</div></div></div>}
   </div>;
 }
