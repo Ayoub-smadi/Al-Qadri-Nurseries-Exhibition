@@ -64,6 +64,18 @@ function orderTotal(order: PurchaseOrder) {
   return subtotal + money(order.tax) + money(order.deliveryFees);
 }
 
+async function imageAsDataUrl(src: string) {
+  const response = await fetch(src, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`تعذر تحميل الصورة: ${src}`);
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error || new Error("تعذر قراءة الصورة"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-right focus-visible:ring-[#0d5c43]";
 const labelClass = "mb-2 block text-sm font-bold text-slate-700";
 
@@ -110,7 +122,24 @@ export default function PurchaseOrdersPage() {
         image.addEventListener("load", () => resolve(), { once: true });
         image.addEventListener("error", () => resolve(), { once: true });
       })));
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false });
+      const imageData = await Promise.all(images.map(async image => {
+        try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, image.src] as const; }
+      }));
+      const canvasOptions = { scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false } as const;
+      let canvas: HTMLCanvasElement;
+      try {
+        canvas = await html2canvas(element, canvasOptions);
+      } catch {
+        canvas = await html2canvas(element, {
+          ...canvasOptions,
+          onclone: cloned => {
+            Array.from(cloned.querySelectorAll("img")).forEach((image, index) => {
+              image.removeAttribute("crossorigin");
+              image.src = imageData[index]?.[1] || image.src;
+            });
+          },
+        });
+      }
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
       const pageWidth = 297;
       const pageHeight = 210;
@@ -145,7 +174,7 @@ export default function PurchaseOrdersPage() {
 
       <Section title="ملاحظات"><textarea value={order.notes} onChange={e => set("notes", e.target.value)} rows={6} className="w-full resize-y rounded-xl border border-slate-200 p-3 outline-none focus:border-[#0d5c43]" /></Section>
       <Section title="شروط الدفع"><div className="grid gap-4 md:grid-cols-2"><TextField label="طريقة الدفع" value={order.paymentMethod} onChange={v => set("paymentMethod", v)} /><TextField label="شروط الدفع" value={order.paymentTerms} onChange={v => set("paymentTerms", v)} /></div></Section>
-      <Section title="اعتماد طلب الشراء"><div className="grid gap-6 md:grid-cols-2"><div className="space-y-2 text-sm leading-7"><p><b>الاسم:</b> م. ثامر أحمد عبد الرحمن القادري</p><p><b>الوظيفة:</b> المدير العام</p><p><b>التاريخ:</b> {order.orderDate || ""}</p></div><div className="grid grid-cols-2 gap-4"><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع<img src="/signature-thamer.png" alt="توقيع المسؤول" className="absolute bottom-1 left-1/2 h-20 w-32 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم<img src="/stamp-qadri.png" alt="ختم المؤسسة" className="absolute bottom-1 left-1/2 h-20 w-24 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div></div></div></Section>
+      <Section title="اعتماد طلب الشراء"><div className="grid gap-6 md:grid-cols-2"><div className="space-y-2 text-sm leading-7"><p><b>الاسم:</b> م. ثامر أحمد عبد الرحمن القادري</p><p><b>الوظيفة:</b> المدير العام</p><p><b>التاريخ:</b> {order.orderDate || ""}</p></div><div className="grid grid-cols-2 gap-4"><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع<img src="/signature-thamer.png" alt="توقيع المسؤول" className="absolute bottom-1 left-1/2 h-20 w-32 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم<img src="/stamp-qadri.png" alt="ختم المؤسسة" className="absolute bottom-0 left-1/2 h-32 w-36 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div></div></div></Section>
     </main>
 
     {showList && <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b p-5"><h2 className="text-xl font-black text-[#0d5c43]">طلبات الشراء المحفوظة</h2><button onClick={() => setShowList(false)}><X /></button></div><div className="max-h-[65vh] overflow-auto p-5">{orders.length === 0 ? <p className="py-12 text-center text-slate-400">لا توجد طلبات محفوظة بعد.</p> : <div className="space-y-3">{[...orders].reverse().map(saved => <div key={saved.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><b className="text-[#0d5c43]">{saved.number}</b><span className="mx-3 text-slate-400">|</span><span>{saved.orderDate || "بدون تاريخ"}</span><p className="mt-1 text-sm text-slate-500">{saved.supplier.name || "مورد غير محدد"} · الإجمالي {fmt(orderTotal(saved))}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => loadSaved(saved)}><Pencil className="ms-1 h-4 w-4" /> تعديل</Button><Button size="sm" variant="outline" onClick={() => { loadSaved(saved); setTimeout(downloadPdf, 150); }}><Download className="ms-1 h-4 w-4" /> تنزيل PDF</Button><Button size="sm" variant="ghost" onClick={() => removeSaved(saved.id)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>}</div></div></div>}
