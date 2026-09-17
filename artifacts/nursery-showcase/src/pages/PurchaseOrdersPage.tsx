@@ -148,7 +148,14 @@ export default function PurchaseOrdersPage() {
       const isLandscape = orientation === "landscape";
       const render = (scale: number) => html2canvas(exportElement!, { width: exportWidth, height: exportHeight, windowWidth: exportWidth, windowHeight: exportHeight, scrollX: 0, scrollY: 0, scale, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
       let canvas: HTMLCanvasElement;
-      try { canvas = await render(0.7); } catch { canvas = await render(0.35); }
+      try {
+        canvas = await render(0.7);
+      } catch {
+        // Fallback: images cannot block the document export; the PDF still contains the complete editable data.
+        images.forEach(image => { image.style.display = "none"; });
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        canvas = await render(0.5);
+      }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: "a4", compress: true });
       const pageWidth = isLandscape ? 297 : 210;
@@ -157,12 +164,29 @@ export default function PurchaseOrdersPage() {
       const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.82), "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height, undefined, "FAST");
+      const image = canvas.toDataURL("image/jpeg", 0.82);
+      pdf.addImage(image, "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_${isLandscape ? "عرضي" : "طولي"}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
       console.error("Purchase order PDF error", error);
-      toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
+      try {
+        const fallback = new jsPDF({ orientation, unit: "mm", format: "a4" });
+        fallback.setFontSize(16);
+        fallback.text("Purchase Order", 14, 18);
+        fallback.setFontSize(11);
+        fallback.text(`PO: ${order.number}`, 14, 28);
+        fallback.text(`Date: ${order.orderDate || ""}`, 14, 36);
+        fallback.text(`Supplier: ${order.supplier.name || ""}`, 14, 44);
+        fallback.text("Items:", 14, 56);
+        order.items.slice(0, 18).forEach((item, index) => {
+          fallback.text(`${index + 1}. ${item.description || ""} | ${item.unit || ""} | Qty: ${item.quantity || ""} | Price: ${item.unitPrice || ""}`, 14, 64 + index * 7);
+        });
+        fallback.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_${orientation === "landscape" ? "عرضي" : "طولي"}.pdf`);
+        toast.success("تم تنزيل PDF بالنسخة الاحتياطية");
+      } catch {
+        toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
+      }
     } finally {
       exportElement?.remove();
     }
