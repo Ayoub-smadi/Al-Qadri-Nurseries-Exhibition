@@ -115,9 +115,10 @@ export default function PurchaseOrdersPage() {
   function loadSaved(saved: PurchaseOrder) { setOrder(saved); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
   async function downloadPdf() {
     if (!paperRef.current) return;
+    const element = paperRef.current;
+    const images = Array.from(element.querySelectorAll("img"));
+    const originalSources = images.map(image => image.src);
     try {
-      const element = paperRef.current;
-      const images = Array.from(element.querySelectorAll("img"));
       await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
         image.addEventListener("load", () => resolve(), { once: true });
         image.addEventListener("error", () => resolve(), { once: true });
@@ -125,21 +126,9 @@ export default function PurchaseOrdersPage() {
       const imageData = await Promise.all(images.map(async image => {
         try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, image.src] as const; }
       }));
-      const canvasOptions = { scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", logging: false } as const;
-      let canvas: HTMLCanvasElement;
-      try {
-        canvas = await html2canvas(element, canvasOptions);
-      } catch {
-        canvas = await html2canvas(element, {
-          ...canvasOptions,
-          onclone: cloned => {
-            Array.from(cloned.querySelectorAll("img")).forEach((image, index) => {
-              image.removeAttribute("crossorigin");
-              image.src = imageData[index]?.[1] || image.src;
-            });
-          },
-        });
-      }
+      imageData.forEach(([image, dataUrl]) => { image.removeAttribute("crossorigin"); image.src = dataUrl; });
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const canvas = await html2canvas(element, { scale: 1, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
       const pageWidth = 297;
       const pageHeight = 210;
@@ -153,6 +142,8 @@ export default function PurchaseOrdersPage() {
     } catch (error) {
       console.error("Purchase order PDF error", error);
       toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
+    } finally {
+      images.forEach((image, index) => { image.src = originalSources[index]; image.setAttribute("crossorigin", "anonymous"); });
     }
   }
 
