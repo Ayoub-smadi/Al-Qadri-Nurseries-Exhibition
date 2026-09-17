@@ -124,11 +124,14 @@ export default function PurchaseOrdersPage() {
       exportElement = sourceElement.cloneNode(true) as HTMLElement;
       exportElement.classList.add("pdf-export");
       exportElement.style.position = "absolute";
-      exportElement.style.left = "-100000px";
+      exportElement.style.left = "0";
       exportElement.style.top = "0";
       exportElement.style.width = "1400px";
       exportElement.style.maxWidth = "none";
       exportElement.style.background = "#ffffff";
+      exportElement.style.opacity = "0.01";
+      exportElement.style.pointerEvents = "none";
+      exportElement.style.zIndex = "-1";
       document.body.appendChild(exportElement);
       const images = Array.from(exportElement.querySelectorAll("img"));
       await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
@@ -136,16 +139,17 @@ export default function PurchaseOrdersPage() {
         image.addEventListener("error", () => resolve(), { once: true });
       })));
       const imageData = await Promise.all(images.map(async image => {
-        try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, image.src] as const; }
+        try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" ] as const; }
       }));
       imageData.forEach(([image, dataUrl]) => { image.removeAttribute("crossorigin"); image.src = dataUrl; });
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const exportWidth = exportElement.scrollWidth;
-      const exportHeight = exportElement.scrollHeight;
+      const exportWidth = Math.max(exportElement.scrollWidth, exportElement.offsetWidth, 1);
+      const exportHeight = Math.max(exportElement.scrollHeight, exportElement.offsetHeight, 1);
       const isLandscape = order.items.length > 6 || exportHeight > exportWidth * 1.35;
       const render = (scale: number) => html2canvas(exportElement!, { width: exportWidth, height: exportHeight, windowWidth: exportWidth, windowHeight: exportHeight, scrollX: 0, scrollY: 0, scale, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
       let canvas: HTMLCanvasElement;
       try { canvas = await render(0.7); } catch { canvas = await render(0.35); }
+      if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: "a4", compress: true });
       const pageWidth = isLandscape ? 297 : 210;
       const pageHeight = isLandscape ? 210 : 297;
@@ -153,7 +157,7 @@ export default function PurchaseOrdersPage() {
       const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.82), "JPEG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height, undefined, "FAST");
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
