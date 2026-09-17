@@ -15,7 +15,7 @@ import {
   TreePine, Package, Building2, Globe, Flower2, Share2, Phone, Mail,
   Search, Receipt as ReceiptIcon, ShoppingCart, CheckCircle2, Circle, Minus, Inbox,
   ArrowUp, ArrowDown, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, Camera, GripVertical,
+  FileText, Trash, ArchiveRestore, Award, ArrowUpFromLine, FilePlus, FilePlus2, Camera, GripVertical,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -2128,6 +2128,7 @@ export default function GalleryPage() {
                        <SideBtn icon={<Package className="w-4 h-4" />} label={isAr ? 'المتجر' : 'Store'} onClick={() => setAdminAgriProductsOpen(true)} />
                       <SideBtn icon={<FileText className="w-4 h-4" />} label={isAr ? 'الفواتير' : 'Invoices'} onClick={() => setAdminInvoicesOpen(true)} />
                        <SideBtn icon={<FilePlus className="w-4 h-4" />} label={isAr ? 'فواتير تصدير' : 'Export Invoices'} onClick={() => navigate('/export-invoices')} />
+                      <SideBtn icon={<FilePlus2 className="w-4 h-4" />} label={isAr ? 'طلبات الشراء' : 'Purchase Orders'} onClick={() => navigate('/purchase-orders')} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض قادري قديم" onClick={() => setQadriOldOpen(true)} />
                       <SideSubBtn icon={<FileText className="w-3.5 h-3.5" />} label="عروض دون ترويسة" onClick={() => setNoHeaderOpen(true)} />
                       <SideBtn icon={<ReceiptIcon className="w-4 h-4" />} label={isAr ? 'سندات القبض' : 'Receipts'} onClick={() => setAdminReceiptsOpen(true)} />
