@@ -25,6 +25,7 @@ type PurchaseOrder = {
   currency: string;
   buyer: { institution: string; name: string; position: string; phone: string; email: string; address: string };
   supplier: { name: string; contact: string; phone: string; email: string; address: string };
+  supplierApproval: { name: string; position: string; date: string };
   items: PurchaseItem[];
   tax: string;
   deliveryFees: string;
@@ -40,6 +41,7 @@ const LAST_NUMBER_KEY = "alqadri_purchase_order_last_number";
 const today = () => new Date().toISOString().slice(0, 10);
 const id = () => `po-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const blankSupplier = () => ({ name: "", contact: "", phone: "", email: "", address: "" });
+const blankSupplierApproval = () => ({ name: "", position: "", date: "" });
 const defaultBuyer = () => ({ institution: "مؤسسة القادري الزراعية", name: "م. ثامر أحمد عبد الرحمن القادري", position: "المدير العام", phone: "0777772211", email: "tamerqadri@gmail.com", address: "جرش – الأردن" });
 const blankItem = (): PurchaseItem => ({ id: id(), description: "", unit: "", quantity: "", unitPrice: "", origin: "", notes: "" });
 
@@ -52,7 +54,7 @@ function nextNumber() {
 function newOrder(): PurchaseOrder {
   return {
     id: id(), number: nextNumber(), orderDate: today(), deliveryDate: "", currency: "",
-    buyer: defaultBuyer(), supplier: blankSupplier(), items: [], tax: "", deliveryFees: "", notes: "", paymentMethod: "", paymentTerms: "", createdAt: new Date().toISOString(),
+    buyer: defaultBuyer(), supplier: blankSupplier(), supplierApproval: blankSupplierApproval(), items: [], tax: "", deliveryFees: "", notes: "", paymentMethod: "", paymentTerms: "", createdAt: new Date().toISOString(),
   };
 }
 
@@ -94,7 +96,7 @@ function TextField({ label, value, onChange, type = "text", placeholder = "" }: 
 export default function PurchaseOrdersPage() {
   const paperRef = useRef<HTMLElement>(null);
   const [order, setOrder] = useState<PurchaseOrder>(() => {
-    try { const draft = localStorage.getItem(DRAFT_KEY); if (draft) { const parsed = JSON.parse(draft); return { ...newOrder(), ...parsed, buyer: { ...defaultBuyer(), ...(parsed.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(parsed.supplier || {}) } }; } } catch { /* use new */ }
+    try { const draft = localStorage.getItem(DRAFT_KEY); if (draft) { const parsed = JSON.parse(draft); return { ...newOrder(), ...parsed, buyer: { ...defaultBuyer(), ...(parsed.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(parsed.supplier || {}) }, supplierApproval: { ...blankSupplierApproval(), ...(parsed.supplierApproval || {}) } }; } } catch { /* use new */ }
     return newOrder();
   });
   const [orders, setOrders] = useState<PurchaseOrder[]>(() => readOrders());
@@ -107,6 +109,7 @@ export default function PurchaseOrdersPage() {
   const set = <K extends keyof PurchaseOrder>(key: K, value: PurchaseOrder[K]) => setOrder(prev => ({ ...prev, [key]: value }));
   const setBuyer = (key: keyof PurchaseOrder["buyer"], value: string) => setOrder(prev => ({ ...prev, buyer: { ...prev.buyer, [key]: value } }));
   const setSupplier = (key: keyof PurchaseOrder["supplier"], value: string) => setOrder(prev => ({ ...prev, supplier: { ...prev.supplier, [key]: value } }));
+  const setSupplierApproval = (key: keyof PurchaseOrder["supplierApproval"], value: string) => setOrder(prev => ({ ...prev, supplierApproval: { ...prev.supplierApproval, [key]: value } }));
   const setItem = (itemId: string, key: keyof PurchaseItem, value: string) => setOrder(prev => ({ ...prev, items: prev.items.map(item => item.id === itemId ? { ...item, [key]: value } : item) }));
 
   function createNew() { setOrder(prev => { const blank = newOrder(); return { ...blank, buyer: { ...prev.buyer } }; }); window.scrollTo({ top: 0, behavior: "smooth" }); toast.success("تم إنشاء طلب شراء جديد برقم جديد"); }
@@ -115,7 +118,7 @@ export default function PurchaseOrdersPage() {
     setOrders(next); localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); toast.success(`تم حفظ ${order.number}`);
   }
   function removeSaved(orderId: string) { const next = orders.filter(item => item.id !== orderId); setOrders(next); localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); if (orderId === order.id) createNew(); toast.success("تم حذف الطلب"); }
-  function loadSaved(saved: PurchaseOrder) { setOrder({ ...saved, buyer: { ...defaultBuyer(), ...(saved.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(saved.supplier || {}) } }); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function loadSaved(saved: PurchaseOrder) { setOrder({ ...saved, buyer: { ...defaultBuyer(), ...(saved.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(saved.supplier || {}) }, supplierApproval: { ...blankSupplierApproval(), ...(saved.supplierApproval || {}) } }); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
   async function downloadPdf(orientation: "landscape" | "portrait") {
     if (!paperRef.current) return;
     let exportElement: HTMLElement | null = null;
@@ -226,6 +229,7 @@ export default function PurchaseOrdersPage() {
       <Section title="ملاحظات"><textarea value={order.notes} onChange={e => set("notes", e.target.value)} rows={6} className="w-full resize-y rounded-xl border border-slate-200 p-3 outline-none focus:border-[#0d5c43]" /></Section>
       <Section title="شروط الدفع"><div className="grid gap-4 md:grid-cols-2"><TextField label="طريقة الدفع" value={order.paymentMethod} onChange={v => set("paymentMethod", v)} /><TextField label="شروط الدفع" value={order.paymentTerms} onChange={v => set("paymentTerms", v)} /></div></Section>
       <Section title="اعتماد طلب الشراء"><div className="grid gap-6 md:grid-cols-2"><div className="space-y-2 text-sm leading-7"><p><b>الاسم:</b> {order.buyer.name}</p><p><b>الوظيفة:</b> {order.buyer.position}</p><p><b>التاريخ:</b> {order.orderDate || ""}</p></div><div className="grid grid-cols-2 gap-4"><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع<img src="/signature-thamer.png" alt="توقيع المسؤول" className="absolute bottom-1 left-1/2 h-20 w-32 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم<img src="/stamp-qadri.png" alt="ختم المؤسسة" className="absolute bottom-0 left-1/2 h-32 w-36 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div></div></div></Section>
+      <Section title="اعتماد المورد"><div className="grid gap-4 md:grid-cols-3"><TextField label="الاسم" value={order.supplierApproval.name} onChange={v => setSupplierApproval("name", v)} /><TextField label="الوظيفة" value={order.supplierApproval.position} onChange={v => setSupplierApproval("position", v)} /><TextField label="التاريخ" type="date" value={order.supplierApproval.date} onChange={v => setSupplierApproval("date", v)} /></div><div className="mt-4 grid grid-cols-2 gap-4"><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع</div><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم</div></div></Section>
     </main>
 
     {showList && <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b p-5"><h2 className="text-xl font-black text-[#0d5c43]">طلبات الشراء المحفوظة</h2><button onClick={() => setShowList(false)}><X /></button></div><div className="max-h-[65vh] overflow-auto p-5">{orders.length === 0 ? <p className="py-12 text-center text-slate-400">لا توجد طلبات محفوظة بعد.</p> : <div className="space-y-3">{[...orders].reverse().map(saved => <div key={saved.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4"><div><b className="text-[#0d5c43]">{saved.number}</b><span className="mx-3 text-slate-400">|</span><span>{saved.orderDate || "بدون تاريخ"}</span><p className="mt-1 text-sm text-slate-500">{saved.supplier.name || "مورد غير محدد"} · الإجمالي {fmt(orderTotal(saved))}</p></div><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => loadSaved(saved)}><Pencil className="ms-1 h-4 w-4" /> تعديل</Button><Button size="sm" variant="outline" onClick={() => { loadSaved(saved); setTimeout(() => downloadPdf("landscape"), 150); }}><Download className="ms-1 h-4 w-4" /> PDF عرضي</Button><Button size="sm" variant="ghost" onClick={() => removeSaved(saved.id)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button></div></div>)}</div>}</div></div></div>}
