@@ -118,10 +118,19 @@ export default function PurchaseOrdersPage() {
   function loadSaved(saved: PurchaseOrder) { setOrder({ ...saved, buyer: { ...defaultBuyer(), ...(saved.buyer || {}) }, supplier: { ...blankSupplier(), ...(saved.supplier || {}) } }); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
   async function downloadPdf() {
     if (!paperRef.current) return;
-    const element = paperRef.current;
-    const images = Array.from(element.querySelectorAll("img"));
-    const originalSources = images.map(image => image.src);
+    let exportElement: HTMLElement | null = null;
     try {
+      const sourceElement = paperRef.current;
+      exportElement = sourceElement.cloneNode(true) as HTMLElement;
+      exportElement.classList.add("pdf-export");
+      exportElement.style.position = "absolute";
+      exportElement.style.left = "-100000px";
+      exportElement.style.top = "0";
+      exportElement.style.width = "1400px";
+      exportElement.style.maxWidth = "none";
+      exportElement.style.background = "#ffffff";
+      document.body.appendChild(exportElement);
+      const images = Array.from(exportElement.querySelectorAll("img"));
       await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
         image.addEventListener("load", () => resolve(), { once: true });
         image.addEventListener("error", () => resolve(), { once: true });
@@ -130,10 +139,13 @@ export default function PurchaseOrdersPage() {
         try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, image.src] as const; }
       }));
       imageData.forEach(([image, dataUrl]) => { image.removeAttribute("crossorigin"); image.src = dataUrl; });
-      element.classList.add("pdf-export");
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const isLandscape = order.items.length > 6 || element.scrollHeight > element.clientWidth * 1.35;
-      const canvas = await html2canvas(element, { scale: 1, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
+      const exportWidth = exportElement.scrollWidth;
+      const exportHeight = exportElement.scrollHeight;
+      const isLandscape = order.items.length > 6 || exportHeight > exportWidth * 1.35;
+      const render = (scale: number) => html2canvas(exportElement!, { width: exportWidth, height: exportHeight, windowWidth: exportWidth, windowHeight: exportHeight, scrollX: 0, scrollY: 0, scale, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
+      let canvas: HTMLCanvasElement;
+      try { canvas = await render(0.7); } catch { canvas = await render(0.35); }
       const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: "a4", compress: true });
       const pageWidth = isLandscape ? 297 : 210;
       const pageHeight = isLandscape ? 210 : 297;
@@ -148,8 +160,7 @@ export default function PurchaseOrdersPage() {
       console.error("Purchase order PDF error", error);
       toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
     } finally {
-      element.classList.remove("pdf-export");
-      images.forEach((image, index) => { image.src = originalSources[index]; image.setAttribute("crossorigin", "anonymous"); });
+      exportElement?.remove();
     }
   }
 
