@@ -126,8 +126,8 @@ export default function PurchaseOrdersPage() {
       exportElement.style.position = "absolute";
       exportElement.style.left = "0";
       exportElement.style.top = "0";
-      exportElement.style.width = "1400px";
-      exportElement.style.maxWidth = "none";
+      exportElement.style.width = "1152px";
+      exportElement.style.maxWidth = "1152px";
       exportElement.style.background = "#ffffff";
       exportElement.style.opacity = "1";
       exportElement.style.pointerEvents = "none";
@@ -208,7 +208,7 @@ export default function PurchaseOrdersPage() {
   }
 
   return <div dir="rtl" className="min-h-screen bg-[#f4f7f5] text-slate-800 print:bg-white">
-    <style>{`.pdf-brand-image { object-fit: contain; } .pdf-export { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; width: 1400px !important; max-width: none !important; padding: 18px !important; gap: 8px !important; } .pdf-export .no-print { display: none !important; } .pdf-export > * { min-width: 0 !important; margin: 0 !important; } .pdf-export > :first-child, .pdf-export > :nth-child(2), .pdf-export > :nth-child(4), .pdf-export > :nth-child(7) { grid-column: 1 / -1; } .pdf-export > :nth-child(3) { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; } .pdf-export > :nth-child(3) > section { min-width: 0; } .pdf-export > :nth-child(5), .pdf-export > :nth-child(6) { min-width: 0; } .pdf-export section { padding: 10px !important; border-radius: 8px !important; box-shadow: none !important; } .pdf-export section > div:first-child { margin-bottom: 6px !important; padding-bottom: 5px !important; } .pdf-export section h2 { font-size: 15px !important; } .pdf-export input, .pdf-export textarea { min-height: 25px !important; padding: 3px 5px !important; } .pdf-export textarea { height: 58px !important; } .pdf-export table { font-size: 10px !important; } .pdf-export table th, .pdf-export table td { padding: 4px !important; } .pdf-export .min-h-28 { min-height: 68px !important; } @media print { @page { size: A4; margin: 7mm; } .no-print { display:none!important } .po-page { padding:0!important; max-width:none!important } input,textarea { border:0!important; box-shadow:none!important; padding:0!important } section { break-inside: avoid; } }`}</style>
+    <style>{`.pdf-brand-image { object-fit: contain; } .pdf-export .no-print { display:none !important; } @media print { @page { size: A4; margin: 7mm; } .no-print { display:none!important } .po-page { padding:0!important; max-width:none!important } input,textarea { border:0!important; box-shadow:none!important; } }`}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
       <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="العودة"><ArrowRight className="h-5 w-5" /></Button><div><p className="text-xs font-semibold text-[#0d5c43]">مؤسسة القادري الزراعية</p><h1 className="text-xl font-black text-slate-900">طلبات الشراء</h1></div></div>
       <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={() => downloadPdf("landscape")} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> PDF عرضي</Button><Button onClick={() => downloadPdf("portrait")} className="rounded-xl bg-slate-700 hover:bg-slate-600"><Download className="ms-2 h-4 w-4" /> PDF طولي</Button></div>
