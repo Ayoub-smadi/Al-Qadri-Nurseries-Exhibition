@@ -127,12 +127,14 @@ export default function PurchaseOrdersPage() {
         try { return [image, await imageAsDataUrl(image.getAttribute("src") || "")] as const; } catch { return [image, image.src] as const; }
       }));
       imageData.forEach(([image, dataUrl]) => { image.removeAttribute("crossorigin"); image.src = dataUrl; });
+      element.classList.add("pdf-export");
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const isLandscape = order.items.length > 6 || element.scrollHeight > element.clientWidth * 1.35;
       const canvas = await html2canvas(element, { scale: 1, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
-      const pageWidth = 297;
-      const pageHeight = 210;
-      const margin = 7;
+      const pdf = new jsPDF({ orientation: isLandscape ? "landscape" : "portrait", unit: "mm", format: "a4", compress: true });
+      const pageWidth = isLandscape ? 297 : 210;
+      const pageHeight = isLandscape ? 210 : 297;
+      const margin = 6;
       const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;
@@ -143,12 +145,13 @@ export default function PurchaseOrdersPage() {
       console.error("Purchase order PDF error", error);
       toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
     } finally {
+      element.classList.remove("pdf-export");
       images.forEach((image, index) => { image.src = originalSources[index]; image.setAttribute("crossorigin", "anonymous"); });
     }
   }
 
   return <div dir="rtl" className="min-h-screen bg-[#f4f7f5] text-slate-800 print:bg-white">
-    <style>{`.pdf-brand-image { object-fit: contain; } @media print { @page { size: A4 landscape; margin: 7mm; } .no-print { display:none!important } .po-page { padding:0!important; max-width:none!important } input,textarea { border:0!important; box-shadow:none!important; padding:0!important } section { break-inside: avoid; } }`}</style>
+    <style>{`.pdf-brand-image { object-fit: contain; } .pdf-export { width: 1400px !important; max-width: none !important; padding: 18px !important; gap: 10px !important; } .pdf-export > * { margin-top: 0 !important; margin-bottom: 10px !important; } .pdf-export section { padding: 12px !important; border-radius: 8px !important; box-shadow: none !important; } .pdf-export section > div:first-child { margin-bottom: 8px !important; padding-bottom: 6px !important; } .pdf-export section h2 { font-size: 16px !important; } .pdf-export input, .pdf-export textarea { min-height: 28px !important; padding: 4px 6px !important; } .pdf-export textarea { height: 72px !important; } .pdf-export table { font-size: 11px !important; } .pdf-export table th, .pdf-export table td { padding: 5px !important; } .pdf-export .min-h-28 { min-height: 76px !important; } @media print { @page { size: A4; margin: 7mm; } .no-print { display:none!important } .po-page { padding:0!important; max-width:none!important } input,textarea { border:0!important; box-shadow:none!important; padding:0!important } section { break-inside: avoid; } }`}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
       <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="العودة"><ArrowRight className="h-5 w-5" /></Button><div><p className="text-xs font-semibold text-[#0d5c43]">مؤسسة القادري الزراعية</p><h1 className="text-xl font-black text-slate-900">طلبات الشراء</h1></div></div>
       <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={downloadPdf} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> تنزيل PDF</Button></div>
