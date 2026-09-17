@@ -109,7 +109,7 @@ export default function PurchaseOrdersPage() {
   const setSupplier = (key: keyof PurchaseOrder["supplier"], value: string) => setOrder(prev => ({ ...prev, supplier: { ...prev.supplier, [key]: value } }));
   const setItem = (itemId: string, key: keyof PurchaseItem, value: string) => setOrder(prev => ({ ...prev, items: prev.items.map(item => item.id === itemId ? { ...item, [key]: value } : item) }));
 
-  function createNew() { setOrder(prev => ({ ...prev, id: id(), number: nextNumber(), createdAt: new Date().toISOString(), buyer: { ...prev.buyer }, supplier: { ...prev.supplier }, items: prev.items.map(item => ({ ...item, id: id() })) })); window.scrollTo({ top: 0, behavior: "smooth" }); toast.success("تم إنشاء طلب شراء جديد من آخر طلب"); }
+  function createNew() { setOrder(prev => { const blank = newOrder(); return { ...blank, buyer: { ...prev.buyer } }; }); window.scrollTo({ top: 0, behavior: "smooth" }); toast.success("تم إنشاء طلب شراء جديد برقم جديد"); }
   function save() {
     const next = [...orders.filter(item => item.id !== order.id), order];
     setOrders(next); localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); toast.success(`تم حفظ ${order.number}`);
