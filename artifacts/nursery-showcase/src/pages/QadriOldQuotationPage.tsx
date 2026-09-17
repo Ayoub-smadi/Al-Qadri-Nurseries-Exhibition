@@ -157,7 +157,7 @@ export default function QadriOldQuotationPage() {
   const [discountPct, setDiscountPct] = useState<number>(draft?.discountPct ?? 0);
   const initialTaxPct = Number(draft?.taxPct);
   const [taxPct, setTaxPct] = useState<number | null>(
-    Number.isFinite(initialTaxPct) && initialTaxPct >= 0 ? initialTaxPct : null
+    Number.isFinite(initialTaxPct) && initialTaxPct > 0 ? initialTaxPct : null
   );
   const parsedTaxPct = taxPct === null ? null : Number(taxPct);
   const hasTax = parsedTaxPct !== null && Number.isFinite(parsedTaxPct) && parsedTaxPct >= 0;
