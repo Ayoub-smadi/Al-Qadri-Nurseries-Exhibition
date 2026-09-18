@@ -226,7 +226,7 @@ export default function PurchaseOrdersPage() {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const exportWidth = Math.max(exportElement.offsetWidth, 1);
       const exportHeight = Math.max(exportElement.offsetHeight, 1);
-      const render = (scale: number) => html2canvas(exportElement!, {
+       const render = (scale: number) => html2canvas(exportElement!, {
         width: exportWidth,
         height: exportHeight,
         windowWidth: exportWidth,
@@ -242,20 +242,20 @@ export default function PurchaseOrdersPage() {
       });
       let canvas: HTMLCanvasElement;
       try {
-        canvas = await render(1);
+         canvas = await render(2);
       } catch {
         // If an image prevents the first capture, retry without images while
         // keeping the complete editable page and its layout.
         images.forEach(image => { image.style.display = "none"; });
         await new Promise(resolve => requestAnimationFrame(resolve));
-        canvas = await render(0.75);
+         canvas = await render(1);
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
 
       // The visible form is already an A4 sheet. Export that same sheet as
       // exactly one PDF page instead of slicing a long web document.
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", 0, 0, 210, 297);
+       pdf.addImage(canvas.toDataURL("image/jpeg", 0.97), "JPEG", 0, 0, 210, 297);
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
@@ -274,16 +274,38 @@ export default function PurchaseOrdersPage() {
       .po-page { box-sizing:border-box; display:flex; flex:0 0 794px; flex-direction:column; gap:8px; width:794px; height:1123px; min-height:1123px; padding:18px; background:#fff; box-shadow:0 8px 32px rgba(15,23,42,.12); }
       .po-document-header { flex:0 0 78px; padding:12px 18px !important; border-radius:12px !important; }
       .po-document-header img { height:54px !important; width:48px !important; }
-      .po-document-header h2 { font-size:25px !important; }
-      .po-document-header p { margin-bottom:2px !important; font-size:11px !important; }
-      .po-document-header input { font-size:19px !important; }
+       .po-document-header h2 { font-size:27px !important; letter-spacing:-.02em; }
+       .po-document-header p { margin-bottom:2px !important; font-size:11px !important; }
+       .po-document-header .po-number-field {
+         box-sizing:border-box;
+         width:184px !important;
+         height:38px !important;
+         margin-top:4px !important;
+         padding:2px 10px !important;
+         border:2px solid rgba(255,255,255,.76) !important;
+         border-radius:8px !important;
+         background:rgba(255,255,255,.12) !important;
+         box-shadow:none !important;
+         color:#fff !important;
+         font-size:25px !important;
+         line-height:1 !important;
+         text-align:center !important;
+         letter-spacing:.04em;
+       }
+       .po-page input, .po-page textarea {
+         box-shadow:none !important;
+         border-color:#cbd8d0 !important;
+       }
+       .po-page input:focus, .po-page textarea:focus {
+         box-shadow:0 0 0 2px rgba(13,92,67,.14) !important;
+       }
       .po-section { flex:none; padding:10px 14px !important; border-radius:10px !important; box-shadow:none !important; break-inside:avoid; page-break-inside:avoid; }
       .po-section-title { margin-bottom:7px !important; padding-bottom:5px !important; gap:7px !important; }
       .po-section-title h2 { font-size:14px !important; }
       .po-section-title span { height:18px !important; width:3px !important; }
-      .po-page label span { margin-bottom:3px !important; font-size:10px !important; }
-      .po-page .po-field, .po-page input, .po-page textarea { font-size:10px !important; }
-      .po-page .po-field { height:29px !important; border-radius:7px !important; }
+       .po-page label span { margin-bottom:3px !important; font-size:10.5px !important; }
+       .po-page .po-field, .po-page input, .po-page textarea { font-size:11px !important; }
+       .po-page .po-field { height:30px !important; border-radius:6px !important; }
       .po-page textarea { min-height:45px !important; height:45px !important; resize:none !important; }
       .po-request-section > div { gap:8px !important; }
       .po-parties { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px !important; }
@@ -304,7 +326,7 @@ export default function PurchaseOrdersPage() {
       .po-items-section th:nth-child(7) { width:9%; }
       .po-items-section th:nth-child(8) { width:14%; }
       .po-items-section th:nth-child(9) { width:26px; }
-      .po-items-section input { width:100%; min-width:0; height:24px; padding:2px 4px; font-size:9px !important; }
+       .po-items-section input { width:100%; min-width:0; height:24px; padding:2px 4px; font-size:9px !important; }
       .po-items-section tbody td { height:29px; }
       .po-items-section tbody td[colspan] { padding:8px !important; }
       .po-items-section > .mt-5 { margin-top:7px !important; }
@@ -329,7 +351,12 @@ export default function PurchaseOrdersPage() {
         .no-print { display:none!important; }
         .po-preview { display:block; padding:0 !important; min-height:0 !important; overflow:visible !important; }
         .po-page { width:210mm !important; height:297mm !important; min-height:297mm !important; padding:5mm !important; box-shadow:none !important; }
-        input, textarea { border:0!important; box-shadow:none!important; }
+         input, textarea { box-shadow:none!important; }
+         .po-document-header .po-number-field {
+           border-color:#0d5c43 !important;
+           background:#edf5f1 !important;
+           color:#0d5c43 !important;
+         }
       }
     `}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
@@ -339,7 +366,7 @@ export default function PurchaseOrdersPage() {
 
     <div className="po-preview">
     <main ref={paperRef} className="po-page">
-      <div className="po-document-header rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="flex flex-wrap items-center justify-between gap-5"><div className="flex items-center gap-4"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">{order.buyer.institution}</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="text-left"><p className="text-xs text-emerald-100 print:text-slate-500">رقم طلب الشراء</p><input aria-label="رقم طلب الشراء" value={order.number} onChange={e => set("number", e.target.value)} className="mt-1 w-40 bg-transparent text-left text-2xl font-black tracking-wider text-white outline-none print:text-slate-900" /></div></div></div>
+       <div className="po-document-header rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="flex flex-wrap items-center justify-between gap-5"><div className="flex items-center gap-4"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">{order.buyer.institution}</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="text-left"><p className="text-xs text-emerald-100 print:text-slate-500">رقم طلب الشراء</p><input aria-label="رقم طلب الشراء" value={order.number} onChange={e => set("number", e.target.value)} className="po-number-field mt-1 w-40 bg-transparent text-left text-2xl font-black tracking-wider text-white outline-none print:text-slate-900" /></div></div></div>
 
       <Section title="بيانات الطلب" className="po-request-section"><div className="grid gap-4 md:grid-cols-3"><TextField label="تاريخ الطلب" type="date" value={order.orderDate} onChange={v => set("orderDate", v)} /><TextField label="تاريخ التوريد المطلوب" type="date" value={order.deliveryDate} onChange={v => set("deliveryDate", v)} /><TextField label="العملة" value={order.currency} onChange={v => set("currency", v)} placeholder="مثال: دينار أردني" /></div></Section>
 
