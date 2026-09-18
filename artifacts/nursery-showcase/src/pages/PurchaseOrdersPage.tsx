@@ -80,6 +80,56 @@ async function imageAsDataUrl(src: string) {
   });
 }
 
+function replacePdfFieldsWithText(root: HTMLElement) {
+  const fields = Array.from(root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select"));
+  fields.forEach(field => {
+    const replacement = document.createElement("div");
+    replacement.className = field.className;
+    replacement.textContent = field.value || field.getAttribute("placeholder") || "";
+    replacement.style.minHeight = `${Math.max(field.getBoundingClientRect().height, 24)}px`;
+    replacement.style.whiteSpace = field instanceof HTMLTextAreaElement ? "pre-wrap" : "nowrap";
+    replacement.style.overflow = "hidden";
+    replacement.style.display = field instanceof HTMLTextAreaElement ? "block" : "flex";
+    if (!(field instanceof HTMLTextAreaElement)) replacement.style.alignItems = "center";
+    field.replaceWith(replacement);
+  });
+}
+
+function sanitizePdfColors(root: HTMLElement) {
+  const colorProperties = [
+    "color",
+    "background-color",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "outline-color",
+    "text-decoration-color",
+    "column-rule-color",
+    "box-shadow",
+    "text-shadow",
+    "fill",
+    "stroke",
+  ];
+  const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+
+  elements.forEach(element => {
+    const computed = window.getComputedStyle(element);
+    colorProperties.forEach(property => {
+      const value = computed.getPropertyValue(property);
+      if (!/(oklch|oklab|color-mix|lab\(|lch\()/i.test(value)) return;
+      const fallback = property === "box-shadow" || property === "text-shadow"
+        ? "none"
+        : property === "background-color"
+          ? "#ffffff"
+          : property.includes("border") || property === "outline-color" || property === "column-rule-color"
+            ? "#e2e8f0"
+            : "#1e293b";
+      element.style.setProperty(property, fallback);
+    });
+  });
+}
+
 const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-right focus-visible:ring-[#0d5c43]";
 const labelClass = "mb-2 block text-sm font-bold text-slate-700";
 
@@ -153,6 +203,14 @@ export default function PurchaseOrdersPage() {
           copy.value = field.value;
         }
       });
+      // html2canvas is more reliable with ordinary text than native form
+      // controls. The cloned document is only used for the PDF, so replacing
+      // controls here does not affect the editable form on the page.
+      replacePdfFieldsWithText(exportElement);
+      // Tailwind v4 emits some palette and shadow values as oklch/color-mix.
+      // html2canvas cannot parse those functions, so normalize them only in
+      // the off-screen export copy while preserving the live page styling.
+      sanitizePdfColors(exportElement);
       const images = Array.from(exportElement.querySelectorAll("img"));
       await Promise.all(images.map(image => image.complete ? Promise.resolve() : new Promise<void>(resolve => {
         image.addEventListener("load", () => resolve(), { once: true });
@@ -180,16 +238,16 @@ export default function PurchaseOrdersPage() {
         imageTimeout: 0,
       });
       let canvas: HTMLCanvasElement;
-      let renderScale = 2;
+      let renderScale = 1;
       try {
-        canvas = await render(2);
+        canvas = await render(1);
       } catch {
         // If an image prevents the first capture, retry without images while
         // keeping the complete editable page and its layout.
         images.forEach(image => { image.style.display = "none"; });
         await new Promise(resolve => requestAnimationFrame(resolve));
-        renderScale = 1;
-        canvas = await render(1);
+        renderScale = 0.75;
+        canvas = await render(0.75);
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
 
@@ -243,23 +301,7 @@ export default function PurchaseOrdersPage() {
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
       console.error("Purchase order PDF error", error);
-      try {
-        const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-        fallback.setFontSize(16);
-        fallback.text("Purchase Order", 14, 18);
-        fallback.setFontSize(11);
-        fallback.text(`PO: ${order.number}`, 14, 28);
-        fallback.text(`Date: ${order.orderDate || ""}`, 14, 36);
-        fallback.text(`Supplier: ${order.supplier.name || ""}`, 14, 44);
-        fallback.text("Items:", 14, 56);
-        order.items.slice(0, 18).forEach((item, index) => {
-          fallback.text(`${index + 1}. ${item.description || ""} | ${item.unit || ""} | Qty: ${item.quantity || ""} | Price: ${item.unitPrice || ""}`, 14, 64 + index * 7);
-        });
-        fallback.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_طولي.pdf`);
-        toast.success("تم تنزيل PDF بالنسخة الاحتياطية");
-      } catch {
-        toast.error("تعذر تنزيل PDF. حاول مرة أخرى أو حدّث الصفحة.");
-      }
+      toast.error("تعذر تجهيز ملف PDF. حاول مرة أخرى أو حدّث الصفحة.");
     } finally {
       exportElement?.remove();
     }
