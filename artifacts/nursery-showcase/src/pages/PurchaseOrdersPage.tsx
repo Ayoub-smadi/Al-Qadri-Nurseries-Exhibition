@@ -271,27 +271,16 @@ export default function PurchaseOrdersPage() {
       .pdf-brand-image { object-fit: contain; }
       .pdf-export .no-print { display:none !important; }
       .po-preview { display:flex; justify-content:center; padding:24px 16px 40px; min-height:calc(100vh - 78px); overflow:auto; }
-      .po-page { box-sizing:border-box; display:flex; flex:0 0 794px; flex-direction:column; gap:8px; width:794px; height:1123px; min-height:1123px; padding:18px; background:#fff; box-shadow:0 8px 32px rgba(15,23,42,.12); }
+      .po-page { box-sizing:border-box; display:flex; flex:0 0 794px; flex-direction:column; gap:8px; width:794px; height:1123px; min-height:1123px; max-height:1123px; overflow:hidden; padding:18px; background:#fff; box-shadow:0 8px 32px rgba(15,23,42,.12); }
       .po-document-header { flex:0 0 78px; padding:12px 18px !important; border-radius:12px !important; }
-      .po-document-header img { height:54px !important; width:48px !important; }
-       .po-document-header h2 { font-size:27px !important; letter-spacing:-.02em; }
-       .po-document-header p { margin-bottom:2px !important; font-size:11px !important; }
-       .po-document-header .po-number-field {
-         box-sizing:border-box;
-         width:184px !important;
-         height:38px !important;
-         margin-top:4px !important;
-         padding:2px 10px !important;
-         border:2px solid rgba(255,255,255,.76) !important;
-         border-radius:8px !important;
-         background:rgba(255,255,255,.12) !important;
-         box-shadow:none !important;
-         color:#fff !important;
-         font-size:25px !important;
-         line-height:1 !important;
-         text-align:center !important;
-         letter-spacing:.04em;
-       }
+      .po-header-row { display:grid !important; grid-template-columns:minmax(0,1fr) 220px; align-items:center; gap:18px; width:100%; height:100%; }
+      .po-header-brand { display:flex; align-items:center; gap:14px; min-width:0; }
+      .po-header-brand > div { min-width:0; }
+      .po-header-number { display:flex; flex-direction:column; align-items:center; justify-content:center; width:220px; min-width:0; padding:5px 8px; border-inline-start:1px solid rgba(255,255,255,.3); }
+      .po-number-label { margin:0 0 5px !important; color:#d9f4e8; font-size:11px !important; font-weight:700; line-height:1.2; white-space:nowrap; }
+      .po-document-header img { height:54px !important; width:48px !important; flex:none; }
+      .po-document-header h2 { margin:0 !important; font-size:27px !important; line-height:1.15 !important; letter-spacing:-.02em; }
+      .po-document-header .po-number-field { box-sizing:border-box; width:190px !important; height:38px !important; margin:0 !important; padding:2px 10px !important; border:2px solid rgba(255,255,255,.76) !important; border-radius:8px !important; background:rgba(255,255,255,.12) !important; box-shadow:none !important; color:#fff !important; font-size:23px !important; line-height:1 !important; text-align:center !important; letter-spacing:.04em; }
        .po-page input, .po-page textarea {
          box-shadow:none !important;
          border-color:#cbd8d0 !important;
@@ -303,13 +292,14 @@ export default function PurchaseOrdersPage() {
       .po-section-title { margin-bottom:7px !important; padding-bottom:5px !important; gap:7px !important; }
       .po-section-title h2 { font-size:14px !important; }
       .po-section-title span { height:18px !important; width:3px !important; }
-       .po-page label span { margin-bottom:3px !important; font-size:10.5px !important; }
-       .po-page .po-field, .po-page input, .po-page textarea { font-size:11px !important; }
-       .po-page .po-field { height:30px !important; border-radius:6px !important; }
+       .po-page label { display:block; min-width:0; line-height:1.2; }
+       .po-page label span { display:block; margin:0 0 5px !important; font-size:10.5px !important; line-height:1.25 !important; white-space:nowrap; overflow:visible; }
+       .po-page .po-field, .po-page input, .po-page textarea { box-sizing:border-box; display:block; width:100%; font-size:11px !important; }
+       .po-page .po-field { height:30px !important; margin:0 !important; border-radius:6px !important; }
       .po-page textarea { min-height:45px !important; height:45px !important; resize:none !important; }
       .po-request-section > div { gap:8px !important; }
       .po-parties { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px !important; }
-      .po-parties .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px !important; }
+      .po-parties .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 8px !important; }
       .po-parties .sm\\:col-span-2 { grid-column:span 2; }
       .po-parties .po-section { min-height:164px; }
       .po-items-section { min-height:250px; }
@@ -366,7 +356,7 @@ export default function PurchaseOrdersPage() {
 
     <div className="po-preview">
     <main ref={paperRef} className="po-page">
-       <div className="po-document-header rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="flex flex-wrap items-center justify-between gap-5"><div className="flex items-center gap-4"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">{order.buyer.institution}</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="text-left"><p className="text-xs text-emerald-100 print:text-slate-500">رقم طلب الشراء</p><input aria-label="رقم طلب الشراء" value={order.number} onChange={e => set("number", e.target.value)} className="po-number-field mt-1 w-40 bg-transparent text-left text-2xl font-black tracking-wider text-white outline-none print:text-slate-900" /></div></div></div>
+       <div className="po-document-header rounded-2xl bg-[#0d5c43] p-6 text-white shadow-lg print:rounded-none print:bg-white print:p-0 print:text-slate-900 print:shadow-none"><div className="po-header-row"><div className="po-header-brand"><img src="/logo-purchase-order.png" alt="شعار مؤسسة القادري الزراعية" className="pdf-brand-image h-24 w-20 rounded-lg bg-white object-contain p-1" crossOrigin="anonymous" /><div><p className="mb-2 text-sm font-semibold text-emerald-100 print:text-[#0d5c43]">{order.buyer.institution}</p><h2 className="text-3xl font-black">طلب شراء</h2></div></div><div className="po-header-number"><p className="po-number-label">رقم طلب الشراء</p><input aria-label="رقم طلب الشراء" value={order.number} onChange={e => set("number", e.target.value)} className="po-number-field mt-1 w-40 bg-transparent text-left text-2xl font-black tracking-wider text-white outline-none print:text-slate-900" /></div></div></div>
 
       <Section title="بيانات الطلب" className="po-request-section"><div className="grid gap-4 md:grid-cols-3"><TextField label="تاريخ الطلب" type="date" value={order.orderDate} onChange={v => set("orderDate", v)} /><TextField label="تاريخ التوريد المطلوب" type="date" value={order.deliveryDate} onChange={v => set("deliveryDate", v)} /><TextField label="العملة" value={order.currency} onChange={v => set("currency", v)} placeholder="مثال: دينار أردني" /></div></Section>
 
