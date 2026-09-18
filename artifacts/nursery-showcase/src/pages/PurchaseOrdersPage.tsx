@@ -84,7 +84,7 @@ const fieldClass = "h-11 rounded-xl border-slate-200 bg-white text-right focus-v
 const labelClass = "mb-2 block text-sm font-bold text-slate-700";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm print:rounded-none print:border-slate-300 print:shadow-none">
+  return <section data-pdf-section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm print:rounded-none print:border-slate-300 print:shadow-none">
     <div className="mb-5 flex items-center gap-3 border-b border-slate-100 pb-3"><span className="h-6 w-1 rounded-full bg-[#0d5c43]" /><h2 className="text-lg font-extrabold text-[#0d5c43]">{title}</h2></div>{children}
   </section>;
 }
@@ -129,8 +129,10 @@ export default function PurchaseOrdersPage() {
       exportElement.style.position = "absolute";
       exportElement.style.left = "0";
       exportElement.style.top = "0";
-      exportElement.style.width = "1152px";
-      exportElement.style.maxWidth = "1152px";
+      // Render at the width of an A4 page instead of the desktop viewport.
+      // This keeps the form readable when it is split across PDF pages.
+      exportElement.style.width = "794px";
+      exportElement.style.maxWidth = "794px";
       exportElement.style.background = "#ffffff";
       exportElement.style.opacity = "1";
       exportElement.style.pointerEvents = "none";
@@ -163,36 +165,81 @@ export default function PurchaseOrdersPage() {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const exportWidth = Math.max(exportElement.scrollWidth, exportElement.offsetWidth, 1);
       const exportHeight = Math.max(exportElement.scrollHeight, exportElement.offsetHeight, 1);
-      const render = (scale: number) => html2canvas(exportElement!, { width: exportWidth, height: exportHeight, windowWidth: exportWidth, windowHeight: exportHeight, scrollX: 0, scrollY: 0, scale, useCORS: false, allowTaint: false, backgroundColor: "#ffffff", logging: false, imageTimeout: 0 });
+      const render = (scale: number) => html2canvas(exportElement!, {
+        width: exportWidth,
+        height: exportHeight,
+        windowWidth: exportWidth,
+        windowHeight: exportHeight,
+        scrollX: 0,
+        scrollY: 0,
+        scale,
+        useCORS: false,
+        allowTaint: false,
+        backgroundColor: "#ffffff",
+        logging: false,
+        imageTimeout: 0,
+      });
       let canvas: HTMLCanvasElement;
+      let renderScale = 2;
       try {
-        canvas = await render(0.7);
+        canvas = await render(2);
       } catch {
         // If an image prevents the first capture, retry without images while
         // keeping the complete editable page and its layout.
         images.forEach(image => { image.style.display = "none"; });
         await new Promise(resolve => requestAnimationFrame(resolve));
-        canvas = await render(0.5);
+        renderScale = 1;
+        canvas = await render(1);
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
 
-      // The content itself determines the page direction. A short order uses
-      // portrait A4; a taller order uses landscape A4 as requested. The
-      // rendered page is still one complete image, so the PDF cannot split or
-      // omit fields from the form.
-      const portraitContentRatio = (297 - 12) / (210 - 12);
-      const isLandscape = canvas.height / canvas.width > portraitContentRatio;
-      const orientation = isLandscape ? "landscape" : "portrait";
-      const pdf = new jsPDF({ orientation, unit: "mm", format: "a4", compress: true });
-      const pageWidth = isLandscape ? 297 : 210;
-      const pageHeight = isLandscape ? 210 : 297;
-      const margin = 6;
-      const ratio = Math.min((pageWidth - margin * 2) / canvas.width, (pageHeight - margin * 2) / canvas.height);
-      const width = canvas.width * ratio;
-      const height = canvas.height * ratio;
-      const image = canvas.toDataURL("image/png");
-      pdf.addImage(image, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
-      pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_${isLandscape ? "عرضي" : "طولي"}.pdf`);
+      // Keep the PDF as normal white A4 pages. A long order is sliced into
+      // multiple pages at the same scale, so every field remains readable and
+      // no data disappears by being squeezed into one page.
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const pxPerMm = canvas.width / pageWidth;
+      const pageHeightPx = Math.floor(pageHeight * pxPerMm);
+      const sections = Array.from(exportElement.querySelectorAll<HTMLElement>("[data-pdf-section]"));
+      const exportTop = exportElement.getBoundingClientRect().top;
+      const sectionBottoms = sections
+        .map(section => Math.round((section.getBoundingClientRect().bottom - exportTop) * renderScale))
+        .filter(bottom => bottom > 0 && bottom < canvas.height);
+      const cuts: number[] = [];
+      let pageStart = 0;
+
+      while (pageStart + pageHeightPx < canvas.height) {
+        const pageLimit = pageStart + pageHeightPx;
+        // Prefer ending after a complete form section. If one section is
+        // taller than a page (for example, a large items table), fall back to
+        // a regular page cut so the loop always makes progress.
+        const sectionCut = sectionBottoms
+          .filter(bottom => bottom > pageStart + 20 && bottom <= pageLimit)
+          .pop();
+        const cut = sectionCut || pageLimit;
+        cuts.push(cut);
+        pageStart = cut;
+      }
+
+      const sliceBounds = [0, ...cuts, canvas.height];
+      for (let pageIndex = 0; pageIndex < sliceBounds.length - 1; pageIndex += 1) {
+        if (pageIndex > 0) pdf.addPage("a4", "portrait");
+        const top = sliceBounds[pageIndex];
+        const height = sliceBounds[pageIndex + 1] - top;
+        const pageCanvas = document.createElement("canvas");
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = height;
+        const context = pageCanvas.getContext("2d");
+        if (!context) throw new Error("تعذر تجهيز صفحة PDF");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        context.drawImage(canvas, 0, top, canvas.width, height, 0, 0, canvas.width, height);
+        const imageHeight = Math.min(pageHeight, (height / pxPerMm));
+        pdf.addImage(pageCanvas.toDataURL("image/jpeg", 0.94), "JPEG", 0, 0, pageWidth, imageHeight);
+      }
+
+      pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
       console.error("Purchase order PDF error", error);
