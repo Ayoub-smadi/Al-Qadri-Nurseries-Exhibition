@@ -326,12 +326,18 @@ export default function PurchaseOrdersPage() {
       .po-notes-payment { display:grid; grid-template-columns:1.35fr 1fr; gap:8px; }
       .po-notes-payment .po-section { min-height:77px; }
       .po-payment-fields { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px !important; }
-      .po-approval-grid { display:grid; grid-template-columns:1.15fr 1fr; gap:8px; }
-      .po-approval-grid .po-section { min-height:144px; }
-      .po-approval-grid .grid { gap:7px !important; }
-      .po-approval-grid .min-h-28 { min-height:66px !important; padding:5px !important; font-size:9px !important; }
-      .po-approval-grid .min-h-24 { min-height:51px !important; padding:5px !important; font-size:9px !important; }
-      .po-approval-grid img { max-height:47px !important; max-width:80px !important; }
+      .po-approvals { display:flex; flex-direction:column; gap:6px; }
+      .po-approval-row { padding:8px 12px !important; }
+      .po-approval-row .po-section-title { display:flex; align-items:center; margin-bottom:6px !important; padding-bottom:4px !important; }
+      .po-approval-row .po-section-title h2 { font-size:13px !important; }
+      .po-approval-line { display:flex; align-items:center; gap:8px; min-height:46px; width:100%; white-space:nowrap; }
+      .po-approval-item, .po-approval-sign, .po-approval-stamp { display:flex; align-items:center; gap:4px; min-width:0; height:34px; padding:0 7px; border:1px solid #d7e2dc; border-radius:6px; background:#fbfdfc; color:#334155; font-size:10px; }
+      .po-approval-item { flex:1 1 0; }
+      .po-approval-sign, .po-approval-stamp { flex:0 0 104px; justify-content:space-between; }
+      .po-approval-item b, .po-approval-sign b, .po-approval-stamp b { color:#0d5c43; font-size:9px; }
+      .po-approval-item input { min-width:0; width:100%; height:24px !important; padding:1px 4px !important; border:0 !important; background:transparent !important; font-size:10px !important; }
+      .po-approval-sign img, .po-approval-stamp img { max-width:57px; max-height:30px; object-fit:contain; }
+      .po-approval-blank { display:inline-block; width:54px; height:24px; border-bottom:1px dashed #94a3b8; }
       @media (max-width: 820px) {
         .po-preview { justify-content:flex-start; padding:12px; }
       }
@@ -367,9 +373,9 @@ export default function PurchaseOrdersPage() {
       <div className="po-notes-payment">
         <Section title="ملاحظات"><textarea value={order.notes} onChange={e => set("notes", e.target.value)} rows={6} className="w-full resize-y rounded-xl border border-slate-200 p-3 outline-none focus:border-[#0d5c43]" /></Section>
       </div>
-      <div className="po-approval-grid">
-        <Section title="اعتماد المشتري"><div className="grid gap-6 md:grid-cols-2"><div className="space-y-2 text-sm leading-7"><p><b>الاسم:</b> {order.buyer.name}</p><p><b>الوظيفة:</b> {order.buyer.position}</p><p><b>التاريخ:</b> {order.orderDate || ""}</p></div><div className="grid grid-cols-2 gap-4"><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع<img src="/signature-thamer.png" alt="توقيع المسؤول" className="absolute bottom-1 left-1/2 h-20 w-32 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div><div className="relative min-h-28 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم<img src="/stamp-qadri.png" alt="ختم المؤسسة" className="absolute bottom-0 left-1/2 h-32 w-36 -translate-x-1/2 object-contain" crossOrigin="anonymous" /></div></div></div></Section>
-        <Section title="اعتماد المورد"><div className="grid gap-4 md:grid-cols-3"><TextField label="الاسم" value={order.supplierApproval.name} onChange={v => setSupplierApproval("name", v)} /><TextField label="الوظيفة" value={order.supplierApproval.position} onChange={v => setSupplierApproval("position", v)} /><TextField label="التاريخ" type="date" value={order.supplierApproval.date} onChange={v => setSupplierApproval("date", v)} /></div><div className="mt-4 grid grid-cols-2 gap-4"><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">التوقيع</div><div className="min-h-24 rounded-xl border-2 border-dashed border-slate-300 p-3 text-sm text-slate-400">الختم</div></div></Section>
+      <div className="po-approvals">
+        <Section title="اعتماد المشتري" className="po-approval-row"><div className="po-approval-line"><span className="po-approval-item"><b>الاسم:</b> {order.buyer.name}</span><span className="po-approval-item"><b>الوظيفة:</b> {order.buyer.position}</span><span className="po-approval-item"><b>التاريخ:</b> {order.orderDate || ""}</span><span className="po-approval-sign"><b>التوقيع:</b><img src="/signature-thamer.png" alt="توقيع المسؤول" crossOrigin="anonymous" /></span><span className="po-approval-stamp"><b>الختم:</b><img src="/stamp-qadri.png" alt="ختم المؤسسة" crossOrigin="anonymous" /></span></div></Section>
+        <Section title="اعتماد المورد" className="po-approval-row"><div className="po-approval-line"><span className="po-approval-item"><b>الاسم:</b><input aria-label="اسم المعتمد من المورد" value={order.supplierApproval.name} onChange={e => setSupplierApproval("name", e.target.value)} /></span><span className="po-approval-item"><b>الوظيفة:</b><input aria-label="وظيفة المعتمد من المورد" value={order.supplierApproval.position} onChange={e => setSupplierApproval("position", e.target.value)} /></span><span className="po-approval-item"><b>التاريخ:</b><input aria-label="تاريخ اعتماد المورد" type="date" value={order.supplierApproval.date} onChange={e => setSupplierApproval("date", e.target.value)} /></span><span className="po-approval-sign"><b>التوقيع:</b><span className="po-approval-blank" /></span><span className="po-approval-stamp"><b>الختم:</b><span className="po-approval-blank" /></span></div></Section>
       </div>
     </main>
     </div>
