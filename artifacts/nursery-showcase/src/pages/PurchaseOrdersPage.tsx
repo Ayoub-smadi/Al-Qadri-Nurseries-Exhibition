@@ -176,6 +176,7 @@ export default function PurchaseOrdersPage() {
       const sourceElement = paperRef.current;
       exportElement = sourceElement.cloneNode(true) as HTMLElement;
       exportElement.classList.add("pdf-export");
+      if (order.items.length > 8) exportElement.classList.add("pdf-multipage", "po-page-multipage");
       exportElement.style.position = "absolute";
       exportElement.style.left = "0";
       exportElement.style.top = "0";
@@ -183,7 +184,7 @@ export default function PurchaseOrdersPage() {
       // This keeps the form readable when it is split across PDF pages.
       exportElement.style.width = "794px";
       exportElement.style.maxWidth = "794px";
-      exportElement.style.height = "1123px";
+      exportElement.style.height = order.items.length > 8 ? "auto" : "1123px";
       exportElement.style.minHeight = "1123px";
       exportElement.style.boxSizing = "border-box";
       exportElement.style.background = "#ffffff";
@@ -225,7 +226,7 @@ export default function PurchaseOrdersPage() {
       imageData.forEach(([image, dataUrl]) => { image.removeAttribute("crossorigin"); image.src = dataUrl; });
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const exportWidth = Math.max(exportElement.offsetWidth, 1);
-      const exportHeight = Math.max(exportElement.offsetHeight, 1);
+      const exportHeight = Math.max(exportElement.scrollHeight, exportElement.offsetHeight, 1);
        const render = (scale: number) => html2canvas(exportElement!, {
         width: exportWidth,
         height: exportHeight,
@@ -252,10 +253,24 @@ export default function PurchaseOrdersPage() {
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
 
-      // The visible form is already an A4 sheet. Export that same sheet as
-      // exactly one PDF page instead of slicing a long web document.
+      // One-page orders stay on one A4 sheet. Long item lists are sliced into
+      // consecutive A4 pages; notes and approvals remain after the table.
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-       pdf.addImage(canvas.toDataURL("image/jpeg", 0.97), "JPEG", 0, 0, 210, 297);
+      const pagePixelHeight = Math.max(1, Math.round(canvas.width * 297 / 210));
+      const pageCount = Math.max(1, Math.ceil(canvas.height / pagePixelHeight));
+      for (let page = 0; page < pageCount; page += 1) {
+        if (page > 0) pdf.addPage("a4", "portrait");
+        const sliceHeight = Math.min(pagePixelHeight, canvas.height - page * pagePixelHeight);
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = sliceHeight;
+        const context = slice.getContext("2d");
+        if (!context) throw new Error("تعذر تجهيز صفحة PDF");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, slice.width, slice.height);
+        context.drawImage(canvas, 0, page * pagePixelHeight, canvas.width, sliceHeight, 0, 0, slice.width, sliceHeight);
+        pdf.addImage(slice.toDataURL("image/jpeg", 0.97), "JPEG", 0, 0, 210, (sliceHeight / canvas.width) * 210);
+      }
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
       toast.success("تم تنزيل ملف PDF بنجاح");
     } catch (error) {
@@ -272,6 +287,8 @@ export default function PurchaseOrdersPage() {
       .pdf-export .no-print { display:none !important; }
       .po-preview { display:flex; justify-content:center; padding:24px 16px 40px; min-height:calc(100vh - 78px); overflow:auto; }
       .po-page { box-sizing:border-box; display:flex; flex:0 0 794px; flex-direction:column; gap:8px; width:794px; height:1123px; min-height:1123px; max-height:1123px; overflow:hidden; padding:18px; background:#fff; box-shadow:0 8px 32px rgba(15,23,42,.12); }
+      .po-page-multipage { height:auto !important; max-height:none !important; overflow:visible !important; }
+      .pdf-multipage .po-page { height:auto !important; max-height:none !important; min-height:1123px !important; overflow:visible !important; }
       .po-document-header { flex:0 0 78px; padding:12px 18px !important; border-radius:12px !important; }
       .po-header-row { display:grid !important; grid-template-columns:minmax(0,1fr) 220px; align-items:center; gap:18px; width:100%; height:100%; }
       .po-header-brand { display:flex; align-items:center; gap:14px; min-width:0; }
@@ -289,6 +306,9 @@ export default function PurchaseOrdersPage() {
          box-shadow:0 0 0 2px rgba(13,92,67,.14) !important;
        }
       .po-section { flex:none; padding:10px 14px !important; border-radius:10px !important; box-shadow:none !important; break-inside:avoid; page-break-inside:avoid; }
+      .pdf-multipage .po-items-section { break-inside:auto !important; page-break-inside:auto !important; }
+      .pdf-multipage .po-items-section tr { break-inside:avoid; page-break-inside:avoid; }
+      .pdf-multipage .po-notes-payment, .pdf-multipage .po-approvals { break-inside:avoid; page-break-inside:avoid; }
       .po-section-title { margin-bottom:7px !important; padding-bottom:5px !important; gap:7px !important; }
       .po-section-title h2 { font-size:14px !important; }
       .po-section-title span { height:18px !important; width:3px !important; }
