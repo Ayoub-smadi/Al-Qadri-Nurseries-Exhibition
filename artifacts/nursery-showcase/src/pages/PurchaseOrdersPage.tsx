@@ -367,12 +367,16 @@ export default function PurchaseOrdersPage() {
         .no-print { display:none!important; }
         .po-preview { display:block; padding:0 !important; min-height:0 !important; overflow:visible !important; }
         .po-page { width:210mm !important; height:297mm !important; min-height:297mm !important; padding:5mm !important; box-shadow:none !important; }
+        .po-document-header { display:block !important; height:25mm !important; min-height:25mm !important; padding:3mm 4mm !important; background:#0d5c43 !important; color:#fff !important; overflow:hidden !important; }
+        .po-header-row { display:grid !important; grid-template-columns:minmax(0,1fr) 58mm !important; align-items:center !important; gap:4mm !important; height:19mm !important; }
+        .po-header-brand { display:flex !important; align-items:center !important; gap:3mm !important; min-width:0 !important; }
+        .po-header-brand > div { min-width:0 !important; }
+        .po-header-brand p { margin:0 0 1mm !important; color:#fff !important; font-size:10pt !important; line-height:1.2 !important; white-space:nowrap !important; }
+        .po-header-brand h2 { margin:0 !important; color:#fff !important; font-size:19pt !important; line-height:1.1 !important; white-space:nowrap !important; }
+        .po-header-number { width:auto !important; height:18mm !important; padding:1mm 2mm !important; border-inline-start:1px solid rgba(255,255,255,.45) !important; }
+        .po-number-label { color:#fff !important; font-size:8pt !important; margin:0 0 1mm !important; }
+        .po-document-header .po-number-field { width:52mm !important; height:10mm !important; margin:0 !important; border-color:rgba(255,255,255,.8) !important; background:rgba(255,255,255,.12) !important; color:#fff !important; font-size:16pt !important; }
          input, textarea { box-shadow:none!important; }
-         .po-document-header .po-number-field {
-           border-color:#0d5c43 !important;
-           background:#edf5f1 !important;
-           color:#0d5c43 !important;
-         }
       }
     `}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
