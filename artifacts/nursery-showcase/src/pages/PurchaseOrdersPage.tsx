@@ -259,14 +259,16 @@ export default function PurchaseOrdersPage() {
         imageTimeout: 0,
       });
       let canvas: HTMLCanvasElement;
+      let renderScale = 2;
       try {
-         canvas = await render(2);
+         canvas = await render(renderScale);
       } catch {
         // If an image prevents the first capture, retry without images while
         // keeping the complete editable page and its layout.
         images.forEach(image => { image.style.display = "none"; });
         await new Promise(resolve => requestAnimationFrame(resolve));
-         canvas = await render(1);
+         renderScale = 1;
+         canvas = await render(renderScale);
       }
       if (!canvas.width || !canvas.height) throw new Error("PDF canvas has no dimensions");
 
@@ -274,10 +276,24 @@ export default function PurchaseOrdersPage() {
       // consecutive A4 pages; notes and approvals remain after the table.
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
       const pagePixelHeight = Math.max(1, Math.round(canvas.width * 297 / 210));
-      const pageCount = Math.max(1, Math.ceil(canvas.height / pagePixelHeight));
-      for (let page = 0; page < pageCount; page += 1) {
+      const exportRect = exportElement.getBoundingClientRect();
+      const tableRows = Array.from(exportElement.querySelectorAll<HTMLElement>(".po-items-section tbody tr"));
+      const rowBounds = tableRows.map(row => {
+        const rect = row.getBoundingClientRect();
+        return { top: (rect.top - exportRect.top) * renderScale, bottom: (rect.bottom - exportRect.top) * renderScale };
+      });
+      const pageBreaks = [0];
+      while (pageBreaks[pageBreaks.length - 1] < canvas.height) {
+        const current = pageBreaks[pageBreaks.length - 1];
+        const target = Math.min(current + pagePixelHeight, canvas.height);
+        const crossingRow = rowBounds.find(row => row.top > current + 1 && row.top < target && row.bottom > target);
+        const safeBreak = crossingRow ? crossingRow.top : target;
+        pageBreaks.push(safeBreak > current + 1 ? safeBreak : target);
+      }
+      for (let page = 0; page < pageBreaks.length - 1; page += 1) {
         if (page > 0) pdf.addPage("a4", "portrait");
-        const sliceHeight = Math.min(pagePixelHeight, canvas.height - page * pagePixelHeight);
+        const sourceTop = pageBreaks[page];
+        const sliceHeight = pageBreaks[page + 1] - sourceTop;
         const slice = document.createElement("canvas");
         slice.width = canvas.width;
         slice.height = sliceHeight;
@@ -285,7 +301,7 @@ export default function PurchaseOrdersPage() {
         if (!context) throw new Error("تعذر تجهيز صفحة PDF");
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, slice.width, slice.height);
-        context.drawImage(canvas, 0, page * pagePixelHeight, canvas.width, sliceHeight, 0, 0, slice.width, sliceHeight);
+        context.drawImage(canvas, 0, sourceTop, canvas.width, sliceHeight, 0, 0, slice.width, sliceHeight);
         pdf.addImage(slice.toDataURL("image/jpeg", 0.97), "JPEG", 0, 0, 210, (sliceHeight / canvas.width) * 210);
       }
       pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}.pdf`);
