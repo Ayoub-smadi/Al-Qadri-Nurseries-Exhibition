@@ -38,7 +38,7 @@ type PurchaseOrder = {
 
 const ORDERS_KEY = "alqadri_purchase_orders";
 const DRAFT_KEY = "alqadri_purchase_order_draft";
-const LAST_NUMBER_KEY = "alqadri_purchase_order_last_number";
+const LAST_NUMBER_KEY = "alqadri_purchase_order_last_number_v2";
 const today = () => new Date().toISOString().slice(0, 10);
 const id = () => `po-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const blankSupplier = () => ({ name: "", contact: "", phone: "", email: "", address: "" });
@@ -47,7 +47,7 @@ const defaultBuyer = () => ({ institution: "مؤسسة القادري الزرا
 const blankItem = (): PurchaseItem => ({ id: id(), description: "", unit: "", quantity: "", unitPrice: "", origin: "", notes: "" });
 
 function nextNumber() {
-  const last = Number(localStorage.getItem(LAST_NUMBER_KEY) || "0") + 1;
+  const last = Number(localStorage.getItem(LAST_NUMBER_KEY) || "-1") + 1;
   localStorage.setItem(LAST_NUMBER_KEY, String(last));
   return `PO ${String(last).padStart(6, "0")}`;
 }
@@ -299,7 +299,7 @@ export default function PurchaseOrdersPage() {
       .po-number-label { margin:0 !important; color:#d9f4e8; font-size:11px !important; font-weight:700; line-height:1.2; white-space:nowrap; }
       .po-document-header img { height:54px !important; width:48px !important; flex:none; }
       .po-document-header h2 { margin:0 !important; font-size:25px !important; line-height:1.3 !important; letter-spacing:normal !important; word-spacing:.12em; white-space:nowrap; }
-      .po-document-header .po-number-field { box-sizing:border-box; width:190px !important; height:38px !important; margin:0 !important; padding:2px 10px !important; border:2px solid rgba(255,255,255,.76) !important; border-radius:8px !important; background:rgba(255,255,255,.12) !important; box-shadow:none !important; color:#fff !important; font-size:23px !important; line-height:1 !important; text-align:center !important; letter-spacing:.04em; }
+      .po-document-header .po-number-field { box-sizing:border-box; display:flex !important; align-items:center !important; justify-content:center !important; width:190px !important; height:38px !important; margin:0 !important; padding:2px 10px !important; border:2px solid rgba(255,255,255,.76) !important; border-radius:8px !important; background:rgba(255,255,255,.12) !important; box-shadow:none !important; color:#fff !important; font-size:23px !important; line-height:1 !important; text-align:center !important; direction:ltr !important; letter-spacing:.04em; }
        .po-page input, .po-page textarea {
          box-shadow:none !important;
          border-color:#cbd8d0 !important;
