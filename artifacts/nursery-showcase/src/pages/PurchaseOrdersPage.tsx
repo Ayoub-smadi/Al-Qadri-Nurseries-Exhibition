@@ -314,7 +314,7 @@ export default function PurchaseOrdersPage() {
       .po-section-title h2 { font-size:14px !important; }
       .po-section-title span { height:18px !important; width:3px !important; }
        .po-page label { display:block; min-width:0; line-height:1.2; }
-       .po-page label span { display:block; margin:0 0 5px !important; font-size:10.5px !important; line-height:1.25 !important; white-space:nowrap; overflow:visible; }
+       .po-page label span { display:block; margin:0 0 9px !important; font-size:10.5px !important; line-height:1.35 !important; white-space:nowrap; overflow:visible; }
        .po-page .po-field, .po-page input, .po-page textarea { box-sizing:border-box; display:block; width:100%; font-size:11px !important; }
        .po-page .po-field { height:30px !important; margin:0 !important; border-radius:6px !important; }
       .po-page textarea { min-height:45px !important; height:45px !important; resize:none !important; }
