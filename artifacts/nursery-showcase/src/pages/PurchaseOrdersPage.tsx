@@ -293,6 +293,7 @@ export default function PurchaseOrdersPage() {
       .po-header-row { display:grid !important; grid-template-columns:minmax(0,1fr) 220px; align-items:center; gap:18px; width:100%; height:100%; }
       .po-header-brand { display:flex; align-items:center; gap:14px; min-width:0; }
       .po-header-brand > div { min-width:0; }
+      .po-header-brand p, .po-header-brand h2 { color:#ffffff !important; }
       .po-header-number { display:flex; flex-direction:column; align-items:center; justify-content:center; width:220px; min-width:0; padding:5px 8px; border-inline-start:1px solid rgba(255,255,255,.3); }
       .po-number-label { margin:0 0 5px !important; color:#d9f4e8; font-size:11px !important; font-weight:700; line-height:1.2; white-space:nowrap; }
       .po-document-header img { height:54px !important; width:48px !important; flex:none; }
