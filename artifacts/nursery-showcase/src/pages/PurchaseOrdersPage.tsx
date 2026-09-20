@@ -204,6 +204,11 @@ export default function PurchaseOrdersPage() {
       exportElement.style.maxWidth = "794px";
       exportElement.style.height = singlePage || order.items.length > 8 ? "auto" : "1123px";
       exportElement.style.minHeight = "1123px";
+      if (singlePage) {
+        exportElement.style.minHeight = "0";
+        exportElement.style.maxHeight = "none";
+        exportElement.style.overflow = "visible";
+      }
       exportElement.style.boxSizing = "border-box";
       exportElement.style.background = "#ffffff";
       exportElement.style.opacity = "1";
