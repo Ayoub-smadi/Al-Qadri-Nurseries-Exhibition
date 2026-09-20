@@ -186,14 +186,15 @@ export default function PurchaseOrdersPage() {
   }
   function removeSaved(orderId: string) { const next = orders.filter(item => item.id !== orderId); setOrders(next); localStorage.setItem(ORDERS_KEY, JSON.stringify(next)); if (orderId === order.id) createNew(); toast.success("تم حذف الطلب"); }
   function loadSaved(saved: PurchaseOrder) { setOrder({ ...saved, buyerApprovalDate: saved.buyerApprovalDate || today(), buyer: { ...defaultBuyer(), ...(saved.buyer || {}), phone: "0777772211" }, supplier: { ...blankSupplier(), ...(saved.supplier || {}) }, supplierApproval: { ...blankSupplierApproval(), ...(saved.supplierApproval || {}) } }); setShowList(false); window.scrollTo({ top: 0, behavior: "smooth" }); }
-  async function downloadPdf() {
+  async function downloadPdf(singlePage = false) {
     if (!paperRef.current) return;
     let exportElement: HTMLElement | null = null;
     try {
       const sourceElement = paperRef.current;
       exportElement = sourceElement.cloneNode(true) as HTMLElement;
       exportElement.classList.add("pdf-export");
-      if (order.items.length > 8) exportElement.classList.add("pdf-multipage", "po-page-multipage");
+      if (singlePage) exportElement.classList.remove("pdf-multipage", "po-page-multipage");
+      else if (order.items.length > 8) exportElement.classList.add("pdf-multipage", "po-page-multipage");
       exportElement.style.position = "absolute";
       exportElement.style.left = "0";
       exportElement.style.top = "0";
@@ -201,7 +202,7 @@ export default function PurchaseOrdersPage() {
       // This keeps the form readable when it is split across PDF pages.
       exportElement.style.width = "794px";
       exportElement.style.maxWidth = "794px";
-      exportElement.style.height = order.items.length > 8 ? "auto" : "1123px";
+      exportElement.style.height = singlePage || order.items.length > 8 ? "auto" : "1123px";
       exportElement.style.minHeight = "1123px";
       exportElement.style.boxSizing = "border-box";
       exportElement.style.background = "#ffffff";
@@ -275,6 +276,18 @@ export default function PurchaseOrdersPage() {
       // One-page orders stay on one A4 sheet. Long item lists are sliced into
       // consecutive A4 pages; notes and approvals remain after the table.
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      if (singlePage) {
+        const maxWidth = 210;
+        const maxHeight = 297;
+        const naturalHeight = (canvas.height / canvas.width) * maxWidth;
+        const scale = Math.min(1, maxHeight / naturalHeight);
+        const imageWidth = maxWidth * scale;
+        const imageHeight = naturalHeight * scale;
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.96), "JPEG", (maxWidth - imageWidth) / 2, (maxHeight - imageHeight) / 2, imageWidth, imageHeight);
+        pdf.save(`طلب_شراء_${order.number.replace(/\s+/g, "_")}_صفحة_واحدة.pdf`);
+        toast.success("تم تنزيل طلب الشراء في صفحة واحدة");
+        return;
+      }
       const pagePixelHeight = Math.max(1, Math.round(canvas.width * 297 / 210));
       const exportRect = exportElement.getBoundingClientRect();
       const tableRows = Array.from(exportElement.querySelectorAll<HTMLElement>(".po-items-section tbody tr"));
@@ -417,7 +430,7 @@ export default function PurchaseOrdersPage() {
     `}</style>
     <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
       <div className="flex items-center gap-3"><Button variant="ghost" size="icon" onClick={() => navigate("/")} aria-label="العودة"><ArrowRight className="h-5 w-5" /></Button><div><p className="text-xs font-semibold text-[#0d5c43]">مؤسسة القادري الزراعية</p><h1 className="text-xl font-black text-slate-900">طلبات الشراء</h1></div></div>
-      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowCustomizer(prev => !prev)} className="rounded-xl">تخصيص النموذج</Button><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={downloadPdf} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> تنزيل PDF</Button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setShowCustomizer(prev => !prev)} className="rounded-xl">تخصيص النموذج</Button><Button variant="outline" onClick={() => setShowList(true)} className="rounded-xl"><Eye className="ms-2 h-4 w-4" /> الطلبات المحفوظة</Button><Button variant="outline" onClick={createNew} className="rounded-xl"><FilePlus2 className="ms-2 h-4 w-4" /> طلب شراء جديد</Button><Button onClick={save} className="rounded-xl bg-[#0d5c43] hover:bg-[#084834]"><Save className="ms-2 h-4 w-4" /> حفظ الطلب</Button><Button onClick={() => downloadPdf(false)} className="rounded-xl bg-slate-800 hover:bg-slate-700"><Download className="ms-2 h-4 w-4" /> تنزيل PDF</Button><Button onClick={() => downloadPdf(true)} className="rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9]"><Download className="ms-2 h-4 w-4" /> تنزيل PDF صفحة واحدة</Button></div>
     </div></header>
 
     {showCustomizer && <div className="no-print mx-auto mb-4 grid max-w-6xl gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-2">
