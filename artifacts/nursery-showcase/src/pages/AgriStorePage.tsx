@@ -2,7 +2,7 @@ import { SyntheticEvent, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, Leaf, MapPin, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react';
 import { navigate } from '@/App';
 import { useApp } from '@/lib/context';
-import { AgriStoreCategory, AgriStoreProduct, DEFAULT_DATA, QuoteItem, submitQuote } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, AgriStoreProductVariant, DEFAULT_DATA, QuoteItem, submitQuote } from '@/lib/storage';
 import { toast } from 'sonner';
 import gardeningToolIcon from '@/assets/store-icons/gardening-tool.png';
 import seedIcon from '@/assets/store-icons/seed.png';
@@ -13,7 +13,7 @@ import seedlingSuppliesIcon from '@/assets/store-icons/seedling-tray.png';
 import potIcon from '@/assets/store-icons/pot.png';
 import gardenDecorIcon from '@/assets/store-icons/garden-decor.png';
 
-type CartLine = { product: AgriStoreProduct; quantity: number };
+type CartLine = { product: AgriStoreProduct; variant?: AgriStoreProductVariant; quantity: number };
 
 const categories: { id: AgriStoreCategory; ar: string; en: string; icon: string }[] = [
   { id: 'tools', ar: 'عدد زراعية', en: 'Agricultural Tools', icon: gardeningToolIcon },
@@ -50,28 +50,35 @@ export default function AgriStorePage() {
   const [governorate, setGovernorate] = useState('');
   const [location, setLocation] = useState('');
   const [sending, setSending] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState('');
 
   const visibleProducts = useMemo(() => products.filter(p => p.category === category), [products, category]);
   const detailId = window.location.pathname.match(/^\/agri-store\/product\/([^/]+)$/)?.[1];
   const detailProduct = detailId ? products.find(product => product.id === decodeURIComponent(detailId)) : null;
+  const selectedVariant = detailProduct?.variants?.find(variant => variant.id === selectedVariantId) ?? detailProduct?.variants?.[0];
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
-  const subtotal = cart.reduce((sum, line) => sum + line.quantity * Number(line.product.price || 0), 0);
+  const linePrice = (line: CartLine) => Number(line.variant?.price ?? line.product.price ?? 0);
+  const lineImage = (line: CartLine) => line.variant?.image || line.product.image;
+  const lineNameAr = (line: CartLine) => line.variant?.nameAr ? `${line.product.nameAr} - ${line.variant.nameAr}` : line.product.nameAr;
+  const lineNameEn = (line: CartLine) => line.variant?.nameEn ? `${line.product.nameEn} - ${line.variant.nameEn}` : line.product.nameEn;
+  const subtotal = cart.reduce((sum, line) => sum + line.quantity * linePrice(line), 0);
   const shippingZones = siteData.shippingZones ?? [];
   const shippingFee = shippingZones.find(zone => zone.id === governorate)?.fee ?? 0;
   const total = subtotal + (governorate ? shippingFee : 0);
 
-  const addToCart = (product: AgriStoreProduct) => {
+  const addToCart = (product: AgriStoreProduct, variant?: AgriStoreProductVariant) => {
+    const key = `${product.id}:${variant?.id ?? 'base'}`;
     setCart(prev => {
-      const found = prev.find(line => line.product.id === product.id);
-      if (found) return prev.map(line => line.product.id === product.id ? { ...line, quantity: line.quantity + 1 } : line);
-      return [...prev, { product, quantity: 1 }];
+      const found = prev.find(line => `${line.product.id}:${line.variant?.id ?? 'base'}` === key);
+      if (found) return prev.map(line => `${line.product.id}:${line.variant?.id ?? 'base'}` === key ? { ...line, quantity: line.quantity + 1 } : line);
+      return [...prev, { product, variant, quantity: 1 }];
     });
     toast.success(isAr ? 'تمت إضافة المنتج للسلة' : 'Product added to cart');
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = (id: string, variantId: string | undefined, delta: number) => {
     setCart(prev => prev
-      .map(line => line.product.id === id ? { ...line, quantity: line.quantity + delta } : line)
+      .map(line => line.product.id === id && line.variant?.id === variantId ? { ...line, quantity: line.quantity + delta } : line)
       .filter(line => line.quantity > 0));
   };
 
@@ -85,16 +92,16 @@ export default function AgriStorePage() {
       return;
     }
     setSending(true);
-    const items: QuoteItem[] = cart.map(({ product, quantity }) => ({
+    const items: QuoteItem[] = cart.map(({ product, variant, quantity }) => ({
       plantId: product.id,
-      plantNameAr: product.nameAr,
-      plantNameEn: product.nameEn,
-      plantImage: product.image,
+      plantNameAr: lineNameAr({ product, variant, quantity }),
+      plantNameEn: lineNameEn({ product, variant, quantity }),
+      plantImage: lineImage({ product, variant, quantity }),
       sectionNameAr: categories.find(c => c.id === product.category)?.ar ?? '',
       sectionNameEn: categories.find(c => c.id === product.category)?.en ?? '',
       quantity,
-      size: '',
-      price: Number(product.price || 0),
+      size: variant?.nameAr ?? '',
+      price: linePrice({ product, variant, quantity }),
     }));
     const id = await submitQuote({
       orderType: 'agri_store',
@@ -139,18 +146,19 @@ export default function AgriStorePage() {
             <div className="grid md:grid-cols-2">
               <div className="aspect-square md:aspect-auto md:min-h-[460px] bg-[#edf6f0]">
                 <img
-                  src={detailProduct.image || fallbackProductImage(detailProduct)}
+                  src={selectedVariant?.image || detailProduct.image || fallbackProductImage(detailProduct)}
                   onError={event => useFallbackImage(event, fallbackProductImage(detailProduct))}
-                  alt={isAr ? detailProduct.nameAr : detailProduct.nameEn}
+                  alt={isAr ? (selectedVariant?.nameAr || detailProduct.nameAr) : (selectedVariant?.nameEn || detailProduct.nameEn)}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="flex flex-col justify-center p-6 sm:p-10">
                 <p className="text-sm font-bold text-[#5c7b6b] arabic">{categories.find(item => item.id === detailProduct.category)?.[isAr ? 'ar' : 'en']}</p>
-                <h2 className="mt-2 text-2xl sm:text-4xl font-bold arabic leading-tight">{isAr ? detailProduct.nameAr : detailProduct.nameEn}</h2>
-                <p className="mt-5 text-base leading-8 text-[#648273] arabic whitespace-pre-line">{isAr ? detailProduct.descriptionAr : detailProduct.descriptionEn}</p>
-                <p className="mt-6 text-xl font-bold text-[#004f31] arabic">{detailProduct.price > 0 ? `${detailProduct.price.toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
-                <button onClick={() => { addToCart(detailProduct); navigate('/agri-store'); }} className="mt-7 w-full rounded-xl bg-[#004f31] text-white py-3.5 font-bold arabic hover:bg-[#003d26] transition-colors">
+                <h2 className="mt-2 text-2xl sm:text-4xl font-bold arabic leading-tight">{isAr ? (selectedVariant?.nameAr || detailProduct.nameAr) : (selectedVariant?.nameEn || detailProduct.nameEn)}</h2>
+                {detailProduct.variants?.length ? <div className="mt-5"><p className="mb-2 text-sm font-bold arabic">{isAr ? 'اختر الحجم' : 'Choose a size'}</p><div className="flex flex-wrap gap-2">{detailProduct.variants.map(variant => <button key={variant.id} onClick={() => setSelectedVariantId(variant.id)} className={`rounded-xl border px-4 py-2 text-sm font-bold arabic transition-colors ${selectedVariant?.id === variant.id ? 'border-[#004f31] bg-[#004f31] text-white' : 'border-[#cfe2d5] text-[#37634f] hover:border-[#004f31]'}`}>{isAr ? variant.nameAr : variant.nameEn}</button>)}</div></div> : null}
+                <p className="mt-5 text-base leading-8 text-[#648273] arabic whitespace-pre-line">{isAr ? (selectedVariant?.descriptionAr || detailProduct.descriptionAr) : (selectedVariant?.descriptionEn || detailProduct.descriptionEn)}</p>
+                <p className="mt-6 text-xl font-bold text-[#004f31] arabic">{(selectedVariant?.price ?? detailProduct.price) > 0 ? `${(selectedVariant?.price ?? detailProduct.price).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p>
+                <button onClick={() => { addToCart(detailProduct, selectedVariant); navigate('/agri-store'); }} className="mt-7 w-full rounded-xl bg-[#004f31] text-white py-3.5 font-bold arabic hover:bg-[#003d26] transition-colors">
                   <ShoppingCart className="w-4 h-4 inline-block me-2 align-middle" />{isAr ? 'إضافة للسلة' : 'Add to cart'}
                 </button>
               </div>
@@ -225,8 +233,8 @@ export default function AgriStorePage() {
                   </div>
                 </button>
                  <div className="px-5 pb-5 mt-auto">
-                   <button onClick={() => addToCart(product)} className="w-full rounded-xl bg-[#e5f2e9] text-[#004f31] hover:bg-[#004f31] hover:text-white py-2.5 text-sm font-bold arabic transition-colors">
-                    <Plus className="w-4 h-4 inline-block me-1 align-middle" /> {isAr ? 'إضافة للسلة' : 'Add to cart'}
+                   <button onClick={() => product.variants?.length ? navigate(`/agri-store/product/${encodeURIComponent(product.id)}`) : addToCart(product)} className="w-full rounded-xl bg-[#e5f2e9] text-[#004f31] hover:bg-[#004f31] hover:text-white py-2.5 text-sm font-bold arabic transition-colors">
+                    <Plus className="w-4 h-4 inline-block me-1 align-middle" /> {product.variants?.length ? (isAr ? 'اختيار الحجم' : 'Choose size') : (isAr ? 'إضافة للسلة' : 'Add to cart')}
                   </button>
                 </div>
               </article>
@@ -243,16 +251,16 @@ export default function AgriStorePage() {
               {cart.length === 0 ? <div className="text-center py-10 text-muted-foreground arabic"><ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-40" />{isAr ? 'السلة فارغة' : 'Your cart is empty'}</div> : (
                 <>
                   <div className="space-y-2">
-                    {cart.map(line => <div key={line.product.id} className="flex items-center gap-3 border-b border-border pb-2">
+                    {cart.map(line => <div key={`${line.product.id}:${line.variant?.id ?? 'base'}`} className="flex items-center gap-3 border-b border-border pb-2">
                        <img
-                         src={line.product.image || fallbackProductImage(line.product)}
+                         src={lineImage(line) || fallbackProductImage(line.product)}
                          onError={event => useFallbackImage(event, fallbackProductImage(line.product))}
                          alt=""
                          className="w-14 h-14 rounded-xl object-cover shrink-0"
                        />
-                       <div className="flex-1 min-w-0"><p className="font-bold arabic truncate">{isAr ? line.product.nameAr : line.product.nameEn}</p><p className="text-xs text-muted-foreground arabic">{line.product.price > 0 ? `${(line.product.price * line.quantity).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p></div>
-                      <div className="flex items-center gap-1"><button onClick={() => updateQuantity(line.product.id, -1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Minus className="w-3 h-3" /></button><span className="w-6 text-center">{line.quantity}</span><button onClick={() => updateQuantity(line.product.id, 1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Plus className="w-3 h-3" /></button></div>
-                      <button onClick={() => updateQuantity(line.product.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
+                       <div className="flex-1 min-w-0"><p className="font-bold arabic truncate">{isAr ? lineNameAr(line) : lineNameEn(line)}</p><p className="text-xs text-muted-foreground arabic">{linePrice(line) > 0 ? `${(linePrice(line) * line.quantity).toFixed(2)} د.أ` : (isAr ? 'السعر عند الطلب' : 'Price on request')}</p></div>
+                      <div className="flex items-center gap-1"><button onClick={() => updateQuantity(line.product.id, line.variant?.id, -1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Minus className="w-3 h-3" /></button><span className="w-6 text-center">{line.quantity}</span><button onClick={() => updateQuantity(line.product.id, line.variant?.id, 1)} className="w-7 h-7 rounded-lg border border-border flex items-center justify-center"><Plus className="w-3 h-3" /></button></div>
+                      <button onClick={() => updateQuantity(line.product.id, line.variant?.id, -line.quantity)} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
                     </div>)}
                   </div>
                    <div className="rounded-xl bg-[#f1f7f3] p-3 space-y-1 text-sm arabic"><div className="flex justify-between"><span>{isAr ? 'المجموع الفرعي' : 'Subtotal'}</span><b>{subtotal.toFixed(2)} د.أ</b></div><div className="flex justify-between text-[#3d7357]"><span>{isAr ? 'رسوم الشحن' : 'Shipping'}</span><b>{governorate ? `${shippingFee.toFixed(2)} د.أ` : (isAr ? 'اختر المنطقة' : 'Select area')}</b></div><div className="flex justify-between border-t border-[#cfe2d5] pt-2 text-base text-[#004f31]"><b>{isAr ? 'الإجمالي' : 'Total'}</b><b>{total.toFixed(2)} د.أ</b></div></div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ImagePlus, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
-import { AgriStoreCategory, AgriStoreProduct, ShippingZone, uploadImage } from '@/lib/storage';
+import { AgriStoreCategory, AgriStoreProduct, AgriStoreProductVariant, ShippingZone, uploadImage } from '@/lib/storage';
 import { useApp } from '@/lib/context';
 import { toast } from 'sonner';
 
@@ -8,7 +8,8 @@ const categories: { id: AgriStoreCategory; ar: string }[] = [
   { id: 'tools', ar: 'عدد زراعية' }, { id: 'seeds', ar: 'بذور' }, { id: 'fertilizers', ar: 'أسمدة' },
   { id: 'pesticides', ar: 'مبيدات' }, { id: 'irrigation', ar: 'شبكات ري' }, { id: 'seedling-supplies', ar: 'مستلزمات تشتيل' }, { id: 'pots', ar: 'قوار' }, { id: 'garden-decor', ar: 'زينة حدائق' },
 ];
-const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0 });
+const emptyVariant = (): AgriStoreProductVariant => ({ id: `variant-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, nameAr: '', nameEn: '', image: '', descriptionAr: '', descriptionEn: '', price: 0 });
+const empty = (): AgriStoreProduct => ({ id: `store-${Date.now()}`, category: 'tools', image: '', nameAr: '', nameEn: '', descriptionAr: '', descriptionEn: '', price: 0, variants: [] });
 
 export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { siteData, updateSiteData } = useApp();
@@ -24,6 +25,7 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
   const zones = draft.shippingZones ?? [];
   const save = () => {
     if (!editing?.nameAr.trim() || !editing.image) { toast.error('أدخل اسم المنتج وأضف صورة'); return; }
+    if ((editing.variants ?? []).some(variant => !variant.nameAr.trim() || !variant.image)) { toast.error('أدخل اسم وصورة لكل حجم مضاف'); return; }
     const next = products.some(p => p.id === editing.id) ? products.map(p => p.id === editing.id ? editing : p) : [...products, editing];
     setDraft(prev => ({ ...prev, agriStoreProducts: next }));
     setEditing(null);
@@ -36,6 +38,14 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
      }
     catch { toast.error('فشل رفع الصورة'); } finally { setUploading(false); }
   };
+  const pickVariantImage = async (variantId: string, file?: File) => {
+    if (!file) return; setUploading(true);
+    try {
+      const image = await uploadImage(file);
+      setEditing(prev => prev ? { ...prev, variants: (prev.variants ?? []).map(variant => variant.id === variantId ? { ...variant, image } : variant) } : prev);
+    } catch { toast.error('فشل رفع صورة الحجم'); } finally { setUploading(false); }
+  };
+  const updateVariant = (variantId: string, patch: Partial<AgriStoreProductVariant>) => setEditing(prev => prev ? { ...prev, variants: (prev.variants ?? []).map(variant => variant.id === variantId ? { ...variant, ...patch } : variant) } : prev);
   const saveZone = () => {
     const nameAr = newZone.nameAr.trim();
     const fee = Number(newZone.fee);
@@ -80,7 +90,11 @@ export function AdminAgriProductsModal({ open, onClose }: { open: boolean; onClo
              <input type="number" min="0" step="0.01" value={editing.price} onChange={e => setEditing({ ...editing, price: Number(e.target.value) })} placeholder="السعر بالدينار *" className="rounded-xl border bg-background p-2.5 arabic" />
             <textarea value={editing.descriptionAr} onChange={e => setEditing({ ...editing, descriptionAr: e.target.value })} placeholder="وصف المنتج" className="rounded-xl border bg-background p-2.5 arabic sm:col-span-2" />
           </div>
-           <div className="flex items-center gap-3"><label className="cursor-pointer rounded-xl border border-dashed p-3 text-sm arabic"><ImagePlus className="w-4 h-4 inline me-1" />{uploading ? 'جاري الرفع...' : 'اختيار صورة'}<input type="file" accept="image/*" className="hidden" onChange={e => pickImage(e.target.files?.[0])} /></label>{editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded-lg object-cover" />}</div>
+           <div className="flex items-center gap-3"><label className="cursor-pointer rounded-xl border border-dashed p-3 text-sm arabic"><ImagePlus className="w-4 h-4 inline me-1" />{uploading ? 'جاري الرفع...' : 'اختيار صورة المنتج'}<input type="file" accept="image/*" className="hidden" onChange={e => pickImage(e.target.files?.[0])} /></label>{editing.image && <img src={editing.image} alt="" className="w-16 h-16 rounded-lg object-cover" />}</div>
+           <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 space-y-3">
+             <div className="flex items-center justify-between"><div><h4 className="font-bold arabic">أحجام وخيارات هذا المنتج</h4><p className="text-xs text-muted-foreground arabic">أضف كبير، وسط، صغير أو أي خيارات أخرى، ولكل خيار صورته ووصفه وسعره.</p></div><button type="button" onClick={() => setEditing(prev => prev ? { ...prev, variants: [...(prev.variants ?? []), emptyVariant()] } : prev)} className="rounded-xl bg-[#004f31] px-3 py-2 text-sm font-bold text-white arabic"><Plus className="w-4 h-4 inline me-1" />إضافة حجم</button></div>
+             {(editing.variants ?? []).map(variant => <div key={variant.id} className="rounded-xl border bg-background p-3 space-y-2"><div className="grid sm:grid-cols-2 gap-2"><input value={variant.nameAr} onChange={e => updateVariant(variant.id, { nameAr: e.target.value })} placeholder="اسم الحجم بالعربي (كبير/وسط/صغير)" className="rounded-lg border bg-background p-2 arabic" /><input value={variant.nameEn} onChange={e => updateVariant(variant.id, { nameEn: e.target.value })} placeholder="Size name" className="rounded-lg border bg-background p-2" /><input type="number" min="0" step="0.01" value={variant.price} onChange={e => updateVariant(variant.id, { price: Number(e.target.value) })} placeholder="سعر الحجم" className="rounded-lg border bg-background p-2 arabic" /><textarea value={variant.descriptionAr} onChange={e => updateVariant(variant.id, { descriptionAr: e.target.value })} placeholder="وصف الحجم" className="rounded-lg border bg-background p-2 arabic" /></div><div className="flex flex-wrap items-center gap-2"><label className="cursor-pointer rounded-lg border border-dashed p-2 text-sm arabic"><ImagePlus className="w-4 h-4 inline me-1" />اختيار صورة الحجم<input type="file" accept="image/*" className="hidden" onChange={e => pickVariantImage(variant.id, e.target.files?.[0])} /></label>{variant.image && <img src={variant.image} alt="" className="h-12 w-12 rounded-lg object-cover" />}<button type="button" onClick={() => setEditing(prev => prev ? { ...prev, variants: (prev.variants ?? []).filter(item => item.id !== variant.id) } : prev)} className="ms-auto rounded-lg p-2 text-destructive"><Trash2 className="w-4 h-4" /></button></div></div>)}
+           </div>
            <div className="flex gap-2"><button onClick={save} disabled={uploading} className="flex-1 rounded-xl bg-[#004f31] text-white py-2 font-bold arabic hover:bg-[#003d26] transition-colors">حفظ المنتج</button><button onClick={() => setEditing(null)} className="rounded-xl border px-5 py-2 arabic">إلغاء</button></div>
         </div>}
          <div className="border-t pt-4 space-y-3">
