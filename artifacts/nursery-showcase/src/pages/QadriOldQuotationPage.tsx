@@ -4,7 +4,7 @@ import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  Plus, Trash2, FileText, ArrowRight, Loader2,
+  Plus, Trash2, FileText, ArrowRight, Loader2, GripVertical,
   RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save, FilePlus, Scissors, RefreshCw,
 } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -164,6 +164,7 @@ export default function QadriOldQuotationPage() {
   const safeTaxPct = hasTax ? parsedTaxPct : 0;
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -371,6 +372,19 @@ export default function QadriOldQuotationPage() {
   };
   const addItem = () => setItems(prev => [...prev, mkItem()]);
   const removeItem = (id: string) => { if (items.length > 1) setItems(prev => prev.filter(i => i.id !== id)); };
+  const reorderItem = (targetId: string) => {
+    if (!draggedItemId || draggedItemId === targetId) return;
+    setItems(prev => {
+      const fromIndex = prev.findIndex(item => item.id === draggedItemId);
+      const toIndex = prev.findIndex(item => item.id === targetId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+    setDraggedItemId(null);
+  };
   /* Resize + compress before stashing in localStorage — raw phone-camera photos
      are multiple MB each and blow through the ~5–10MB per-origin quota after a
      few items, which makes localStorage.setItem throw and silently kills the
@@ -1086,11 +1100,11 @@ export default function QadriOldQuotationPage() {
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
+                  <tr key={item.id} draggable onDragStart={() => setDraggedItemId(item.id)} onDragOver={e => e.preventDefault()} onDrop={() => reorderItem(item.id)} onDragEnd={() => setDraggedItemId(null)} title="اسحب لتغيير ترتيب البند" style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb", opacity: draggedItemId === item.id ? 0.45 : 1, cursor: "grab" }}>
                     {/* # */}
                     {!hiddenParts.colIndex && (
                       <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #111827" }}>
-                        {i + 1}
+                        <span className="pdf-hide" style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle", marginInlineEnd: 3, color: "#94a3b8" }}><GripVertical style={{ width: 14, height: 14 }} /></span>{i + 1}
                       </td>
                     )}
                     {/* الاسم */}
