@@ -5616,8 +5616,23 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
   const today = new Date().toLocaleDateString('ar-JO');
   const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today, phone: '+962 777 772 211' });
   const [generating, setGenerating] = useState(false);
+  const [certificateLogo, setCertificateLogo] = useState(logoUrl);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const handleLogoChange = async (file?: File) => {
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const url = await uploadImage(file);
+      setCertificateLogo(url);
+      toast.success(isAr ? 'تم تغيير لوجو شهادة الخبرة' : 'Certificate logo updated');
+    } catch {
+      toast.error(isAr ? 'فشل رفع اللوجو' : 'Logo upload failed');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!form.employeeName.trim() || !form.jobTitle.trim() || !form.startDate.trim() || !form.endDate.trim()) {
@@ -5625,7 +5640,7 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
       return;
     }
     setGenerating(true);
-    await downloadCertificatePDF({ ...form, logoUrl });
+    await downloadCertificatePDF({ ...form, logoUrl: certificateLogo });
     setGenerating(false);
   };
 
@@ -5650,6 +5665,20 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
           {/* decorative preview hint */}
           <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900/40 px-4 py-3 text-xs arabic text-amber-800 dark:text-amber-300 leading-relaxed text-right" dir="rtl">
             ستصدر الشهادة بترويسة المؤسسة مع اللوجو والختم تلقائياً · أدخل بيانات الموظف ثم اضغط <strong>توليد PDF</strong>
+          </div>
+
+          <div className="rounded-xl border border-border p-3 space-y-2" dir="rtl">
+            <Label className="arabic text-xs block text-right">لوجو شهادة الخبرة</Label>
+            <div className="flex items-center gap-3">
+              <label className="cursor-pointer inline-flex items-center gap-2 rounded-xl border border-dashed border-primary/50 px-3 py-2 text-sm arabic hover:bg-muted transition-colors">
+                <ImagePlus className="w-4 h-4" />
+                {uploadingLogo ? 'جاري رفع اللوجو...' : 'اختيار لوجو آخر'}
+                <input type="file" accept="image/*" className="hidden" disabled={uploadingLogo} onChange={e => handleLogoChange(e.target.files?.[0])} />
+              </label>
+              {certificateLogo && <img src={certificateLogo} alt="" className="h-12 w-12 rounded-lg border object-contain bg-white p-1" />}
+              {certificateLogo !== logoUrl && <button type="button" onClick={() => setCertificateLogo(logoUrl)} className="text-xs text-muted-foreground underline arabic">إرجاع اللوجو الأساسي</button>}
+            </div>
+            <p className="text-[11px] text-muted-foreground arabic text-right">يمكن تغيير اللوجو لهذه الشهادة فقط دون تغيير لوجو الموقع.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
