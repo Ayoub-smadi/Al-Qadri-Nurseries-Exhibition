@@ -4,7 +4,7 @@ import { useApp } from "@/lib/context";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  Plus, Trash2, FileText, ArrowRight, Loader2, GripVertical,
+  Plus, Trash2, FileText, ArrowRight, Loader2,
   RotateCcw, MessageCircle, Sparkles, ChevronDown, ChevronUp, Upload, X, Save, FilePlus, Scissors, RefreshCw,
 } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -164,7 +164,6 @@ export default function QadriOldQuotationPage() {
   const safeTaxPct = hasTax ? parsedTaxPct : 0;
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
-  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -372,18 +371,15 @@ export default function QadriOldQuotationPage() {
   };
   const addItem = () => setItems(prev => [...prev, mkItem()]);
   const removeItem = (id: string) => { if (items.length > 1) setItems(prev => prev.filter(i => i.id !== id)); };
-  const reorderItem = (targetId: string) => {
-    if (!draggedItemId || draggedItemId === targetId) return;
+  const moveItem = (id: string, direction: -1 | 1) => {
     setItems(prev => {
-      const fromIndex = prev.findIndex(item => item.id === draggedItemId);
-      const toIndex = prev.findIndex(item => item.id === targetId);
-      if (fromIndex < 0 || toIndex < 0) return prev;
+      const index = prev.findIndex(item => item.id === id);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= prev.length) return prev;
       const next = [...prev];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
       return next;
     });
-    setDraggedItemId(null);
   };
   /* Resize + compress before stashing in localStorage — raw phone-camera photos
      are multiple MB each and blow through the ~5–10MB per-origin quota after a
@@ -1100,11 +1096,11 @@ export default function QadriOldQuotationPage() {
               </thead>
               <tbody>
                 {items.map((item, i) => (
-                  <tr key={item.id} draggable onDragStart={() => setDraggedItemId(item.id)} onDragOver={e => e.preventDefault()} onDrop={() => reorderItem(item.id)} onDragEnd={() => setDraggedItemId(null)} title="اسحب لتغيير ترتيب البند" style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb", opacity: draggedItemId === item.id ? 0.45 : 1, cursor: "grab" }}>
+                  <tr key={item.id} style={{ background: i % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
                     {/* # */}
                     {!hiddenParts.colIndex && (
                       <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, color: "#111827", fontSize: 13, verticalAlign: "middle", border: "1px solid #111827" }}>
-                        <span className="pdf-hide" style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle", marginInlineEnd: 3, color: "#94a3b8" }}><GripVertical style={{ width: 14, height: 14 }} /></span>{i + 1}
+                        {i + 1}
                       </td>
                     )}
                     {/* الاسم */}
@@ -1197,11 +1193,21 @@ export default function QadriOldQuotationPage() {
                       </td>
                     )}
                     {/* حذف */}
-                    <td className="pdf-hide" style={{ padding: "6px 2px", verticalAlign: "top", width: 24 }}>
-                      <button onClick={() => removeItem(item.id)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", padding: 2, marginTop: 8 }}>
-                        <Trash2 style={{ width: 13, height: 13 }} />
-                      </button>
+                    <td className="pdf-hide" style={{ padding: "4px 2px", verticalAlign: "top", width: 58 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                        <button onClick={() => moveItem(item.id, -1)} disabled={i === 0} title="تحريك البند للأعلى"
+                          style={{ background: "none", border: "none", cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "#e2e8f0" : "#64748b", padding: 2 }}>
+                          <ChevronUp style={{ width: 14, height: 14 }} />
+                        </button>
+                        <button onClick={() => moveItem(item.id, 1)} disabled={i === items.length - 1} title="تحريك البند للأسفل"
+                          style={{ background: "none", border: "none", cursor: i === items.length - 1 ? "default" : "pointer", color: i === items.length - 1 ? "#e2e8f0" : "#64748b", padding: 2 }}>
+                          <ChevronDown style={{ width: 14, height: 14 }} />
+                        </button>
+                        <button onClick={() => removeItem(item.id)} title="حذف البند"
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", padding: 2 }}>
+                          <Trash2 style={{ width: 13, height: 13 }} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
