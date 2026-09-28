@@ -1427,6 +1427,13 @@ export interface CertificateData {
   logoUrl?: string;
   stampUrl?: string;
   phone?: string;
+  institutionName?: string;
+  certificateTitle?: string;
+  salutation?: string;
+  bodyText?: string;
+  closingText?: string;
+  signatureName?: string;
+  signatureTitle?: string;
 }
 
 export async function downloadCertificatePDF(data: CertificateData): Promise<void> {
@@ -1435,8 +1442,23 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
     ? await toDataUrl(data.stampUrl).catch(() => '')
     : await toDataUrl('/stamp.jpeg').catch(() => '');
   const employmentEndText = data.endDate?.trim()
-    ? `إلى <strong>&nbsp;${data.endDate}&nbsp;</strong>`
+    ? `إلى ${data.endDate}`
     : 'ولا يزال على رأس عمله لدينا حتى تاريخه';
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] ?? char));
+  const institutionName = data.institutionName?.trim() || 'مؤسسة القادري الزراعية';
+  const certificateTitle = data.certificateTitle?.trim() || 'شهادة خبرة';
+  const salutation = data.salutation?.trim() || 'إلى من يهمه الأمر،،،';
+  const bodyTemplate = data.bodyText?.trim() || 'تشهد {اسم المؤسسة} بأن الموظف {اسم الموظف}، {الرقم الوطني} قد عمل لدينا في وظيفة {المسمى الوظيفي} خلال الفترة الممتدة من {تاريخ البداية} {تاريخ النهاية}، وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.\nكما أظهر كفاءة عالية في أداء المهام الموكلة إليه، وكان يتمتع بروح العمل الجماعي والقدرة على تحمل ضغط العمل.\nوقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.';
+  const replaceToken = (template: string, token: string, value: string) => template.split(token).join(value);
+  let renderedBody = bodyTemplate;
+  renderedBody = replaceToken(renderedBody, '{اسم المؤسسة}', institutionName);
+  renderedBody = replaceToken(renderedBody, '{اسم الموظف}', data.employeeName);
+  renderedBody = replaceToken(renderedBody, '{الرقم الوطني}', data.nationalId?.trim() ? `حامل الرقم الوطني ${data.nationalId}` : '');
+  renderedBody = replaceToken(renderedBody, '{المسمى الوظيفي}', data.jobTitle);
+  renderedBody = replaceToken(renderedBody, '{تاريخ البداية}', data.startDate);
+  renderedBody = replaceToken(renderedBody, '{تاريخ النهاية}', employmentEndText);
+  renderedBody = escapeHtml(renderedBody).replace(/\n/g, '<br />');
+  const closingText = data.closingText?.trim() || 'وتفضلوا بقبول فائق الاحترام ،،،';
 
   const html = `
     <div dir="rtl" style="font-family:'Cairo',sans-serif;background:#fff;width:794px;height:1122px;direction:rtl;unicode-bidi:plaintext;color:#111;font-size:14px;position:relative;box-sizing:border-box;overflow:hidden;">
@@ -1459,7 +1481,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
             </td>
             <td style="width:44%;text-align:center;vertical-align:middle;">
               ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:126px;height:126px;object-fit:contain;display:inline-block;" />` : ''}
-              <div style="font-size:22px;font-weight:900;color:#1a3a8a;margin-top:10px;line-height:1.35;white-space:nowrap;">مؤسسة القادري الزراعية</div>
+              <div style="font-size:22px;font-weight:900;color:#1a3a8a;margin-top:10px;line-height:1.35;white-space:nowrap;">${escapeHtml(institutionName)}</div>
             </td>
             <td style="width:28%;text-align:left;vertical-align:middle;"></td>
           </tr>
@@ -1468,35 +1490,18 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
         <!-- TITLE -->
         <div style="text-align:center;margin-bottom:26px;">
           <div style="display:inline-block;border:2px solid #b8922a;border-radius:6px;padding:9px 56px;background:#fdf8ee;">
-            <span style="font-size:24px;font-weight:900;color:#1a3a8a;letter-spacing:0;">شهادة خبرة</span>
+            <span style="font-size:24px;font-weight:900;color:#1a3a8a;letter-spacing:0;">${escapeHtml(certificateTitle)}</span>
           </div>
         </div>
 
         <!-- SALUTATION -->
-        <p style="font-size:15px;font-weight:700;color:#333;margin:0 0 20px;text-align:center;direction:rtl;unicode-bidi:plaintext;">إلى من يهمه الأمر،،،</p>
+        <p style="font-size:15px;font-weight:700;color:#333;margin:0 0 20px;text-align:center;direction:rtl;unicode-bidi:plaintext;">${escapeHtml(salutation)}</p>
 
         <!-- BODY TEXT -->
         <div dir="rtl" style="font-size:15px;line-height:2.05;color:#222;text-align:right;direction:rtl;unicode-bidi:plaintext;word-spacing:normal;letter-spacing:0;">
-          <p style="margin:0 0 14px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
-            تشهد <strong>مؤسسة القادري الزراعية</strong> بأن الموظف
-            <strong style="color:#1a3a8a;">&nbsp;${data.employeeName}&nbsp;</strong>${data.nationalId ? `،
-            حامل الرقم الوطني
-            <strong style="color:#1a3a8a;font-family:monospace;">&nbsp;${data.nationalId}&nbsp;</strong>` : ''}،
-            قد عمل لدينا في وظيفة
-            <strong style="color:#1a3a8a;">&nbsp;${data.jobTitle}&nbsp;</strong>
-            خلال الفترة الممتدة من
-            <strong>&nbsp;${data.startDate}&nbsp;</strong>
-            ${employmentEndText}،
-            وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.
-          </p>
-          <p style="margin:0 0 14px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
-            كما أظهر كفاءة عالية في أداء المهام الموكلة إليه، وكان يتمتع بروح العمل الجماعي والقدرة على تحمل ضغط العمل.
-          </p>
-          <p style="margin:0 0 22px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
-            وقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.
-          </p>
+          <p style="margin:0 0 22px;text-align:right;direction:rtl;unicode-bidi:plaintext;">${renderedBody}</p>
           <p style="margin:0 0 26px;text-align:center;direction:rtl;unicode-bidi:plaintext;">
-            وتفضلوا بقبول فائق الاحترام ،،،
+            ${escapeHtml(closingText)}
           </p>
         </div>
 
@@ -1511,8 +1516,8 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
           <div style="text-align:center;width:220px;">
             <div style="font-size:12px;color:#555;margin-bottom:6px;">التوقيع</div>
             <div style="border-top:1px solid #333;padding-top:6px;">
-              <div style="font-size:14px;font-weight:700;color:#1a3a8a;">م. ثامر القادري</div>
-              <div style="font-size:11px;color:#555;">صاحب المؤسسة</div>
+              <div style="font-size:14px;font-weight:700;color:#1a3a8a;">${escapeHtml(data.signatureName?.trim() || 'م. ثامر القادري')}</div>
+              <div style="font-size:11px;color:#555;">${escapeHtml(data.signatureTitle?.trim() || 'صاحب المؤسسة')}</div>
             </div>
           </div>
         </div>

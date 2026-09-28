@@ -5611,15 +5611,17 @@ function AdminCreateQuoteModal({ open, onClose, siteData, lang, onCreated }: {
 }
 
 /* ── Experience Certificate Modal ──────────────────────── */
+const defaultCertificateBody = 'تشهد {اسم المؤسسة} بأن الموظف {اسم الموظف}، {الرقم الوطني} قد عمل لدينا في وظيفة {المسمى الوظيفي} خلال الفترة الممتدة من {تاريخ البداية} {تاريخ النهاية}، وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.\nكما أظهر كفاءة عالية في أداء المهام الموكلة إليه، وكان يتمتع بروح العمل الجماعي والقدرة على تحمل ضغط العمل.\nوقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.';
+
 function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onClose: () => void; lang: string; logoUrl: string }) {
   const isAr = lang === 'ar';
   const today = new Date().toLocaleDateString('ar-JO');
-  const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today, phone: '+962 777 772 211' });
+  const [form, setForm] = useState({ employeeName: '', nationalId: '', jobTitle: '', startDate: '', endDate: '', issueDate: today, phone: '+962 777 772 211', institutionName: 'مؤسسة القادري الزراعية', certificateTitle: 'شهادة خبرة', salutation: 'إلى من يهمه الأمر،،،', bodyText: defaultCertificateBody, closingText: 'وتفضلوا بقبول فائق الاحترام ،،،', signatureName: 'م. ثامر القادري', signatureTitle: 'صاحب المؤسسة' });
   const [generating, setGenerating] = useState(false);
   const [certificateLogo, setCertificateLogo] = useState(logoUrl);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
   const handleLogoChange = async (file?: File) => {
     if (!file) return;
     setUploadingLogo(true);
@@ -5679,6 +5681,19 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
               {certificateLogo !== logoUrl && <button type="button" onClick={() => setCertificateLogo(logoUrl)} className="text-xs text-muted-foreground underline arabic">إرجاع اللوجو الأساسي</button>}
             </div>
             <p className="text-[11px] text-muted-foreground arabic text-right">يمكن تغيير اللوجو لهذه الشهادة فقط دون تغيير لوجو الموقع.</p>
+          </div>
+
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-3" dir="rtl">
+            <div><h3 className="font-bold arabic text-sm text-right">تخصيص نص الشهادة</h3><p className="text-[11px] text-muted-foreground arabic text-right mt-1">غيّر أي نص تريده. يمكنك استخدام المتغيرات الموضحة أسفل حقل النص.</p></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><Label className="arabic text-xs mb-1.5 block text-right">اسم المؤسسة في الشهادة</Label><Input value={form.institutionName} onChange={set('institutionName')} dir="rtl" className="arabic text-right" /></div>
+              <div><Label className="arabic text-xs mb-1.5 block text-right">عنوان الشهادة</Label><Input value={form.certificateTitle} onChange={set('certificateTitle')} dir="rtl" className="arabic text-right" /></div>
+              <div><Label className="arabic text-xs mb-1.5 block text-right">التحية</Label><Input value={form.salutation} onChange={set('salutation')} dir="rtl" className="arabic text-right" /></div>
+              <div><Label className="arabic text-xs mb-1.5 block text-right">عبارة الختام</Label><Input value={form.closingText} onChange={set('closingText')} dir="rtl" className="arabic text-right" /></div>
+              <div><Label className="arabic text-xs mb-1.5 block text-right">اسم الموقّع</Label><Input value={form.signatureName} onChange={set('signatureName')} dir="rtl" className="arabic text-right" /></div>
+              <div><Label className="arabic text-xs mb-1.5 block text-right">صفة الموقّع</Label><Input value={form.signatureTitle} onChange={set('signatureTitle')} dir="rtl" className="arabic text-right" /></div>
+            </div>
+            <div><Label className="arabic text-xs mb-1.5 block text-right">نص الشهادة</Label><textarea value={form.bodyText} onChange={set('bodyText')} dir="rtl" rows={7} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm arabic text-right leading-7 resize-y" /><p className="text-[10px] text-muted-foreground arabic text-right mt-1">المتغيرات: {'{اسم المؤسسة}'} · {'{اسم الموظف}'} · {'{الرقم الوطني}'} · {'{المسمى الوظيفي}'} · {'{تاريخ البداية}'} · {'{تاريخ النهاية}'}</p></div>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
