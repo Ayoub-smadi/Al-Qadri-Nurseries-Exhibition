@@ -68,7 +68,24 @@ function loadQadriRecords(): any[] {
   try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
 
-function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number | null; hiddenParts?: Record<string, boolean> }, id?: string): string {
+type TableLabels = {
+  index: string;
+  name: string;
+  description: string;
+  category: string;
+  quantity: string;
+  price: string;
+  total: string;
+  image: string;
+  grandTotal: string;
+};
+
+const defaultTableLabels: TableLabels = {
+  index: '#', name: 'الاسم', description: 'الوصف', category: 'القسم',
+  quantity: 'الكمية', price: 'السعر', total: 'الإجمالي', image: 'الصورة', grandTotal: 'المجموع الكلي',
+};
+
+function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number | null; hiddenParts?: Record<string, boolean>; tableLabels?: TableLabels; tableHeaderColor?: string }, id?: string): string {
   const records = loadQadriRecords();
   const now = new Date().toISOString();
   if (id) {
@@ -164,6 +181,9 @@ export default function QadriOldQuotationPage() {
   const safeTaxPct = hasTax ? parsedTaxPct : 0;
   const [showPlantPicker, setShowPlantPicker] = useState(false);
   const [plantSearch, setPlantSearch] = useState("");
+  const [tableLabels, setTableLabels] = useState<TableLabels>({ ...defaultTableLabels, ...(draft?.tableLabels ?? {}) });
+  const [tableHeaderColor, setTableHeaderColor] = useState<string>(draft?.tableHeaderColor ?? "#1a2744");
+  const [showTableSettings, setShowTableSettings] = useState(false);
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -220,10 +240,10 @@ export default function QadriOldQuotationPage() {
   const saveDraft = useCallback(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts,
+        details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor,
       }));
     } catch {}
-  }, [details, items, logoUrl, stampUrl, discountPct, safeTaxPct, hiddenParts]);
+  }, [details, items, logoUrl, stampUrl, discountPct, safeTaxPct, hiddenParts, tableLabels, tableHeaderColor]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
@@ -232,6 +252,8 @@ export default function QadriOldQuotationPage() {
     setLogoUrl(""); setStampUrl("/stamp-qadri.png");
       setDiscountPct(0); setTaxPct(null);
     setCurrentRecordId(null);
+    setTableLabels({ ...defaultTableLabels });
+    setTableHeaderColor("#1a2744");
   };
 
   const handleConvertToInvoice = async () => {
@@ -315,6 +337,8 @@ export default function QadriOldQuotationPage() {
           discountPct,
           taxPct: hasTax ? safeTaxPct : null,
           hiddenParts,
+          tableLabels,
+          tableHeaderColor,
         };
 
         // Update local state to reflect the uploaded URLs so the UI stays consistent
@@ -342,7 +366,7 @@ export default function QadriOldQuotationPage() {
 
     // Fallback for unauthenticated use: localStorage
     try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts }, currentRecordId ?? undefined);
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
       toast.success("✅ تم الحفظ في السجل");
     } catch (e: any) {
@@ -686,6 +710,20 @@ export default function QadriOldQuotationPage() {
             {deleteMode ? "إيقاف الحذف" : "حذف الأجزاء"}
           </button>
 
+          <button
+            onClick={() => setShowTableSettings(v => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              background: showTableSettings ? "#dcfce7" : "#f8fafc",
+              color: showTableSettings ? "#166534" : "#475569",
+              border: showTableSettings ? "1px solid #86efac" : "1px solid #e2e8f0",
+              cursor: "pointer", fontSize: 13, fontWeight: 600,
+              fontFamily: "Cairo, Arial, sans-serif",
+            }}>
+            إعدادات الجدول {showTableSettings ? <ChevronUp style={{ width: 12, height: 12 }} /> : <ChevronDown style={{ width: 12, height: 12 }} />}
+          </button>
+
           {/* استعادة المحذوف */}
           {Object.values(hiddenParts).some(Boolean) && (
             <button
@@ -872,6 +910,34 @@ export default function QadriOldQuotationPage() {
       {/* ── Main area: side-by-side smart panel + document ── */}
       <div style={{ padding: "16px", display: "flex", gap: 16, alignItems: "flex-start", justifyContent: "center", flexWrap: "wrap" }}>
 
+        {showTableSettings && (
+          <div style={{ width: 320, flexShrink: 0, background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: 16, position: "sticky", top: 72, alignSelf: "flex-start", direction: "rtl" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#166534" }}>تخصيص عناوين الجدول</div>
+              <button onClick={() => setShowTableSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><X style={{ width: 16, height: 16 }} /></button>
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {([['index', 'رقم البند'], ['name', 'الاسم'], ['description', 'الوصف'], ['category', 'القسم'], ['quantity', 'الكمية'], ['price', 'السعر'], ['total', 'الإجمالي'], ['image', 'الصورة'], ['grandTotal', 'المجموع الكلي']] as [keyof TableLabels, string][]).map(([key, label]) => (
+                <label key={key} style={{ display: "grid", gridTemplateColumns: "90px 1fr", alignItems: "center", gap: 6, fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                  {label}
+                  <input value={tableLabels[key]} onChange={e => setTableLabels(prev => ({ ...prev, [key]: e.target.value }))} style={{ border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 7px", fontFamily: "Cairo, Arial, sans-serif", direction: "rtl", minWidth: 0 }} />
+                </label>
+              ))}
+            </div>
+            <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 14, paddingTop: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                لون خلفية العناوين
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="color" value={tableHeaderColor} onChange={e => setTableHeaderColor(e.target.value)} style={{ width: 34, height: 28, padding: 1, border: "1px solid #cbd5e1", borderRadius: 5, cursor: "pointer" }} />
+                  <input value={tableHeaderColor} onChange={e => setTableHeaderColor(e.target.value)} style={{ width: 82, border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 6px", fontFamily: "Arial, sans-serif", direction: "ltr" }} />
+                </span>
+              </label>
+              <button onClick={() => setTableHeaderColor("#034F3B")} style={{ marginTop: 8, width: "100%", border: "1px solid #86efac", borderRadius: 6, padding: "5px 8px", background: "#034F3B", color: "#fff", cursor: "pointer", fontFamily: "Cairo, Arial, sans-serif", fontSize: 11 }}>استخدام الأخضر #034F3B</button>
+              <button onClick={() => setTableHeaderColor("#1a2744")} style={{ marginTop: 6, width: "100%", border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 8px", background: "#1a2744", color: "#fff", cursor: "pointer", fontFamily: "Cairo, Arial, sans-serif", fontSize: 11 }}>إرجاع اللون الكحلي</button>
+            </div>
+          </div>
+        )}
+
         {/* ── Smart Analysis Side Panel ─────────────────── */}
         {showSmart && (
           <div style={{
@@ -1054,41 +1120,41 @@ export default function QadriOldQuotationPage() {
           <div style={{ padding: "16px 20px 0" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
               <thead>
-                <tr style={{ background: "#1a2744", color: "#ffffff" }}>
+                <tr style={{ background: tableHeaderColor, color: "#ffffff" }}>
                   {!hiddenParts.colIndex && (
                     <th style={{ padding: "10px 6px", textAlign: "center", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colIndex", "عمود الرقم")}#
+                      {hidePartBtn("colIndex", "عمود الرقم")}{tableLabels.index}
                     </th>
                   )}
-                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>الاسم</th>
+                  <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>{tableLabels.name}</th>
                   {!hiddenParts.colDescription && (
                     <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colDescription", "عمود الوصف")}الوصف
+                      {hidePartBtn("colDescription", "عمود الوصف")}{tableLabels.description}
                     </th>
                   )}
                   {!hiddenParts.colCategory && (
                     <th style={{ padding: "10px 8px", textAlign: "right", fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colCategory", "عمود القسم")}القسم
+                      {hidePartBtn("colCategory", "عمود القسم")}{tableLabels.category}
                     </th>
                   )}
                   {!hiddenParts.colQuantity && (
                     <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 60, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colQuantity", "عمود الكمية")}الكمية
+                      {hidePartBtn("colQuantity", "عمود الكمية")}{tableLabels.quantity}
                     </th>
                   )}
                   {!hiddenParts.colPrice && (
                     <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 80, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colPrice", "عمود السعر")}السعر
+                      {hidePartBtn("colPrice", "عمود السعر")}{tableLabels.price}
                     </th>
                   )}
                   {!hiddenParts.colTotal && (
                     <th style={{ padding: "10px 6px", textAlign: "center", whiteSpace: "nowrap", minWidth: 80, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colTotal", "عمود الإجمالي")}الإجمالي
+                      {hidePartBtn("colTotal", "عمود الإجمالي")}{tableLabels.total}
                     </th>
                   )}
                   {!hiddenParts.colImage && (
                     <th style={{ padding: "10px 6px", textAlign: "center", width: 160, fontFamily: "Cairo, Arial, sans-serif", border: "1px solid #111827" }}>
-                      {hidePartBtn("colImage", "عمود الصورة")}الصورة
+                      {hidePartBtn("colImage", "عمود الصورة")}{tableLabels.image}
                     </th>
                   )}
                   <th className="pdf-hide" style={{ width: 24 }} />
@@ -1273,13 +1339,13 @@ export default function QadriOldQuotationPage() {
                 </div>
               )}
               <div style={{
-                background: "#1a2744", color: "#fff",
+                background: tableHeaderColor, color: "#fff",
                 display: "flex", justifyContent: "space-between", alignItems: "center",
                 padding: "12px 16px", borderRadius: 4, marginTop: 4,
               }}>
                 <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "Cairo, Arial, sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
                   {hidePartBtn("grandTotal", "قسم المجموع الكلي")}
-                  المجموع الكلي
+                  {tableLabels.grandTotal}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 15, fontWeight: 900, color: "#60a5fa", fontFamily: "Cairo, Arial, sans-serif" }}>{fmt(grandTotal)}</span>
