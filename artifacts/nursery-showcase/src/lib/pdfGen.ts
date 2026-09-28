@@ -1446,7 +1446,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
       <div style="position:relative;z-index:1;padding:38px 56px;">
 
         <!-- HEADER ROW: table layout keeps RTL positions stable in html2canvas -->
-        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:20px;border-bottom:3px double #1a3a8a;padding-bottom:16px;">
+        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:36px;border-bottom:3px double #1a3a8a;padding-bottom:16px;">
           <tr>
             <td style="width:28%;text-align:right;vertical-align:middle;font-size:11px;color:#444;line-height:2;">
               <div style="font-weight:700;color:#1a3a8a;font-size:12px;direction:ltr;text-align:right;">Al-Qadri Agricultural Foundation</div>
@@ -1456,7 +1456,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
             </td>
             <td style="width:44%;text-align:center;vertical-align:middle;">
               ${logoDataUrl ? `<img src="${logoDataUrl}" style="width:126px;height:126px;object-fit:contain;display:inline-block;" />` : ''}
-              <div style="font-size:22px;font-weight:900;color:#1a3a8a;margin-top:3px;white-space:nowrap;">مؤسسة القادري الزراعية</div>
+              <div style="font-size:22px;font-weight:900;color:#1a3a8a;margin-top:10px;line-height:1.35;white-space:nowrap;">مؤسسة القادري الزراعية</div>
             </td>
             <td style="width:28%;text-align:left;vertical-align:middle;"></td>
           </tr>
@@ -1493,7 +1493,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
           <p style="margin:0 0 22px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
             وقد أعطيت له هذه الشهادة بناءً على طلبه دون أدنى مسؤولية على المؤسسة.
           </p>
-          <p style="margin:0 0 26px;text-align:right;direction:rtl;unicode-bidi:plaintext;">
+          <p style="margin:0 0 26px;text-align:center;direction:rtl;unicode-bidi:plaintext;">
             وتفضلوا بقبول فائق الاحترام ،،،
           </p>
         </div>
