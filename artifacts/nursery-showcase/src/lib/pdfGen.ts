@@ -1434,6 +1434,9 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
   const stampDataUrl = data.stampUrl
     ? await toDataUrl(data.stampUrl).catch(() => '')
     : await toDataUrl('/stamp.jpeg').catch(() => '');
+  const employmentEndText = data.endDate?.trim()
+    ? `إلى <strong>&nbsp;${data.endDate}&nbsp;</strong>`
+    : 'ولا يزال على رأس عمله لدينا حتى تاريخه';
 
   const html = `
     <div dir="rtl" style="font-family:'Cairo',sans-serif;background:#fff;width:794px;height:1122px;direction:rtl;unicode-bidi:plaintext;color:#111;font-size:14px;position:relative;box-sizing:border-box;overflow:hidden;">
@@ -1483,8 +1486,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
             <strong style="color:#1a3a8a;">&nbsp;${data.jobTitle}&nbsp;</strong>
             خلال الفترة الممتدة من
             <strong>&nbsp;${data.startDate}&nbsp;</strong>
-            إلى
-            <strong>&nbsp;${data.endDate}&nbsp;</strong>،
+            ${employmentEndText}،
             وقد كان أثناء فترة عمله مثالاً للالتزام والانضباط وحسن السيرة والسلوك.
           </p>
           <p style="margin:0 0 14px;text-align:right;direction:rtl;unicode-bidi:plaintext;">

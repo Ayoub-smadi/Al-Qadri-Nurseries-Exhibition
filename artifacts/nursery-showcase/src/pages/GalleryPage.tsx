@@ -5635,7 +5635,7 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
   };
 
   const handleGenerate = async () => {
-    if (!form.employeeName.trim() || !form.jobTitle.trim() || !form.startDate.trim() || !form.endDate.trim()) {
+    if (!form.employeeName.trim() || !form.jobTitle.trim() || !form.startDate.trim()) {
       toast.error(isAr ? 'يرجى تعبئة جميع الحقول' : 'Please fill in all fields');
       return;
     }
@@ -5700,8 +5700,8 @@ function CertificateModal({ open, onClose, lang, logoUrl }: { open: boolean; onC
                 <Input value={form.startDate} onChange={set('startDate')} dir="rtl" className="arabic text-right" placeholder="1/1/2022" />
               </div>
               <div>
-                <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ النهاية *</Label>
-                <Input value={form.endDate} onChange={set('endDate')} dir="rtl" className="arabic text-right" placeholder="31/12/2024" />
+                <Label className="arabic text-xs mb-1.5 block text-right" dir="rtl">تاريخ النهاية (اختياري)</Label>
+                <Input value={form.endDate} onChange={set('endDate')} dir="rtl" className="arabic text-right" placeholder="اتركه فارغاً إذا كان الموظف على رأس عمله" />
               </div>
             </div>
             <div>
