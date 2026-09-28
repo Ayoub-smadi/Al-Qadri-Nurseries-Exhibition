@@ -85,7 +85,7 @@ const defaultTableLabels: TableLabels = {
   quantity: 'الكمية', price: 'السعر', total: 'الإجمالي', image: 'الصورة', grandTotal: 'المجموع الكلي',
 };
 
-function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number | null; hiddenParts?: Record<string, boolean>; tableLabels?: TableLabels; tableHeaderColor?: string }, id?: string): string {
+function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number | null; hiddenParts?: Record<string, boolean>; tableLabels?: TableLabels; tableHeaderColor?: string; tableFontFamily?: string; tableFontSize?: number; logoSize?: number; cellPadding?: number; tableBold?: boolean }, id?: string): string {
   const records = loadQadriRecords();
   const now = new Date().toISOString();
   if (id) {
@@ -184,6 +184,11 @@ export default function QadriOldQuotationPage() {
   const [tableLabels, setTableLabels] = useState<TableLabels>({ ...defaultTableLabels, ...(draft?.tableLabels ?? {}) });
   const [tableHeaderColor, setTableHeaderColor] = useState<string>(draft?.tableHeaderColor ?? "#1a2744");
   const [showTableSettings, setShowTableSettings] = useState(false);
+  const [tableFontFamily, setTableFontFamily] = useState<string>(draft?.tableFontFamily ?? "Cairo, Arial, sans-serif");
+  const [tableFontSize, setTableFontSize] = useState<number>(draft?.tableFontSize ?? 12);
+  const [logoSize, setLogoSize] = useState<number>(draft?.logoSize ?? 90);
+  const [cellPadding, setCellPadding] = useState<number>(draft?.cellPadding ?? 8);
+  const [tableBold, setTableBold] = useState<boolean>(draft?.tableBold ?? false);
 
   /* ─── Smart analysis state ──────────────────────────── */
   const [showSmart, setShowSmart] = useState(false);
@@ -240,10 +245,10 @@ export default function QadriOldQuotationPage() {
   const saveDraft = useCallback(() => {
     try {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-        details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor,
+        details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor, tableFontFamily, tableFontSize, logoSize, cellPadding, tableBold,
       }));
     } catch {}
-  }, [details, items, logoUrl, stampUrl, discountPct, safeTaxPct, hiddenParts, tableLabels, tableHeaderColor]);
+  }, [details, items, logoUrl, stampUrl, discountPct, safeTaxPct, hiddenParts, tableLabels, tableHeaderColor, tableFontFamily, tableFontSize, logoSize, cellPadding, tableBold]);
   useEffect(() => { saveDraft(); }, [saveDraft]);
 
   const clearDraft = () => {
@@ -254,6 +259,7 @@ export default function QadriOldQuotationPage() {
     setCurrentRecordId(null);
     setTableLabels({ ...defaultTableLabels });
     setTableHeaderColor("#1a2744");
+    setTableFontFamily("Cairo, Arial, sans-serif"); setTableFontSize(12); setLogoSize(90); setCellPadding(8); setTableBold(false);
   };
 
   const handleConvertToInvoice = async () => {
@@ -339,6 +345,11 @@ export default function QadriOldQuotationPage() {
           hiddenParts,
           tableLabels,
           tableHeaderColor,
+          tableFontFamily,
+          tableFontSize,
+          logoSize,
+          cellPadding,
+          tableBold,
         };
 
         // Update local state to reflect the uploaded URLs so the UI stays consistent
@@ -366,7 +377,7 @@ export default function QadriOldQuotationPage() {
 
     // Fallback for unauthenticated use: localStorage
     try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor }, currentRecordId ?? undefined);
+      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor, tableFontFamily, tableFontSize, logoSize, cellPadding, tableBold }, currentRecordId ?? undefined);
       if (!currentRecordId) setCurrentRecordId(id);
       toast.success("✅ تم الحفظ في السجل");
     } catch (e: any) {
@@ -935,6 +946,30 @@ export default function QadriOldQuotationPage() {
               <button onClick={() => setTableHeaderColor("#034F3B")} style={{ marginTop: 8, width: "100%", border: "1px solid #86efac", borderRadius: 6, padding: "5px 8px", background: "#034F3B", color: "#fff", cursor: "pointer", fontFamily: "Cairo, Arial, sans-serif", fontSize: 11 }}>استخدام الأخضر #034F3B</button>
               <button onClick={() => setTableHeaderColor("#1a2744")} style={{ marginTop: 6, width: "100%", border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 8px", background: "#1a2744", color: "#fff", cursor: "pointer", fontFamily: "Cairo, Arial, sans-serif", fontSize: 11 }}>إرجاع اللون الكحلي</button>
             </div>
+            <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 14, paddingTop: 12, display: "grid", gap: 9 }}>
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                نوع الخط
+                <select value={tableFontFamily} onChange={e => setTableFontFamily(e.target.value)} style={{ width: 150, border: "1px solid #cbd5e1", borderRadius: 6, padding: "5px 6px", fontFamily: "Cairo, Arial, sans-serif", direction: "rtl" }}>
+                  <option value="Cairo, Arial, sans-serif">Cairo</option><option value="Tahoma, Arial, sans-serif">Tahoma</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option>
+                </select>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                حجم الخط ({tableFontSize}px)
+                <input type="range" min={9} max={22} step={1} value={tableFontSize} onChange={e => setTableFontSize(Number(e.target.value))} style={{ width: 130 }} />
+              </label>
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                حجم اللوجو ({logoSize}px)
+                <input type="range" min={45} max={180} step={5} value={logoSize} onChange={e => setLogoSize(Number(e.target.value))} style={{ width: 130 }} />
+              </label>
+              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif" }}>
+                مسافة خانات الجدول ({cellPadding}px)
+                <input type="range" min={2} max={20} step={1} value={cellPadding} onChange={e => setCellPadding(Number(e.target.value))} style={{ width: 130 }} />
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#475569", fontFamily: "Cairo, Arial, sans-serif", cursor: "pointer" }}>
+                <input type="checkbox" checked={tableBold} onChange={e => setTableBold(e.target.checked)} />
+                جعل كلام الجدول عريضًا (Bold)
+              </label>
+            </div>
           </div>
         )}
 
@@ -1036,12 +1071,12 @@ export default function QadriOldQuotationPage() {
             {/* Logo box — far right */}
             <label style={{ cursor: "pointer", position: "relative", flexShrink: 0 }} title="انقر لتغيير الشعار">
               <div style={{
-                width: 90, height: 80, border: "1px solid #d1d5db", borderRadius: 8,
+                width: logoSize, height: Math.round(logoSize * 0.88), border: "1px solid #d1d5db", borderRadius: 8,
                 overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
                 background: "#f8fafc",
               }}>
                 {effectiveLogo ? (
-                  <img src={effectiveLogo} alt="logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
+                <img src={effectiveLogo} alt="logo" style={{ width: `${Math.max(logoSize - 10, 25)}px`, height: `${Math.max(logoSize - 10, 25)}px`, objectFit: "contain", padding: 4 }} />
                 ) : (
                   <span style={{ fontSize: 10, color: "#94a3b8", textAlign: "center" }}>شعار<br />الشركة</span>
                 )}
@@ -1117,7 +1152,8 @@ export default function QadriOldQuotationPage() {
           )}
 
           {/* ── Table ──────────────────────────────────── */}
-          <div style={{ padding: "16px 20px 0" }}>
+          <style>{`.qadri-table-custom, .qadri-table-custom * { font-family: ${tableFontFamily} !important; } .qadri-table-custom table { font-size: ${tableFontSize}px !important; } .qadri-table-custom td, .qadri-table-custom th { padding: ${cellPadding}px !important; } ${tableBold ? ".qadri-table-custom td, .qadri-table-custom th, .qadri-table-custom td input, .qadri-table-custom td textarea { font-weight: 700 !important; }" : ""}`}</style>
+          <div className="qadri-table-custom" style={{ padding: "16px 20px 0", fontFamily: tableFontFamily, fontSize: tableFontSize, fontWeight: tableBold ? 700 : undefined }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, border: "1px solid #111827" }}>
               <thead>
                 <tr style={{ background: tableHeaderColor, color: "#ffffff" }}>
