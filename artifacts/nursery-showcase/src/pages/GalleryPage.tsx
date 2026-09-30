@@ -6919,6 +6919,13 @@ type QadriOldRec = {
   logoUrl: string; stampUrl: string;
   discountPct?: number; taxPct?: number;
   hiddenParts?: Record<string, boolean>;
+  tableLabels?: Record<string, string>;
+  tableHeaderColor?: string;
+  tableFontFamily?: string;
+  tableFontSize?: number;
+  logoSize?: number;
+  cellPadding?: number;
+  tableBold?: boolean;
   createdAt: string; updatedAt: string;
 };
 
@@ -7002,6 +7009,13 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
         discountPct: rec.discountPct ?? 0,
         taxPct: typeof rec.taxPct === "number" && rec.taxPct > 0 ? rec.taxPct : null,
         hiddenParts: rec.hiddenParts ?? {},
+        tableLabels: rec.tableLabels ?? {},
+        tableHeaderColor: rec.tableHeaderColor,
+        tableFontFamily: rec.tableFontFamily,
+        tableFontSize: rec.tableFontSize,
+        logoSize: rec.logoSize,
+        cellPadding: rec.cellPadding,
+        tableBold: rec.tableBold,
       }));
     } catch {}
     navigate('/qadri-old-quotation');
