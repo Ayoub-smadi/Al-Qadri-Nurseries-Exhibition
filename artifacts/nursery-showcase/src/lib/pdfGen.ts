@@ -1471,7 +1471,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
       <div style="position:relative;z-index:1;padding:38px 56px;">
 
         <!-- HEADER ROW: table layout keeps RTL positions stable in html2canvas -->
-        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:36px;border-bottom:3px double #1a3a8a;padding-bottom:16px;">
+        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:0;padding-bottom:0;">
           <tr>
             <td style="width:28%;text-align:right;vertical-align:middle;font-size:11px;color:#444;line-height:2;">
               <div style="font-weight:700;color:#1a3a8a;font-size:12px;direction:ltr;text-align:right;">Al-Qadri Agricultural Foundation</div>
@@ -1486,6 +1486,7 @@ export async function downloadCertificatePDF(data: CertificateData): Promise<voi
             <td style="width:28%;text-align:left;vertical-align:middle;"></td>
           </tr>
         </table>
+        <div style="border-bottom:3px double #1a3a8a;margin-top:18px;margin-bottom:36px;height:0;line-height:0;"></div>
 
         <!-- TITLE -->
         <div style="text-align:center;margin-bottom:26px;">
