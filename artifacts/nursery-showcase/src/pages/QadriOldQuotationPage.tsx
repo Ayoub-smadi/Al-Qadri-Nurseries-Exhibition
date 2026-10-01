@@ -61,12 +61,7 @@ type Details = {
 };
 
 const DRAFT_KEY   = "aq_qadri_old_inline_draft";
-const RECORDS_KEY = "aq_qadri_old_records";
 const EDIT_ID_KEY = "aq_qadri_old_edit_id";
-
-function loadQadriRecords(): any[] {
-  try { const r = localStorage.getItem(RECORDS_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
-}
 
 type TableLabels = {
   index: string;
@@ -388,10 +383,7 @@ export default function QadriOldQuotationPage() {
       return next;
     });
   };
-  /* Resize + compress before stashing in localStorage — raw phone-camera photos
-     are multiple MB each and blow through the ~5–10MB per-origin quota after a
-     few items, which makes localStorage.setItem throw and silently kills the
-     save (see persistQadriRecord). */
+  /* Resize + compress images before keeping the current draft in sessionStorage. */
   const toBase64 = (file: File, cb: (s: string) => void) => {
     const isPng = file.type === "image/png";
     const MAX = isPng ? 700 : 500;
