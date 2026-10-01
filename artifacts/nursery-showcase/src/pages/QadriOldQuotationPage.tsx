@@ -85,23 +85,6 @@ const defaultTableLabels: TableLabels = {
   quantity: 'الكمية', price: 'السعر', total: 'الإجمالي', image: 'الصورة', grandTotal: 'المجموع الكلي',
 };
 
-function persistQadriRecord(data: { details: Details; items: Item[]; logoUrl: string; stampUrl: string; discountPct: number; taxPct: number | null; hiddenParts?: Record<string, boolean>; tableLabels?: TableLabels; tableHeaderColor?: string; tableFontFamily?: string; tableFontSize?: number; logoSize?: number; cellPadding?: number; tableBold?: boolean }, id?: string): string {
-  const records = loadQadriRecords();
-  const now = new Date().toISOString();
-  if (id) {
-    const idx = records.findIndex((r: any) => r.id === id);
-    if (idx >= 0) {
-      records[idx] = { ...records[idx], ...data, updatedAt: now };
-      localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
-      return id;
-    }
-  }
-  const newId = Date.now().toString();
-  records.unshift({ ...data, id: newId, createdAt: now, updatedAt: now });
-  localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
-  return newId;
-}
-
 const mkDefault = (): Details => ({
   quotationNumber: format(new Date(), "yyyyMMdd"),
   customerName: "",
@@ -375,18 +358,7 @@ export default function QadriOldQuotationPage() {
       return;
     }
 
-    // Fallback for unauthenticated use: localStorage
-    try {
-      const id = persistQadriRecord({ details, items, logoUrl, stampUrl, discountPct, taxPct: hasTax ? safeTaxPct : null, hiddenParts, tableLabels, tableHeaderColor, tableFontFamily, tableFontSize, logoSize, cellPadding, tableBold }, currentRecordId ?? undefined);
-      if (!currentRecordId) setCurrentRecordId(id);
-      toast.success("✅ تم الحفظ في السجل");
-    } catch (e: any) {
-      if (e?.name === "QuotaExceededError") {
-        toast.error("فشل الحفظ: المساحة المحلية ممتلئة. احذف بعض الصور الكبيرة من البنود أو احذف عروضاً قديمة من السجل ثم أعد المحاولة.");
-      } else {
-        toast.error("فشل الحفظ: " + (e?.message || "خطأ غير معروف"));
-      }
-    }
+    toast.error("لا توجد جلسة إدارة فعّالة. سجّل الدخول أولاً ليتم حفظ العرض في قاعدة بيانات Neon.");
   };
 
   /* ─── Totals ─────────────────────────────────────────── */
