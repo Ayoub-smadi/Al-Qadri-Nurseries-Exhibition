@@ -12,6 +12,7 @@ import AgriStorePage from "@/pages/AgriStorePage";
 import OfficialDocumentsPage from "@/pages/OfficialDocumentsPage";
 import ExportInvoicesPage from "@/pages/ExportInvoicesPage";
 import PurchaseOrdersPage from "@/pages/PurchaseOrdersPage";
+import PurchasesPage from "@/pages/PurchasesPage";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ function RouterView() {
   if (path === "/official-documents") return <OfficialDocumentsPage />;
   if (path === "/export-invoices") return <ExportInvoicesPage />;
   if (path === "/purchase-orders") return <PurchaseOrdersPage />;
+  if (path === "/purchases") return <PurchasesPage />;
   return <GalleryPage />;
 }
 
