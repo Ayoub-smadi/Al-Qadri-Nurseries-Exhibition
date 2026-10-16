@@ -48,6 +48,7 @@ const dbReady: Promise<void> = (async () => {
       await client.query(`CREATE TABLE IF NOT EXISTS export_invoices (id TEXT PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotations (id TEXT PRIMARY KEY, quotation_number TEXT NOT NULL, customer_name TEXT NOT NULL, date TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', grand_total NUMERIC NOT NULL DEFAULT 0, discount_value NUMERIC NOT NULL DEFAULT 0, tax_rate NUMERIC NOT NULL DEFAULT 0, details JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, deleted_at TIMESTAMPTZ)`);
       await client.query(`CREATE TABLE IF NOT EXISTS admin_quotation_items (id TEXT PRIMARY KEY, quotation_id TEXT NOT NULL REFERENCES admin_quotations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', quantity NUMERIC NOT NULL DEFAULT 1, unit TEXT NOT NULL DEFAULT 'وحدة', price NUMERIC NOT NULL DEFAULT 0, total NUMERIC NOT NULL DEFAULT 0, image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0)`);
+      await client.query(`CREATE TABLE IF NOT EXISTS purchase_invoices (id TEXT PRIMARY KEY, type TEXT NOT NULL, number TEXT NOT NULL, entity TEXT NOT NULL, amount NUMERIC(14,2) NOT NULL DEFAULT 0, registration_date TEXT NOT NULL DEFAULT '', duration TEXT NOT NULL DEFAULT '', transferred BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL)`);
     } catch (e) {
       console.error("DB init error:", (e as Error).message);
     } finally {
@@ -151,6 +152,65 @@ function broadcastNewQuote(quote: Record<string, unknown>) {
 }
 
 const router: IRouter = Router();
+/* ── Purchase invoices ─────────────────────────────────── */
+router.get("/purchase-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const { rows } = await pool.query(`SELECT id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt" FROM purchase_invoices ORDER BY created_at DESC`);
+    res.json({ invoices: rows });
+  } catch (e) { res.status(500).json({ error: "Failed to load purchase invoices", detail: (e as Error).message }); }
+});
+router.post("/purchase-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id, type, number, entity, amount, registrationDate, duration, transferred, createdAt } = req.body as {
+    id?: string; type?: string; number?: string; entity?: string; amount?: string | number; registrationDate?: string; duration?: string; transferred?: boolean; createdAt?: string;
+  };
+  if (!id || !type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+    res.status(400).json({ error: "Invalid purchase invoice fields" }); return;
+  }
+  try {
+    await dbReady;
+    const { rows: [invoice] } = await pool.query(
+      `INSERT INTO purchase_invoices (id, type, number, entity, amount, registration_date, duration, transferred, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamptz,NOW()))
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt"`,
+      [id, type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, createdAt ?? null]
+    );
+    if (invoice) { res.status(201).json(invoice); return; }
+    const existing = await pool.query(`SELECT id FROM purchase_invoices WHERE id=$1`, [id]);
+    if (existing.rowCount) { res.status(200).json({ id, duplicate: true }); return; }
+    res.status(500).json({ error: "Failed to create purchase invoice" });
+  } catch (e) { res.status(500).json({ error: "Failed to create purchase invoice", detail: (e as Error).message }); }
+});
+router.put("/purchase-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { type, number, entity, amount, registrationDate, duration, transferred } = req.body as {
+    type?: string; number?: string; entity?: string; amount?: string | number; registrationDate?: string; duration?: string; transferred?: boolean;
+  };
+  if (!type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+    res.status(400).json({ error: "Invalid purchase invoice fields" }); return;
+  }
+  try {
+    await dbReady;
+    const { rowCount } = await pool.query(
+      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, updated_at=NOW() WHERE id=$8`,
+      [type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, req.params.id]
+    );
+    if (!rowCount) { res.status(404).json({ error: "Purchase invoice not found" }); return; }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to update purchase invoice", detail: (e as Error).message }); }
+});
+router.delete("/purchase-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const { rowCount } = await pool.query(`DELETE FROM purchase_invoices WHERE id=$1`, [req.params.id]);
+    if (!rowCount) { res.status(404).json({ error: "Purchase invoice not found" }); return; }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: "Failed to delete purchase invoice", detail: (e as Error).message }); }
+});
 
 router.post("/admin/login", async (req, res) => {
   await dbReady;
