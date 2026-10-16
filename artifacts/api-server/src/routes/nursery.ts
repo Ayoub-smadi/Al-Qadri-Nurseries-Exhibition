@@ -197,8 +197,8 @@ router.put("/purchase-invoices/:id", async (req, res) => {
   try {
     await dbReady;
     const { rowCount } = await pool.query(
-      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, driver_name=$8, items=$9::jsonb, updated_at=NOW() WHERE id=$10`,
-      [type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, typeof driverName === "string" ? driverName.trim() : "", JSON.stringify(items ?? []), req.params.id]
+      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, driver_name=COALESCE($8,driver_name), items=COALESCE($9::jsonb,items), updated_at=NOW() WHERE id=$10`,
+      [type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, typeof driverName === "string" ? driverName.trim() : null, items === undefined ? null : JSON.stringify(items), req.params.id]
     );
     if (!rowCount) { res.status(404).json({ error: "Purchase invoice not found" }); return; }
     res.json({ ok: true });

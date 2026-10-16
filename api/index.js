@@ -66,10 +66,14 @@ const dbReady = pool.connect().then(async (client) => {
         registration_date TEXT NOT NULL DEFAULT '',
         duration TEXT NOT NULL DEFAULT '',
         transferred BOOLEAN NOT NULL DEFAULT FALSE,
+        driver_name TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]',
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
     `);
+    await client.query(`ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS driver_name TEXT NOT NULL DEFAULT ''`);
+    await client.query(`ALTER TABLE purchase_invoices ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS data_bytes BYTEA`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS sha256 TEXT`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS size_bytes INTEGER`);
@@ -925,7 +929,7 @@ app.get("/api/purchase-invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
   try {
     await dbReady;
-    const result = await pool.query(`SELECT id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt" FROM purchase_invoices ORDER BY created_at DESC`);
+    const result = await pool.query(`SELECT id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, driver_name AS "driverName", items, created_at AS "createdAt" FROM purchase_invoices ORDER BY created_at DESC`);
     res.json({ invoices: result.rows });
   } catch (e) {
     console.error("Failed to load purchase invoices:", e.message);
@@ -935,19 +939,19 @@ app.get("/api/purchase-invoices", async (req, res) => {
 
 app.post("/api/purchase-invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { id, type, number, entity, amount, registrationDate, duration, transferred, createdAt } = req.body ?? {};
-  if (!id || (amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0))) {
+  const { id, type, number, entity, amount, registrationDate, duration, transferred, driverName, items, createdAt } = req.body ?? {};
+  if (!id || (amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0)) || (items !== undefined && !Array.isArray(items))) {
     res.status(400).json({ error: "Invalid purchase invoice fields" });
     return;
   }
   try {
     await dbReady;
     const result = await pool.query(
-      `INSERT INTO purchase_invoices (id, type, number, entity, amount, registration_date, duration, transferred, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamptz,NOW()))
+      `INSERT INTO purchase_invoices (id, type, number, entity, amount, registration_date, duration, transferred, driver_name, items, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,COALESCE($11::timestamptz,NOW()))
        ON CONFLICT (id) DO NOTHING
-       RETURNING id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt"`,
-      [id, type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, createdAt ?? null]
+       RETURNING id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, driver_name AS "driverName", items, created_at AS "createdAt"`,
+      [id, type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, typeof driverName === "string" ? driverName.trim() : "", JSON.stringify(items ?? []), createdAt ?? null]
     );
     if (result.rows.length) return res.status(201).json(result.rows[0]);
     const existing = await pool.query(`SELECT id FROM purchase_invoices WHERE id=$1`, [id]);
@@ -961,16 +965,16 @@ app.post("/api/purchase-invoices", async (req, res) => {
 
 app.put("/api/purchase-invoices/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
-  const { type, number, entity, amount, registrationDate, duration, transferred } = req.body ?? {};
-  if (amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0)) {
+  const { type, number, entity, amount, registrationDate, duration, transferred, driverName, items } = req.body ?? {};
+  if ((amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0)) || (items !== undefined && !Array.isArray(items))) {
     res.status(400).json({ error: "Invalid purchase invoice fields" });
     return;
   }
   try {
     await dbReady;
     const result = await pool.query(
-      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, updated_at=NOW() WHERE id=$8`,
-      [type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, req.params.id]
+      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, driver_name=COALESCE($8,driver_name), items=COALESCE($9::jsonb,items), updated_at=NOW() WHERE id=$10`,
+      [type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, typeof driverName === "string" ? driverName.trim() : null, items === undefined ? null : JSON.stringify(items), req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({ error: "Purchase invoice not found" });
     res.json({ ok: true });
