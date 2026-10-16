@@ -57,6 +57,18 @@ const dbReady = pool.connect().then(async (client) => {
         notes TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS purchase_invoices (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        number TEXT NOT NULL,
+        entity TEXT NOT NULL,
+        amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+        registration_date TEXT NOT NULL DEFAULT '',
+        duration TEXT NOT NULL DEFAULT '',
+        transferred BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      );
     `);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS data_bytes BYTEA`);
     await client.query(`ALTER TABLE images ADD COLUMN IF NOT EXISTS sha256 TEXT`);
@@ -905,6 +917,79 @@ app.delete("/api/invoices/:id", async (req, res) => {
     res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete invoice" });
+  }
+});
+
+/* ── Purchase invoices ──────────────────────────────────── */
+app.get("/api/purchase-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const result = await pool.query(`SELECT id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt" FROM purchase_invoices ORDER BY created_at DESC`);
+    res.json({ invoices: result.rows });
+  } catch (e) {
+    console.error("Failed to load purchase invoices:", e.message);
+    res.status(500).json({ error: "Failed to load purchase invoices", detail: e.message });
+  }
+});
+
+app.post("/api/purchase-invoices", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { id, type, number, entity, amount, registrationDate, duration, transferred, createdAt } = req.body ?? {};
+  if (!id || !type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+    res.status(400).json({ error: "Invalid purchase invoice fields" });
+    return;
+  }
+  try {
+    await dbReady;
+    const result = await pool.query(
+      `INSERT INTO purchase_invoices (id, type, number, entity, amount, registration_date, duration, transferred, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamptz,NOW()))
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt"`,
+      [id, type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, createdAt ?? null]
+    );
+    if (result.rows.length) return res.status(201).json(result.rows[0]);
+    const existing = await pool.query(`SELECT id FROM purchase_invoices WHERE id=$1`, [id]);
+    if (existing.rowCount) return res.status(200).json({ id, duplicate: true });
+    return res.status(500).json({ error: "Failed to create purchase invoice" });
+  } catch (e) {
+    console.error("Failed to create purchase invoice:", e.message);
+    res.status(500).json({ error: "Failed to create purchase invoice", detail: e.message });
+  }
+});
+
+app.put("/api/purchase-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  const { type, number, entity, amount, registrationDate, duration, transferred } = req.body ?? {};
+  if (!type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+    res.status(400).json({ error: "Invalid purchase invoice fields" });
+    return;
+  }
+  try {
+    await dbReady;
+    const result = await pool.query(
+      `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, updated_at=NOW() WHERE id=$8`,
+      [type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, req.params.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: "Purchase invoice not found" });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to update purchase invoice:", e.message);
+    res.status(500).json({ error: "Failed to update purchase invoice", detail: e.message });
+  }
+});
+
+app.delete("/api/purchase-invoices/:id", async (req, res) => {
+  if (!requireSession(req, res)) return;
+  try {
+    await dbReady;
+    const result = await pool.query(`DELETE FROM purchase_invoices WHERE id=$1`, [req.params.id]);
+    if (!result.rowCount) return res.status(404).json({ error: "Purchase invoice not found" });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("Failed to delete purchase invoice:", e.message);
+    res.status(500).json({ error: "Failed to delete purchase invoice", detail: e.message });
   }
 });
 
