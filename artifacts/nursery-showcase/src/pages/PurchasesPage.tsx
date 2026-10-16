@@ -149,7 +149,7 @@ export default function PurchasesPage() {
       const lineRows = lines.length ? lines.map((line, index) => {
         const quantity = Number(line.quantity) || 0;
         const unitPrice = Number(line.unitPrice) || 0;
-        return `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(line.description || "—")}</td><td style="text-align:center;direction:ltr">${escapeHtml(line.quantity || "0")}</td><td style="text-align:left;direction:ltr">${formatAmount(String(unitPrice))} د.أ</td><td style="text-align:left;direction:ltr;font-weight:700">${formatAmount(String(quantity * unitPrice))} د.أ</td></tr>`;
+        return `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(line.description || "—")}</td><td style="text-align:center;direction:ltr">${escapeHtml(line.quantity || "0")}</td><td style="text-align:center;direction:ltr;unicode-bidi:plaintext;white-space:nowrap">${formatAmount(String(unitPrice))} د.أ</td><td style="text-align:center;direction:ltr;unicode-bidi:plaintext;white-space:nowrap;font-weight:700">${formatAmount(String(quantity * unitPrice))} د.أ</td></tr>`;
       }).join("") : `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:22px">لا توجد تفاصيل بنود مسجلة لهذه الفاتورة</td></tr>`;
       host = document.createElement("div");
       host.style.cssText = "position:fixed;left:-12000px;top:0;z-index:-1;width:794px;background:#fff;";
@@ -165,7 +165,7 @@ export default function PurchasesPage() {
           <tr><td style="border:1px solid #dbe3e8;padding:10px"><b>حالة النقل:</b> ${item.transferred ? "تم النقل" : "لم يتم النقل"}</td><td style="border:1px solid #dbe3e8;padding:10px"><b>عدد البنود:</b> ${lines.length}</td></tr>
         </tbody></table>
         <h2 style="font-size:17px;color:#14583f;margin:0 0 10px;font-weight:800">تفاصيل البنود</h2>
-        <table dir="rtl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#eaf4ef;color:#14583f"><th style="border:1px solid #cbd9d1;padding:10px">#</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:right">الصنف</th><th style="border:1px solid #cbd9d1;padding:10px">الكمية</th><th style="border:1px solid #cbd9d1;padding:10px">سعر الوحدة</th><th style="border:1px solid #cbd9d1;padding:10px">الإجمالي</th></tr></thead><tbody>${lineRows}</tbody></table>
+        <table dir="rtl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#eaf4ef;color:#14583f"><th style="border:1px solid #cbd9d1;padding:10px;text-align:center">#</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:right">الصنف</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:center">الكمية</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:center">سعر الوحدة</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:center">الإجمالي</th></tr></thead><tbody>${lineRows}</tbody></table>
         <div style="margin-top:22px;border:2px solid #176548;border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:#f3faf6"><strong style="font-size:17px;color:#14583f">المبلغ الإجمالي</strong><strong style="font-size:20px;color:#14583f;direction:ltr">${formatAmount(item.amount)} د.أ</strong></div>
         <footer style="margin-top:44px;border-top:1px solid #dbe3e8;padding-top:12px;text-align:center;font-size:11px;color:#64748b">تم إنشاء هذه الفاتورة إلكترونيًا من نظام مؤسسة القادري الزراعية</footer>
       </article>`;
