@@ -936,7 +936,7 @@ app.get("/api/purchase-invoices", async (req, res) => {
 app.post("/api/purchase-invoices", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { id, type, number, entity, amount, registrationDate, duration, transferred, createdAt } = req.body ?? {};
-  if (!id || !type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+  if (!id || (amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0))) {
     res.status(400).json({ error: "Invalid purchase invoice fields" });
     return;
   }
@@ -947,7 +947,7 @@ app.post("/api/purchase-invoices", async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::timestamptz,NOW()))
        ON CONFLICT (id) DO NOTHING
        RETURNING id, type, number, entity, amount::text AS amount, registration_date AS "registrationDate", duration, transferred, created_at AS "createdAt"`,
-      [id, type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, createdAt ?? null]
+      [id, type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, createdAt ?? null]
     );
     if (result.rows.length) return res.status(201).json(result.rows[0]);
     const existing = await pool.query(`SELECT id FROM purchase_invoices WHERE id=$1`, [id]);
@@ -962,7 +962,7 @@ app.post("/api/purchase-invoices", async (req, res) => {
 app.put("/api/purchase-invoices/:id", async (req, res) => {
   if (!requireSession(req, res)) return;
   const { type, number, entity, amount, registrationDate, duration, transferred } = req.body ?? {};
-  if (!type?.trim() || !number?.trim() || !entity?.trim() || amount === undefined || !Number.isFinite(Number(amount)) || Number(amount) < 0) {
+  if (amount !== undefined && amount !== "" && (!Number.isFinite(Number(amount)) || Number(amount) < 0)) {
     res.status(400).json({ error: "Invalid purchase invoice fields" });
     return;
   }
@@ -970,7 +970,7 @@ app.put("/api/purchase-invoices/:id", async (req, res) => {
     await dbReady;
     const result = await pool.query(
       `UPDATE purchase_invoices SET type=$1, number=$2, entity=$3, amount=$4, registration_date=$5, duration=$6, transferred=$7, updated_at=NOW() WHERE id=$8`,
-      [type.trim(), number.trim(), entity.trim(), Number(amount), registrationDate ?? "", duration ?? "", transferred === true, req.params.id]
+      [type?.trim() ?? "", number?.trim() ?? "", entity?.trim() ?? "", Number(amount || 0), registrationDate ?? "", duration ?? "", transferred === true, req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({ error: "Purchase invoice not found" });
     res.json({ ok: true });
