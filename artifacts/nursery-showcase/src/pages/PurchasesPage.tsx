@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Check, CircleDollarSign, ClipboardList, FilePlus2, LoaderCircle, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, CircleDollarSign, ClipboardList, Download, FilePlus2, LoaderCircle, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { navigate } from "@/App";
 import { loadSavedToken } from "@/lib/storage";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import { sliceCanvasToPdf } from "@/lib/pdfMultiPage";
 
 type PurchaseLineItem = {
   id: string;
@@ -62,6 +64,7 @@ export default function PurchasesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pdfId, setPdfId] = useState<string | null>(null);
   const [amountFocused, setAmountFocused] = useState(false);
   const [error, setError] = useState("");
   const token = loadSavedToken();
@@ -137,6 +140,49 @@ export default function PurchasesPage() {
     } catch (cause) { toast.error(cause instanceof Error ? cause.message : "تعذر حفظ الفاتورة"); }
     finally { setSaving(false); }
   }
+  async function downloadPdf(item: PurchaseInvoice) {
+    setPdfId(item.id);
+    let host: HTMLDivElement | null = null;
+    try {
+      const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char] ?? char));
+      const lines = Array.isArray(item.items) ? item.items : [];
+      const lineRows = lines.length ? lines.map((line, index) => {
+        const quantity = Number(line.quantity) || 0;
+        const unitPrice = Number(line.unitPrice) || 0;
+        return `<tr><td style="text-align:center">${index + 1}</td><td>${escapeHtml(line.description || "—")}</td><td style="text-align:center;direction:ltr">${escapeHtml(line.quantity || "0")}</td><td style="text-align:left;direction:ltr">${formatAmount(String(unitPrice))} د.أ</td><td style="text-align:left;direction:ltr;font-weight:700">${formatAmount(String(quantity * unitPrice))} د.أ</td></tr>`;
+      }).join("") : `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:22px">لا توجد تفاصيل بنود مسجلة لهذه الفاتورة</td></tr>`;
+      host = document.createElement("div");
+      host.style.cssText = "position:fixed;left:-12000px;top:0;z-index:-1;width:794px;background:#fff;";
+      host.innerHTML = `<article dir="rtl" style="box-sizing:border-box;width:794px;min-height:1122px;padding:52px 54px;background:#fff;color:#17212b;font-family:Cairo,Arial,sans-serif;direction:rtl;unicode-bidi:plaintext;font-size:14px;line-height:1.6">
+        <header style="border-bottom:4px double #176548;padding-bottom:20px;margin-bottom:24px;text-align:center">
+          <div style="font-size:15px;font-weight:700;color:#64748b">مؤسسة القادري الزراعية</div>
+          <h1 style="font-size:30px;line-height:1.25;color:#14583f;margin:8px 0 4px;font-weight:900">فاتورة مشتريات</h1>
+          <div style="font-size:13px;color:#64748b">${escapeHtml(item.type || "")}</div>
+        </header>
+        <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:24px"><tbody>
+          <tr><td style="width:50%;border:1px solid #dbe3e8;padding:10px"><b>رقم الفاتورة:</b> ${escapeHtml(item.number || "—")}</td><td style="width:50%;border:1px solid #dbe3e8;padding:10px"><b>تاريخ التسجيل:</b> ${escapeHtml(item.registrationDate || "—")}</td></tr>
+          <tr><td style="border:1px solid #dbe3e8;padding:10px"><b>الجهة / المورد:</b> ${escapeHtml(item.entity || "—")}</td><td style="border:1px solid #dbe3e8;padding:10px"><b>اسم السائق:</b> ${escapeHtml(item.driverName || "—")}</td></tr>
+          <tr><td style="border:1px solid #dbe3e8;padding:10px"><b>حالة النقل:</b> ${item.transferred ? "تم النقل" : "لم يتم النقل"}</td><td style="border:1px solid #dbe3e8;padding:10px"><b>عدد البنود:</b> ${lines.length}</td></tr>
+        </tbody></table>
+        <h2 style="font-size:17px;color:#14583f;margin:0 0 10px;font-weight:800">تفاصيل البنود</h2>
+        <table dir="rtl" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#eaf4ef;color:#14583f"><th style="border:1px solid #cbd9d1;padding:10px">#</th><th style="border:1px solid #cbd9d1;padding:10px;text-align:right">الصنف</th><th style="border:1px solid #cbd9d1;padding:10px">الكمية</th><th style="border:1px solid #cbd9d1;padding:10px">سعر الوحدة</th><th style="border:1px solid #cbd9d1;padding:10px">الإجمالي</th></tr></thead><tbody>${lineRows}</tbody></table>
+        <div style="margin-top:22px;border:2px solid #176548;border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;background:#f3faf6"><strong style="font-size:17px;color:#14583f">المبلغ الإجمالي</strong><strong style="font-size:20px;color:#14583f;direction:ltr">${formatAmount(item.amount)} د.أ</strong></div>
+        <footer style="margin-top:44px;border-top:1px solid #dbe3e8;padding-top:12px;text-align:center;font-size:11px;color:#64748b">تم إنشاء هذه الفاتورة إلكترونيًا من نظام مؤسسة القادري الزراعية</footer>
+      </article>`;
+      document.body.appendChild(host);
+      await document.fonts.ready;
+      const paper = host.firstElementChild as HTMLElement;
+      const canvas = await html2canvas(paper, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: "#ffffff", logging: false, width: paper.scrollWidth, height: paper.scrollHeight, scrollX: 0, scrollY: 0 });
+      const safeNumber = (item.number || item.id).replace(/[^\u0600-\u06FFa-zA-Z0-9_-]/g, "_");
+      await sliceCanvasToPdf(canvas, paper, `فاتورة_مشتريات_${safeNumber}.pdf`, paper.scrollWidth);
+      toast.success("تم تنزيل الفاتورة بصيغة PDF");
+    } catch (cause) {
+      toast.error(`تعذر إنشاء ملف PDF: ${cause instanceof Error ? cause.message : "خطأ غير معروف"}`);
+    } finally {
+      host?.remove();
+      setPdfId(null);
+    }
+  }
   async function remove(id: string) {
     try { await api(`/${encodeURIComponent(id)}`, { method: "DELETE" }); setInvoices(current => current.filter(item => item.id !== id)); setDeleteId(null); toast.success("تم حذف الفاتورة"); }
     catch (cause) { toast.error(cause instanceof Error ? cause.message : "تعذر حذف الفاتورة"); }
@@ -154,7 +200,7 @@ export default function PurchasesPage() {
       </section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث بالنوع أو الرقم أو الجهة أو السائق..." className={`${inputClass} pr-9`}/></div><select value={statusFilter} onChange={e => setStatusFilter(e.target.value as typeof statusFilter)} className={`${inputClass} sm:w-48`}><option value="all">كل الحالات</option><option value="transferred">تم النقل</option><option value="pending">لم يتم النقل</option></select></div>
-        {loading ? <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin"/>جارٍ تحميل البيانات من قاعدة البيانات...</div> : error ? <div className="px-6 py-14 text-center"><p className="font-bold text-red-700">{error}</p><button onClick={() => void loadInvoices()} className="mt-4 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white">إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="px-6 py-16 text-center"><div className="mx-auto mb-4 w-fit rounded-2xl bg-slate-100 p-4 text-slate-400"><FilePlus2 className="h-8 w-8"/></div><h2 className="font-bold">{invoices.length ? "لا توجد نتائج مطابقة" : "لا توجد فواتير مشتريات بعد"}</h2><p className="mt-1 text-sm text-slate-500">{invoices.length ? "جرّب تغيير كلمات البحث أو الحالة." : "أضف أول فاتورة لتبدأ بتنظيم مشترياتك."}</p>{!invoices.length && token && <button onClick={openNew} className="mt-5 rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-bold text-white">إضافة أول فاتورة</button>}</div> : <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-right text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr>{["النوع", "الرقم", "الجهة", "السائق", "عدد البنود", "المبلغ", "تاريخ التسجيل", "المدة", "الحالة", "الإجراءات"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3 font-bold">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map(item => <tr key={item.id} className="hover:bg-slate-50/70"><td className="px-4 py-3 font-semibold">{item.type || "—"}</td><td className="px-4 py-3 font-mono">{item.number || "—"}</td><td className="px-4 py-3">{item.entity || "—"}</td><td className="px-4 py-3">{item.driverName || "—"}</td><td className="px-4 py-3">{item.items.length || "—"}</td><td className="whitespace-nowrap px-4 py-3 font-bold">{formatAmount(item.amount)} <span className="text-xs font-normal text-slate-400">د.أ</span></td><td className="whitespace-nowrap px-4 py-3">{item.registrationDate || "—"}</td><td className="px-4 py-3">{elapsedDays(item.registrationDate)}</td><td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${item.transferred ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.transferred ? "تم النقل" : "لم يتم النقل"}</span></td><td className="px-4 py-3"><div className="flex items-center gap-1"><button aria-label="تعديل" title="تعديل" onClick={() => edit(item)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4"/></button>{deleteId === item.id ? <><button onClick={() => void remove(item.id)} className="rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white">تأكيد</button><button onClick={() => setDeleteId(null)} className="p-2 text-slate-500" aria-label="إلغاء"><X className="h-4 w-4"/></button></> : <button aria-label="حذف" title="حذف" onClick={() => setDeleteId(item.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4"/></button>}</div></td></tr>)}</tbody></table></div>}
+        {loading ? <div className="flex items-center justify-center gap-2 px-6 py-16 text-slate-500"><LoaderCircle className="h-5 w-5 animate-spin"/>جارٍ تحميل البيانات من قاعدة البيانات...</div> : error ? <div className="px-6 py-14 text-center"><p className="font-bold text-red-700">{error}</p><button onClick={() => void loadInvoices()} className="mt-4 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-bold text-white">إعادة المحاولة</button></div> : filtered.length === 0 ? <div className="px-6 py-16 text-center"><div className="mx-auto mb-4 w-fit rounded-2xl bg-slate-100 p-4 text-slate-400"><FilePlus2 className="h-8 w-8"/></div><h2 className="font-bold">{invoices.length ? "لا توجد نتائج مطابقة" : "لا توجد فواتير مشتريات بعد"}</h2><p className="mt-1 text-sm text-slate-500">{invoices.length ? "جرّب تغيير كلمات البحث أو الحالة." : "أضف أول فاتورة لتبدأ بتنظيم مشترياتك."}</p>{!invoices.length && token && <button onClick={openNew} className="mt-5 rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-bold text-white">إضافة أول فاتورة</button>}</div> : <div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-right text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr>{["النوع", "الرقم", "الجهة", "السائق", "عدد البنود", "المبلغ", "تاريخ التسجيل", "المدة", "الحالة", "الإجراءات"].map(label => <th key={label} className="whitespace-nowrap px-4 py-3 font-bold">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map(item => <tr key={item.id} className="hover:bg-slate-50/70"><td className="px-4 py-3 font-semibold">{item.type || "—"}</td><td className="px-4 py-3 font-mono">{item.number || "—"}</td><td className="px-4 py-3">{item.entity || "—"}</td><td className="px-4 py-3">{item.driverName || "—"}</td><td className="px-4 py-3">{item.items.length || "—"}</td><td className="whitespace-nowrap px-4 py-3 font-bold">{formatAmount(item.amount)} <span className="text-xs font-normal text-slate-400">د.أ</span></td><td className="whitespace-nowrap px-4 py-3">{item.registrationDate || "—"}</td><td className="px-4 py-3">{elapsedDays(item.registrationDate)}</td><td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${item.transferred ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.transferred ? "تم النقل" : "لم يتم النقل"}</span></td><td className="px-4 py-3"><div className="flex items-center gap-1"><button aria-label="تنزيل PDF" title="تنزيل PDF" onClick={() => void downloadPdf(item)} disabled={pdfId === item.id} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">{pdfId === item.id ? <LoaderCircle className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}</button><button aria-label="تعديل" title="تعديل" onClick={() => edit(item)} className="rounded-lg p-2 text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4"/></button>{deleteId === item.id ? <><button onClick={() => void remove(item.id)} className="rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white">تأكيد</button><button onClick={() => setDeleteId(null)} className="p-2 text-slate-500" aria-label="إلغاء"><X className="h-4 w-4"/></button></> : <button aria-label="حذف" title="حذف" onClick={() => setDeleteId(item.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4"/></button>}</div></td></tr>)}</tbody></table></div>}
       </section>
     </div>
     {formOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={e => { if (e.target === e.currentTarget) setFormOpen(false); }}><section role="dialog" aria-modal="true" aria-labelledby="purchase-dialog-title" className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"><form onSubmit={save}><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 id="purchase-dialog-title" className="text-lg font-extrabold">{invoices.some(item => item.id === invoice.id) ? "تعديل فاتورة" : "إضافة فاتورة مشتريات"}</h2><p className="mt-0.5 text-xs text-slate-500">أدخل بيانات الفاتورة والبنود والكميات واسم السائق</p></div><button type="button" onClick={() => setFormOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="إغلاق"><X className="h-5 w-5"/></button></div>
