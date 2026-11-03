@@ -6937,7 +6937,17 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
   const { isAdmin } = useApp();
   const [records, setRecords] = React.useState<QadriOldRec[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const groupedRecords = React.useMemo(() => groupRecordsByMonth(records), [records]);
+  const [search, setSearch] = React.useState('');
+  const filteredRecords = React.useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    if (!query) return records;
+    return records.filter(record => {
+      const customerName = String(record.details.customerName ?? '').toLocaleLowerCase();
+      const quotationNumber = String(record.details.quotationNumber ?? '').toLocaleLowerCase();
+      return customerName.includes(query) || quotationNumber.includes(query);
+    });
+  }, [records, search]);
+  const groupedRecords = React.useMemo(() => groupRecordsByMonth(filteredRecords), [filteredRecords]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -7053,6 +7063,17 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
           <Button size="sm" onClick={createNew} className="arabic w-full text-xs">
             <Plus className="w-3.5 h-3.5 me-1" /> عرض سعر جديد
           </Button>
+          <div className="relative mt-2">
+            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="بحث باسم العميل أو رقم عرض السعر..."
+              aria-label="بحث باسم العميل أو رقم عرض السعر"
+              className="arabic h-9 pr-9 text-xs"
+              data-testid="input-search-qadri-old-quotations"
+            />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {records.length === 0 ? (
@@ -7060,6 +7081,12 @@ function QadriOldRecordsModal({ open, onClose }: { open: boolean; onClose: () =>
               <FileText className="w-10 h-10 opacity-20" />
               <p className="text-sm arabic">لا توجد عروض محفوظة بعد</p>
               <p className="text-xs arabic opacity-60">أنشئ عرضاً وانقر "حفظ" لتظهر هنا</p>
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
+              <Search className="w-10 h-10 opacity-20" />
+              <p className="text-sm arabic">لا توجد نتائج مطابقة للبحث</p>
+              <p className="text-xs arabic opacity-60">جرّب البحث باسم العميل أو رقم عرض السعر</p>
             </div>
           ) : (
             <div>
