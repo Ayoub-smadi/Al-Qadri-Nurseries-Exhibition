@@ -147,6 +147,18 @@ function saveRecords(records: ExportInvoiceRecord[]) {
 
 function normalizeRecord(raw: Partial<ExportInvoiceRecord>): ExportInvoiceRecord {
   const details = { ...defaultDetails(), ...(raw.details || {}) };
+  const legacyName = "مشاتل القادري الزراعية";
+  const currentName = "مؤسسة القادري الزراعية";
+  (Object.keys(details) as (keyof ExportDetails)[]).forEach((key) => {
+    const value = details[key];
+    if (typeof value === "string") {
+      details[key] = value.replaceAll(legacyName, currentName) as ExportDetails[typeof key];
+    }
+  });
+  // Keep legacy export invoices on the current legal header.
+  if (!details.institutionName || details.institutionName.includes("مشاتل")) {
+    details.institutionName = currentName;
+  }
   const rows = Array.isArray(raw.rows) && raw.rows.length
     ? raw.rows.map((row) => ({
         ...newRow(),
