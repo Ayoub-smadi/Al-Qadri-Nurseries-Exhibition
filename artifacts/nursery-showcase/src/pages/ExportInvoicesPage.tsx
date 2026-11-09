@@ -36,10 +36,16 @@ type ExportDetails = {
   invoiceNumber: string;
   sourceLabel: string;
   sourceName: string;
+  sourceAddressLabel: string;
+  sourceAddress: string;
   facilityNumberLabel: string;
   facilityNumber: string;
   destinationLabel: string;
   destination: string;
+  importerLabel: string;
+  importerName: string;
+  importerAddressLabel: string;
+  importerAddress: string;
   totalLabel: string;
   sumLabel: string;
   totalInWordsLabel: string;
@@ -86,18 +92,24 @@ const makeId = () => `export-${Date.now()}-${Math.random().toString(36).slice(2,
 function defaultDetails(): ExportDetails {
   return {
     institutionName: "مؤسسة القادري الزراعية",
-    address: "جرش - طريق عمان",
-    title: "فاتورة تصدير",
+    address: "الأردن - جرش        هاتف:",
+    title: "استيراد وتصدير الاشتال الزراعية",
     dateLabel: "التاريخ",
     date: today(),
     invoiceNumberLabel: "فاتورة رقم",
     invoiceNumber: "",
     sourceLabel: "المصدر:",
-    sourceName: "منشأة",
-    facilityNumberLabel: "رقم",
+    sourceName: "",
+    sourceAddressLabel: "العنوان:",
+    sourceAddress: "",
+    facilityNumberLabel: "منشأة رقم :",
     facilityNumber: "()",
     destinationLabel: "المصدر إليه:",
     destination: "",
+    importerLabel: "المستورد:",
+    importerName: "",
+    importerAddressLabel: "العنوان:",
+    importerAddress: "",
     totalLabel: "القيمة الإجمالية",
     sumLabel: "المجموع",
     totalInWordsLabel: "المجموع كتابةً",
@@ -158,6 +170,12 @@ function normalizeRecord(raw: Partial<ExportInvoiceRecord>): ExportInvoiceRecord
   // Keep legacy export invoices on the current legal header.
   if (!details.institutionName || details.institutionName.includes("مشاتل")) {
     details.institutionName = currentName;
+  }
+  if (!details.title || details.title === "فاتورة تصدير") {
+    details.title = defaultDetails().title;
+  }
+  if (!details.facilityNumberLabel || details.facilityNumberLabel === "رقم") {
+    details.facilityNumberLabel = defaultDetails().facilityNumberLabel;
   }
   const rows = Array.isArray(raw.rows) && raw.rows.length
     ? raw.rows.map((row) => ({
@@ -584,30 +602,37 @@ export default function ExportInvoicesPage() {
           <div className="overflow-x-auto rounded-2xl pb-4">
             <div ref={paperRef} style={{ width: 794, minHeight: 1030, margin: "0 auto", padding: "34px 38px", background: "#fff", color: "#172033", fontFamily: "Cairo, Arial, sans-serif", direction: "rtl", boxShadow: "0 8px 32px rgba(31, 52, 39, .12)", border: "1px solid #d8dfda" }}>
               <div style={{ border: "2px solid #203b2e", minHeight: 950, padding: "22px 24px", display: "flex", flexDirection: "column" }}>
-                <header style={{ textAlign: "center", borderBottom: "1px solid #52675a", paddingBottom: 14 }}>
-                  <EditableField value={draft.details.institutionName} onChange={(value) => updateDetails("institutionName", value)} ariaLabel="اسم المؤسسة" style={{ textAlign: "center", fontSize: 24, fontWeight: 800 }} />
-                  <EditableField value={draft.details.address} onChange={(value) => updateDetails("address", value)} ariaLabel="عنوان المؤسسة" style={{ textAlign: "center", fontSize: 15, color: "#52675a", marginTop: 2 }} />
-                  <EditableField value={draft.details.title} onChange={(value) => updateDetails("title", value)} ariaLabel="عنوان الفاتورة" style={{ textAlign: "center", fontSize: 20, fontWeight: 800, color: "#1c6b46", marginTop: 12 }} />
+                <header style={{ border: "1px solid #202020", color: "#111", padding: "10px 14px 12px" }}>
+                  <EditableField value={draft.details.institutionName} onChange={(value) => updateDetails("institutionName", value)} ariaLabel="اسم المؤسسة" style={{ textAlign: "center", fontSize: 22, fontWeight: 800 }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1fr 1.25fr", alignItems: "center", gap: 14, marginTop: 8, paddingTop: 8, borderTop: "1px solid #777" }}>
+                    <EditableField value={draft.details.title} onChange={(value) => updateDetails("title", value)} ariaLabel="عنوان الاستيراد والتصدير" style={{ textAlign: "right", fontSize: 14, fontWeight: 700 }} />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <EditableField value={draft.details.facilityNumberLabel} onChange={(value) => updateDetails("facilityNumberLabel", value)} ariaLabel="تسمية رقم المنشأة" style={{ width: 78, textAlign: "right", fontSize: 12, fontWeight: 700 }} />
+                      <EditableField value={draft.details.facilityNumber} onChange={(value) => updateDetails("facilityNumber", value)} ariaLabel="رقم المنشأة" style={{ width: 95, textAlign: "center", fontSize: 13 }} />
+                    </div>
+                    <EditableField value={draft.details.address} onChange={(value) => updateDetails("address", value)} ariaLabel="عنوان المؤسسة والهاتف" style={{ textAlign: "left", fontSize: 13, fontWeight: 600 }} />
+                  </div>
                 </header>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", border: "1px solid #27382e", marginTop: 18 }}>
-                  {[
-                    ["dateLabel", "date", "تاريخ الفاتورة", "date"],
-                    ["invoiceNumberLabel", "invoiceNumber", "رقم الفاتورة", "text"],
-                    ["sourceLabel", "sourceName", "المصدر", "text"],
-                    ["facilityNumberLabel", "facilityNumber", "رقم المنشأة", "text"],
-                  ].map(([labelKey, valueKey, aria, type], index) => (
-                    <div key={labelKey} style={{ padding: "8px 10px", borderLeft: index === 0 ? "none" : "1px solid #27382e", minWidth: 0 }}>
-                      <EditableField value={draft.details[labelKey as keyof ExportDetails] as string} onChange={(value) => updateDetails(labelKey as keyof ExportDetails, value as never)} ariaLabel={`${aria} - العنوان`} style={{ fontSize: 11, fontWeight: 700, color: "#52675a", textAlign: "center" }} />
-                      <div style={{ height: 1, background: "#aab7ae", margin: "4px 0" }} />
-                      <EditableField value={draft.details[valueKey as keyof ExportDetails] as string} onChange={(value) => updateDetails(valueKey as keyof ExportDetails, value as never)} ariaLabel={`${aria} - القيمة`} type={type} style={{ fontSize: 13, fontWeight: 700, textAlign: "center" }} />
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #9aa89e", padding: "12px 4px 10px", marginBottom: 16 }}>
-                  <EditableField value={draft.details.destinationLabel} onChange={(value) => updateDetails("destinationLabel", value)} ariaLabel="عنوان المصدر إليه" style={{ width: 130, fontWeight: 700, fontSize: 13, color: "#203b2e" }} />
-                  <EditableField value={draft.details.destination} onChange={(value) => updateDetails("destination", value)} ariaLabel="جهة المصدر إليها" placeholder="اكتب الجهة أو العميل" style={{ flex: 1, fontSize: 14 }} />
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginTop: 18, padding: "0 8px 14px", borderBottom: "1px solid #9aa89e", direction: "ltr" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, direction: "rtl" }}>
+                    <EditableField value={draft.details.sourceLabel} onChange={(value) => updateDetails("sourceLabel", value)} ariaLabel="عنوان المصدر" style={{ fontSize: 13, fontWeight: 700 }} />
+                    <EditableField value={draft.details.sourceName} onChange={(value) => updateDetails("sourceName", value)} ariaLabel="المصدر" style={{ fontSize: 13 }} />
+                    <EditableField value={draft.details.sourceAddressLabel} onChange={(value) => updateDetails("sourceAddressLabel", value)} ariaLabel="عنوان مصدر الشحنة" style={{ fontSize: 13, fontWeight: 700, marginTop: 5 }} />
+                    <EditableField value={draft.details.sourceAddress} onChange={(value) => updateDetails("sourceAddress", value)} ariaLabel="عنوان مصدر الشحنة - القيمة" style={{ fontSize: 13 }} />
+                    <EditableField value={draft.details.importerLabel} onChange={(value) => updateDetails("importerLabel", value)} ariaLabel="عنوان المستورد" style={{ fontSize: 13, fontWeight: 700, marginTop: 5 }} />
+                    <EditableField value={draft.details.importerName} onChange={(value) => updateDetails("importerName", value)} ariaLabel="المستورد" style={{ fontSize: 13 }} />
+                    <EditableField value={draft.details.importerAddressLabel} onChange={(value) => updateDetails("importerAddressLabel", value)} ariaLabel="عنوان المستورد" style={{ fontSize: 13, fontWeight: 700, marginTop: 5 }} />
+                    <EditableField value={draft.details.importerAddress} onChange={(value) => updateDetails("importerAddress", value)} ariaLabel="عنوان المستورد - القيمة" style={{ fontSize: 13 }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, textAlign: "right", direction: "rtl" }}>
+                    <EditableField value={draft.details.dateLabel} onChange={(value) => updateDetails("dateLabel", value)} ariaLabel="عنوان التاريخ" style={{ fontSize: 13, fontWeight: 700 }} />
+                    <EditableField value={draft.details.date} onChange={(value) => updateDetails("date", value)} ariaLabel="التاريخ" type="date" style={{ fontSize: 13 }} />
+                    <EditableField value={draft.details.invoiceNumberLabel} onChange={(value) => updateDetails("invoiceNumberLabel", value)} ariaLabel="عنوان رقم الفاتورة" style={{ fontSize: 13, fontWeight: 700, marginTop: 5 }} />
+                    <EditableField value={draft.details.invoiceNumber} onChange={(value) => updateDetails("invoiceNumber", value)} ariaLabel="رقم الفاتورة" style={{ fontSize: 13 }} />
+                    <EditableField value={draft.details.destinationLabel} onChange={(value) => updateDetails("destinationLabel", value)} ariaLabel="عنوان المرسل إليه" style={{ fontSize: 13, fontWeight: 700, marginTop: 5 }} />
+                    <EditableField value={draft.details.destination} onChange={(value) => updateDetails("destination", value)} ariaLabel="المرسل إليه" placeholder="اكتب الجهة أو العميل" style={{ fontSize: 13 }} />
+                  </div>
                 </div>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", fontSize: 11 }}>
